@@ -9,17 +9,5 @@ dist-electron
 .env
 .env.local
 
-# Claude Code (hide all Claude usage)
-.claude
-.clauderc
-.claude/
-claude-*.json
-claude-debug.log
-
-# Development notes (internal only)
-CLAUDE.md
-REBOOT.md
-SCANNER_OPTIMIZATION.md
-SETTINGS_ROADMAP.md
-SKILLS.md
-*.claude.md
+# Claude Code (keep personal/local files out)
+.claude/settings.local.json

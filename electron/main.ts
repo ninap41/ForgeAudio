@@ -1,6 +1,6 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, shell, protocol, net } from "electron"
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell, protocol } from "electron"
 import { join, extname, dirname } from "path"
-import { unlink, rename, readFile as fsReadFile, writeFile, mkdir, readdir, stat } from "fs/promises"
+import { open as fsOpen, unlink, rename, readFile as fsReadFile, writeFile, mkdir, readdir, stat } from "fs/promises"
 
 const AUDIO_MIME: Record<string, string> = {
 	".wav": "audio/wav",
@@ -55,17 +55,59 @@ function createWindow() {
 app.whenReady().then(() => {
 	protocol.handle("atom", async (request) => {
 		const filePath = decodeURIComponent(request.url.replace("atom://localfile", ""))
-		// Forward Range headers so Chromium can seek into large audio files
-		const fetchHeaders = new Headers()
-		const rangeHeader = request.headers.get("range")
-		if (rangeHeader) fetchHeaders.set("range", rangeHeader)
+		const ext = extname(filePath).toLowerCase()
+		const mime = AUDIO_MIME[ext] || "application/octet-stream"
 
-		const res = await net.fetch("file://" + filePath, { headers: fetchHeaders })
-		const mime = AUDIO_MIME[extname(filePath).toLowerCase()]
-		if (!mime) return res
-		const headers = new Headers(res.headers)
-		headers.set("content-type", mime)
-		return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
+		let fileSize: number
+		try {
+			fileSize = (await stat(filePath)).size
+		} catch {
+			return new Response("Not Found", { status: 404 })
+		}
+
+		const rangeHeader = request.headers.get("range")
+
+		if (rangeHeader) {
+			const match = rangeHeader.match(/bytes=(\d+)-(\d*)/)
+			if (match) {
+				const start = parseInt(match[1], 10)
+				if (start >= fileSize) {
+					return new Response("Range Not Satisfiable", {
+						status: 416,
+						headers: { "Content-Range": `bytes */${fileSize}` },
+					})
+				}
+				const end = match[2] ? Math.min(parseInt(match[2], 10), fileSize - 1) : fileSize - 1
+				const chunkSize = end - start + 1
+
+				const fh = await fsOpen(filePath, "r")
+				const buffer = Buffer.alloc(chunkSize)
+				await fh.read(buffer, 0, chunkSize, start)
+				await fh.close()
+
+				return new Response(buffer, {
+					status: 206,
+					statusText: "Partial Content",
+					headers: {
+						"Content-Type": mime,
+						"Content-Range": `bytes ${start}-${end}/${fileSize}`,
+						"Content-Length": String(chunkSize),
+						"Accept-Ranges": "bytes",
+					},
+				})
+			}
+		}
+
+		// No Range — serve full file, advertise Range support
+		const data = await fsReadFile(filePath)
+		return new Response(data, {
+			status: 200,
+			headers: {
+				"Content-Type": mime,
+				"Content-Length": String(fileSize),
+				"Accept-Ranges": "bytes",
+			},
+		})
 	})
 
 	createWindow()

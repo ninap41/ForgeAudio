@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Electron-Desktop-blue" />
   <img src="https://img.shields.io/badge/Vue-3-brightgreen" />
   <img src="https://img.shields.io/badge/TypeScript-Strict-blue" />
-  <img src="https://img.shields.io/badge/Tests-179-success" />
+  <img src="https://img.shields.io/badge/Tests-361-success" />
   <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
 </p>
 
@@ -74,11 +74,21 @@ to be added (gifs)
 - Click any row to instantly load and play
 - Per-row play/pause buttons
 - Global **spacebar toggle**
-- Precise drag-to-seek scrubber
+- Precise drag-to-seek scrubber with buffered progress indicator
 - Loop toggle
 - Current time / total duration display
 
 Single active audio element. No redundant reloads.
+
+### How the Player works
+
+Audio files are served through a **custom `atom://` protocol** registered in the Electron main process. The protocol handler implements full **HTTP Range request support**, reading only the requested byte range from disk via `fs/promises` and returning `206 Partial Content` responses. This is critical for M4A/MP4 files, whose seek index (moov atom) lives at the end of the file — without Range support, Chromium can't parse the index and seeking breaks.
+
+The player component (`src/components/Player.vue`) uses the `useMediaControls` composable from `@vueuse/core`, which wraps the `<audio>` element with reactive refs for `playing`, `currentTime`, `duration`, `buffered`, and `ended`. Track switching uses a two-phase approach: `watch(audioSrc)` pauses and sets an `awaitingPlayback` flag, then `watch(duration)` resumes playback once the new source has loaded (duration > 0). Bidirectional sync between the Pinia store and the composable is guarded by this flag to prevent feedback loops.
+
+The scrubber uses **display isolation** — a `displayCurrentTime` computed ref returns the drag position during scrubbing and the live playback position otherwise, preventing `timeupdate` events from snapping the thumb back mid-drag. The visual track uses a CSS `linear-gradient` with custom properties to show played, buffered, and unloaded segments.
+
+> For the full technical deep-dive, see [`ELECTRON_AUDIO_PLAYBACK.md`](ELECTRON_AUDIO_PLAYBACK.md).
 
 ---
 
@@ -172,7 +182,7 @@ Renderer (Vue 3)
 | **music-metadata** | Audio duration extraction              |
 | **chroma-js**      | Color math for theme generation        |
 | **TypeScript**     | Strict typing throughout               |
-| **Vitest**         | 179 unit tests across 12 files         |
+| **Vitest**         | 361 unit tests across 18 files         |
 
 ---
 
@@ -180,7 +190,7 @@ Renderer (Vue 3)
 
 ForgeAudio includes:
 
-- 179 unit tests
+- 361 unit tests across 18 files
 - Store-level logic testing
 - Filtering edge-case validation
 - Metadata persistence coverage
