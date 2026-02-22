@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
-import { useLibraryStore, type AudioFile } from '../src/stores/libraryStore'
-import { useTagStore } from '../src/stores/tagStore'
+import { useLibraryStore, _resetLibraryStore, type AudioFile } from '../src/stores/libraryStore'
+import { useTagStore, _resetTagStore } from '../src/stores/tagStore'
+import { _resetThemeStore } from '../src/stores/themeStore'
+import { _resetSettingsStore } from '../src/stores/settingsStore'
 import SettingsView from '../src/views/SettingsView.vue'
 
 // Mock components
@@ -46,7 +47,10 @@ function makeFile(overrides: Partial<AudioFile> = {}): AudioFile {
 }
 
 beforeEach(() => {
-  setActivePinia(createPinia())
+  _resetLibraryStore()
+  _resetTagStore()
+  _resetThemeStore()
+  _resetSettingsStore()
   vi.resetAllMocks()
   mockElectronAPI.writeMetadata.mockResolvedValue(undefined)
   mockElectronAPI.backupCreate.mockResolvedValue({})

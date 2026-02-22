@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useLibraryStore } from '../src/stores/libraryStore'
+import { useLibraryStore, _resetLibraryStore } from '../src/stores/libraryStore'
+import { _resetTagStore } from '../src/stores/tagStore'
+import { _resetThemeStore } from '../src/stores/themeStore'
 
 const mockElectronAPI = {
   selectDirectory: vi.fn(),
@@ -32,7 +33,9 @@ const mockElectronAPI = {
 vi.stubGlobal('window', { electronAPI: mockElectronAPI })
 
 beforeEach(() => {
-  setActivePinia(createPinia())
+  _resetLibraryStore()
+  _resetTagStore()
+  _resetThemeStore()
   vi.resetAllMocks()
   mockElectronAPI.writeMetadata.mockResolvedValue(undefined)
   mockElectronAPI.setRootDirectory.mockResolvedValue(undefined)

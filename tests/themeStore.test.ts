@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useThemeStore, DEFAULT_THEME } from '../src/stores/themeStore'
+import { useThemeStore, DEFAULT_THEME, _resetThemeStore } from '../src/stores/themeStore'
 
 // Minimal document.documentElement mock
 const setCSSProp = vi.fn()
@@ -23,7 +22,7 @@ vi.mock('../src/stores/libraryStore', () => ({
 }))
 
 beforeEach(() => {
-  setActivePinia(createPinia())
+  _resetThemeStore()
   vi.clearAllMocks()
   // clear backing store between tests
   for (const k of Object.keys(localStorageStore)) delete localStorageStore[k]

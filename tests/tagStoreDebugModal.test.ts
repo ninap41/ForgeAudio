@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { setActivePinia, createPinia } from 'pinia'
 import TagStoreDebugModal from '../src/components/TagStoreDebugModal.vue'
-import { useLibraryStore } from '../src/stores/libraryStore'
+import { _resetLibraryStore } from '../src/stores/libraryStore'
+import { _resetTagStore } from '../src/stores/tagStore'
+import { _resetThemeStore } from '../src/stores/themeStore'
 
 const mockAPI = {
   writeMetadata: vi.fn().mockResolvedValue(undefined),
@@ -37,7 +38,9 @@ const mockAPI = {
 ;(window as any).electronAPI = mockAPI
 
 beforeEach(() => {
-  setActivePinia(createPinia())
+  _resetLibraryStore()
+  _resetTagStore()
+  _resetThemeStore()
   vi.resetAllMocks()
   mockAPI.writeMetadata.mockResolvedValue(undefined)
   mockAPI.getStorePath.mockResolvedValue('/Users/test/Library/Application Support/ForgeAudio/library.json')

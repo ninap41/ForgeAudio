@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useLibraryStore, type AudioFile, type SortColumn } from '../src/stores/libraryStore'
-import { useTagStore } from '../src/stores/tagStore'
+import { useLibraryStore, _resetLibraryStore, type AudioFile, type SortColumn } from '../src/stores/libraryStore'
+import { useTagStore, _resetTagStore } from '../src/stores/tagStore'
+import { _resetThemeStore } from '../src/stores/themeStore'
 
 // Mock window.electronAPI
 const mockElectronAPI = {
@@ -58,7 +58,9 @@ function makeFile(overrides: Partial<AudioFile> = {}): AudioFile {
 }
 
 beforeEach(() => {
-  setActivePinia(createPinia())
+  _resetLibraryStore()
+  _resetTagStore()
+  _resetThemeStore()
   vi.resetAllMocks()
   mockElectronAPI.writeMetadata.mockResolvedValue(undefined)
   mockElectronAPI.deleteFile.mockResolvedValue({ success: true })

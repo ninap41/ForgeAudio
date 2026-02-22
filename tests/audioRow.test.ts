@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { setActivePinia, createPinia } from 'pinia'
 import AudioRow from '../src/components/AudioRow.vue'
-import { useLibraryStore, type AudioFile } from '../src/stores/libraryStore'
+import { useLibraryStore, _resetLibraryStore, type AudioFile } from '../src/stores/libraryStore'
+import { _resetTagStore } from '../src/stores/tagStore'
+import { _resetThemeStore } from '../src/stores/themeStore'
 
 // Mock electronAPI without replacing window (preserves DOM constructors)
 ;(window as any).electronAPI = {
@@ -48,7 +49,9 @@ function makeFile(overrides: Partial<AudioFile> = {}): AudioFile {
 }
 
 beforeEach(() => {
-  setActivePinia(createPinia())
+  _resetLibraryStore()
+  _resetTagStore()
+  _resetThemeStore()
 })
 
 describe('AudioRow', () => {

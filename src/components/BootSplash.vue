@@ -1,9 +1,5 @@
 <template>
-	<div
-		v-if="!dismissed"
-		class="boot-splash"
-		@animationend="onAnimationEnd"
-	>
+	<div v-if="!dismissed" class="boot-splash" @animationend="onAnimationEnd">
 		<div class="mountains-container">
 			<div class="mountain-layer --back"></div>
 			<div class="mountain-layer --mid"></div>
@@ -53,12 +49,13 @@ function onAnimationEnd(e: AnimationEvent) {
 }
 
 onMounted(() => {
+	// Extended total runtime by ~3s (was 6500ms)
 	setTimeout(() => {
 		if (!dismissed.value) {
 			dismissed.value = true
 			emit("done")
 		}
-	}, 6500)
+	}, 9500)
 })
 </script>
 
@@ -69,7 +66,9 @@ onMounted(() => {
 	z-index: 10000;
 	background: var(--bg-primary);
 	pointer-events: none;
-	animation: fadeOut 0.4s ease-out 5.4s forwards;
+
+	/* Extend overall animation timing by ~3s */
+	animation: fadeOut 0.5s ease-out 8.4s forwards;
 
 	--mtn-back: color-mix(in srgb, var(--accent) 30%, black);
 	--mtn-mid: color-mix(in srgb, var(--accent) 50%, black);
@@ -98,6 +97,7 @@ onMounted(() => {
 	transform: translateY(20px);
 }
 
+/* Mountains slide off screen near the end */
 .mountain-layer.--back {
 	background: linear-gradient(to bottom, var(--mtn-back), var(--mtn-back-light));
 	clip-path: polygon(
@@ -115,7 +115,9 @@ onMounted(() => {
 		100% 55%,
 		100% 100%
 	);
-	animation: mountainsIn 0.4s ease-out 0s forwards;
+	animation:
+		mountainsIn 0.4s ease-out 0s forwards,
+		mountainsOff 1.6s ease-in 6.9s forwards;
 }
 
 .mountain-layer.--mid {
@@ -135,7 +137,9 @@ onMounted(() => {
 		100% 68%,
 		100% 100%
 	);
-	animation: mountainsIn 0.4s ease-out 0.1s forwards;
+	animation:
+		mountainsIn 0.4s ease-out 0.1s forwards,
+		mountainsOff 1.6s ease-in 7s forwards;
 }
 
 .mountain-layer.--front {
@@ -156,7 +160,9 @@ onMounted(() => {
 		100% 65%,
 		100% 100%
 	);
-	animation: mountainsIn 0.4s ease-out 0.2s forwards;
+	animation:
+		mountainsIn 0.4s ease-out 0.2s forwards,
+		mountainsOff 1.6s ease-in 7.1s forwards;
 }
 
 @keyframes mountainsIn {
@@ -170,6 +176,23 @@ onMounted(() => {
 	}
 }
 
+/* Slide mountains down and off screen at end */
+@keyframes mountainsOff {
+	0% {
+		transform: translateY(0);
+		opacity: 1;
+		filter: blur(0px);
+	}
+	70% {
+		opacity: 0.9;
+	}
+	100% {
+		transform: translateY(120vh);
+		opacity: 0;
+		filter: blur(2px);
+	}
+}
+
 /* ── Logo Flash ── */
 
 .logo-flash {
@@ -178,7 +201,9 @@ onMounted(() => {
 	left: 50%;
 	transform: translate(-50%, -50%);
 	opacity: 0;
-	animation: logoFlash 0.5s ease-in-out 3s forwards;
+	z-index: 200;
+	/* keep flash timing as-is */
+	animation: logoFlash 6s ease-in-out 3s forwards;
 	filter: drop-shadow(0 0 0px transparent);
 }
 
@@ -191,29 +216,29 @@ onMounted(() => {
 @keyframes logoFlash {
 	0% {
 		opacity: 0;
-		transform: translate(-50%, -50%) scale(0.95);
+		transform: translate(-50%, -50%) scale(1.95); /* original value */
 		filter: drop-shadow(0 0 0px transparent);
 	}
 	30% {
 		opacity: 1;
-		transform: translate(-50%, -50%) scale(1.05);
+		transform: translate(-50%, -50%) scale(2.05); /* original value */
 		filter: drop-shadow(0 0 20px var(--accent));
 	}
 	70% {
 		opacity: 1;
-		transform: translate(-50%, -50%) scale(1.0);
+		transform: translate(-50%, -50%) scale(2.5); /* original value */
 		filter: drop-shadow(0 0 12px var(--accent));
 	}
 	100% {
 		opacity: 0;
-		transform: translate(-50%, -50%) scale(1.0);
+		transform: translate(-50%, -50%) scale(2); /* original value */
 		filter: drop-shadow(0 0 0px transparent);
 	}
 }
 
 /* ── Flame Sweep ── */
 
-.flame-sweep {
+/* .flame-sweep {
 	position: absolute;
 	inset: 0;
 	opacity: 0;
@@ -224,20 +249,14 @@ onMounted(() => {
 	content: "";
 	position: absolute;
 	inset: 0;
-	background: linear-gradient(
-		90deg,
-		var(--flame-hot),
-		transparent 40%,
-		var(--flame-warm) 70%,
-		transparent
-	);
+	background: linear-gradient(90deg, var(--flame-hot), transparent 40%, var(--flame-warm) 70%, transparent);
 	background-size: 300% 100%;
 	background-position: -100% 0;
 	mix-blend-mode: screen;
 	animation: flameSweep 0.8s ease-in-out 3.2s forwards;
-}
+} */
 
-@keyframes flameSweepFade {
+/* @keyframes flameSweepFade {
 	0% {
 		opacity: 0;
 	}
@@ -259,7 +278,7 @@ onMounted(() => {
 	to {
 		background-position: 200% 0;
 	}
-}
+} */
 
 /* ── Dissolve Columns ── */
 
@@ -267,7 +286,8 @@ onMounted(() => {
 	position: absolute;
 	inset: 0;
 	opacity: 0;
-	animation: dissolveIn 0.1s ease-out 3.8s forwards;
+	/* Keep dissolve timing, but allow the scene to linger longer overall */
+	animation: dissolveIn 6s ease-out 3.8s forwards;
 }
 
 @keyframes dissolveIn {
@@ -285,14 +305,9 @@ onMounted(() => {
 	height: 100%;
 	top: 0;
 	left: calc(var(--i) * (100% / 24));
-	background: linear-gradient(
-		to bottom,
-		var(--mtn-back),
-		var(--mtn-mid) 40%,
-		var(--mtn-front) 70%,
-		var(--bg-primary)
-	);
-	animation: columnDrop var(--drop-dur) ease-in calc(4.2s + var(--i) * 30ms + var(--jitter)) forwards;
+	background: linear-gradient(to bottom, var(--mtn-back), var(--mtn-mid) 40%, var(--mtn-front) 70%, var(--bg-primary));
+	/* Shift column drop later to elongate overall sequence */
+	animation: columnDrop var(--drop-dur) ease-in calc(7.2s + var(--i) * 30ms + var(--jitter)) forwards;
 }
 
 @keyframes columnDrop {

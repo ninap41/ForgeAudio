@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { setActivePinia, createPinia } from 'pinia'
 import AddTagModal from '../src/components/AddTagModal.vue'
 import EditDescriptionModal from '../src/components/EditDescriptionModal.vue'
 import DeleteConfirmModal from '../src/components/DeleteConfirmModal.vue'
@@ -8,8 +7,10 @@ import RenameModal from '../src/components/RenameModal.vue'
 import EditTagModal from '../src/components/EditTagModal.vue'
 import ClearTagModal from '../src/components/ClearTagModal.vue'
 import SettingsView from '../src/views/SettingsView.vue'
-import { useLibraryStore } from '../src/stores/libraryStore'
-import { useTagStore } from '../src/stores/tagStore'
+import { useLibraryStore, _resetLibraryStore } from '../src/stores/libraryStore'
+import { useTagStore, _resetTagStore } from '../src/stores/tagStore'
+import { _resetThemeStore } from '../src/stores/themeStore'
+import { _resetSettingsStore } from '../src/stores/settingsStore'
 
 // Mock electronAPI without replacing window (which would strip DOM event constructors)
 const mockAPI = {
@@ -46,7 +47,10 @@ const mockAPI = {
 ;(window as any).electronAPI = mockAPI
 
 beforeEach(() => {
-  setActivePinia(createPinia())
+  _resetLibraryStore()
+  _resetTagStore()
+  _resetThemeStore()
+  _resetSettingsStore()
   vi.resetAllMocks()
   mockAPI.writeMetadata.mockResolvedValue(undefined)
   mockAPI.deleteFile.mockResolvedValue({ success: true })

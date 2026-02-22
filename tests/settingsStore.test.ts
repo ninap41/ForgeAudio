@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useSettingsStore } from '../src/stores/settingsStore'
+import { useSettingsStore, _resetSettingsStore } from '../src/stores/settingsStore'
 
 const mockElectronAPI = {
   backupCreate: vi.fn(),
@@ -12,7 +11,7 @@ const mockElectronAPI = {
 vi.stubGlobal('window', { electronAPI: mockElectronAPI })
 
 beforeEach(() => {
-  setActivePinia(createPinia())
+  _resetSettingsStore()
   vi.resetAllMocks()
 })
 

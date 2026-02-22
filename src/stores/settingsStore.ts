@@ -1,12 +1,11 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 
-export const useSettingsStore = defineStore('settings', () => {
-  const backups = ref<BackupEntry[]>([])
-  const backupsLoading = ref(false)
-  const backupsError = ref<string | null>(null)
-  const maxBackups = ref(10)
+const backups = ref<BackupEntry[]>([])
+const backupsLoading = ref(false)
+const backupsError = ref<string | null>(null)
+const maxBackups = ref(10)
 
+export function useSettingsStore() {
   async function loadBackups() {
     try {
       backupsLoading.value = true
@@ -55,7 +54,7 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
-  return {
+  return reactive({
     backups,
     backupsLoading,
     backupsError,
@@ -64,5 +63,12 @@ export const useSettingsStore = defineStore('settings', () => {
     createBackup,
     deleteBackup,
     purgeOldBackups,
-  }
-})
+  })
+}
+
+export function _resetSettingsStore() {
+  backups.value = []
+  backupsLoading.value = false
+  backupsError.value = null
+  maxBackups.value = 10
+}

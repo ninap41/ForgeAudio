@@ -4,7 +4,7 @@
       <h3>Clear Tag from All Sounds</h3>
       <p class="modal-subtitle">
         Remove <strong>{{ tagName }}</strong> from
-        {{ count === 1 ? '1 sound' : `${count} sounds` }}?
+        {{ count === 1 ? '1 sound' : `${count} sounds ` }}?
       </p>
       <p class="modal-body">This will remove the tag from every file in your library. The tag itself will not be deleted.</p>
 

@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { setActivePinia, createPinia } from 'pinia'
 import { ref, type Ref } from 'vue'
 import Player from '../src/components/Player.vue'
-import { useLibraryStore, type AudioFile } from '../src/stores/libraryStore'
+import { useLibraryStore, _resetLibraryStore, type AudioFile } from '../src/stores/libraryStore'
+import { _resetTagStore } from '../src/stores/tagStore'
+import { _resetThemeStore } from '../src/stores/themeStore'
 
 // ─── Mock @vueuse/core ──────────────────────────────────────────────────────
 
@@ -142,7 +143,9 @@ function mountPlayer(file?: AudioFile) {
   mockSeeking = ref(false)
   mockOnPlaybackError = vi.fn()
 
-  setActivePinia(createPinia())
+  _resetLibraryStore()
+  _resetTagStore()
+  _resetThemeStore()
   const library = useLibraryStore()
   library.currentFile = file ?? makeFile()
   library.isPlaying = false

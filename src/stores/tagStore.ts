@@ -1,15 +1,14 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 
 export interface TagDefinition {
   color: string
 }
 
-export const useTagStore = defineStore('tags', () => {
-  const tagDefinitions = ref<Record<string, TagDefinition>>({
-    uncategorized: { color: '#888888' },
-  })
+const tagDefinitions = ref<Record<string, TagDefinition>>({
+  uncategorized: { color: '#888888' },
+})
 
+export function useTagStore() {
   function loadTags(tags: Record<string, { color: string; category?: string }>) {
     for (const [name, def] of Object.entries(tags)) {
       tagDefinitions.value[name] = { color: def.color }
@@ -43,7 +42,7 @@ export const useTagStore = defineStore('tags', () => {
     return tagDefinitions.value[tagName]?.color ?? '#888888'
   }
 
-  return {
+  return reactive({
     tagDefinitions,
     loadTags,
     createTag,
@@ -51,5 +50,9 @@ export const useTagStore = defineStore('tags', () => {
     deleteTag,
     renameTag,
     getColor,
-  }
-})
+  })
+}
+
+export function _resetTagStore() {
+  tagDefinitions.value = { uncategorized: { color: '#888888' } }
+}

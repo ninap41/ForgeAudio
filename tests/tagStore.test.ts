@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
-import { useTagStore } from '../src/stores/tagStore'
+import { useTagStore, _resetTagStore } from '../src/stores/tagStore'
 
 beforeEach(() => {
-  setActivePinia(createPinia())
+  _resetTagStore()
 })
 
 describe('tagStore', () => {

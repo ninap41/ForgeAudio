@@ -23,8 +23,9 @@ describe('formatBytes', () => {
 
 import { describe as describeComputed, it as itComputed } from 'vitest'
 import { ref } from 'vue'
-import { setActivePinia, createPinia } from 'pinia'
-import { useLibraryStore, type AudioFile } from '../src/stores/libraryStore'
+import { useLibraryStore, _resetLibraryStore, type AudioFile } from '../src/stores/libraryStore'
+import { _resetTagStore } from '../src/stores/tagStore'
+import { _resetThemeStore } from '../src/stores/themeStore'
 
 describeComputed('StatisticsPanel', () => {
   function makeFile(overrides: Partial<AudioFile> = {}): AudioFile {
@@ -44,7 +45,9 @@ describeComputed('StatisticsPanel', () => {
   }
 
   itComputed('computes total size correctly', () => {
-    setActivePinia(createPinia())
+    _resetLibraryStore()
+    _resetTagStore()
+    _resetThemeStore()
     const store = useLibraryStore()
     store.files = [
       makeFile({ size: 1024 }),
@@ -56,7 +59,9 @@ describeComputed('StatisticsPanel', () => {
   })
 
   itComputed('counts tagged files correctly', () => {
-    setActivePinia(createPinia())
+    _resetLibraryStore()
+    _resetTagStore()
+    _resetThemeStore()
     const store = useLibraryStore()
     store.files = [
       makeFile({ tags: ['percussion'] }),
@@ -69,7 +74,9 @@ describeComputed('StatisticsPanel', () => {
   })
 
   itComputed('calculates average tags per file', () => {
-    setActivePinia(createPinia())
+    _resetLibraryStore()
+    _resetTagStore()
+    _resetThemeStore()
     const store = useLibraryStore()
     store.files = [
       makeFile({ tags: ['a'] }),
@@ -83,7 +90,9 @@ describeComputed('StatisticsPanel', () => {
   })
 
   itComputed('breaks down formats by count', () => {
-    setActivePinia(createPinia())
+    _resetLibraryStore()
+    _resetTagStore()
+    _resetThemeStore()
     const store = useLibraryStore()
     store.files = [
       makeFile({ extension: '.wav' }),

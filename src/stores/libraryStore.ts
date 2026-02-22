@@ -1,5 +1,4 @@
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { useTagStore } from './tagStore'
 import { useThemeStore } from './themeStore'
 
@@ -29,96 +28,97 @@ export interface LibraryMetadata {
   theme?: Record<string, string>
 }
 
-export const useLibraryStore = defineStore('library', () => {
+// Module-scope state (singleton)
+const files = ref<AudioFile[]>([])
+const rootDirectory = ref<string | null>(null)
+const searchQuery = ref('')
+const filterExtension = ref<string[]>([])
+const filterTagged = ref<'all' | 'tagged' | 'untagged'>('all')
+const isScanning = ref(false)
+const sortColumn = ref<SortColumn>('name')
+const sortDirection = ref<'asc' | 'desc'>('asc')
+
+// Chip-based active filters
+const selectedTags = ref<string[]>([])
+const descriptionFilters = ref<string[]>([])
+
+// Last metadata read from disk — used as a base when saving to avoid erasing
+// tags for files that haven't arrived in the scan yet (partial-scan data loss).
+let lastReadMeta: LibraryMetadata | null = null
+
+// Current playback
+const currentFile = ref<AudioFile | null>(null)
+const isPlaying = ref(false)
+
+const filteredFiles = computed(() => {
+  let result = files.value
+
+  // Extension filter
+  if (filterExtension.value.length > 0) {
+    result = result.filter(f => filterExtension.value.includes(f.extension))
+  }
+
+  // Tagged filter
+  if (filterTagged.value === 'tagged') {
+    result = result.filter(f => f.tags.length > 0)
+  } else if (filterTagged.value === 'untagged') {
+    result = result.filter(f => f.tags.length === 0)
+  }
+
+  // Tag chip filters — file must have ALL selected tags
+  if (selectedTags.value.length > 0) {
+    result = result.filter(f =>
+      selectedTags.value.every(tag => f.tags.includes(tag))
+    )
+  }
+
+  // Description chip filters — each chip must match name or description (AND across chips)
+  if (descriptionFilters.value.length > 0) {
+    result = result.filter(f =>
+      descriptionFilters.value.every(q => {
+        const lq = q.toLowerCase()
+        return f.name.toLowerCase().includes(lq) || f.description.toLowerCase().includes(lq)
+      })
+    )
+  }
+
+  // Sort — nulls always land at the end regardless of direction
+  const dir = sortDirection.value === 'asc' ? 1 : -1
+  return [...result].sort((a, b) => {
+    switch (sortColumn.value) {
+      case 'name':
+        return dir * a.name.localeCompare(b.name)
+      case 'tags':
+        return dir * (a.tags.length - b.tags.length)
+      case 'duration': {
+        if (a.duration === null && b.duration === null) return 0
+        if (a.duration === null) return 1
+        if (b.duration === null) return -1
+        return dir * (a.duration - b.duration)
+      }
+      case 'type':
+        return dir * a.extension.localeCompare(b.extension)
+      case 'createdAt': {
+        if (!a.createdAt && !b.createdAt) return 0
+        if (!a.createdAt) return 1
+        if (!b.createdAt) return -1
+        return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      }
+      case 'modifiedAt': {
+        if (!a.modifiedAt && !b.modifiedAt) return 0
+        if (!a.modifiedAt) return 1
+        if (!b.modifiedAt) return -1
+        return dir * (new Date(a.modifiedAt).getTime() - new Date(b.modifiedAt).getTime())
+      }
+      default:
+        return 0
+    }
+  })
+})
+
+export function useLibraryStore() {
   const tagStore = useTagStore()
   const themeStore = useThemeStore()
-
-  const files = ref<AudioFile[]>([])
-  const rootDirectory = ref<string | null>(null)
-  const searchQuery = ref('')
-  const filterExtension = ref<string[]>([])
-  const filterTagged = ref<'all' | 'tagged' | 'untagged'>('all')
-  const isScanning = ref(false)
-  const sortColumn = ref<SortColumn>('name')
-  const sortDirection = ref<'asc' | 'desc'>('asc')
-
-  // Chip-based active filters
-  const selectedTags = ref<string[]>([])
-  const descriptionFilters = ref<string[]>([])
-
-  // Last metadata read from disk — used as a base when saving to avoid erasing
-  // tags for files that haven't arrived in the scan yet (partial-scan data loss).
-  let lastReadMeta: LibraryMetadata | null = null
-
-  // Current playback
-  const currentFile = ref<AudioFile | null>(null)
-  const isPlaying = ref(false)
-
-  const filteredFiles = computed(() => {
-    let result = files.value
-
-    // Extension filter
-    if (filterExtension.value.length > 0) {
-      result = result.filter(f => filterExtension.value.includes(f.extension))
-    }
-
-    // Tagged filter
-    if (filterTagged.value === 'tagged') {
-      result = result.filter(f => f.tags.length > 0)
-    } else if (filterTagged.value === 'untagged') {
-      result = result.filter(f => f.tags.length === 0)
-    }
-
-    // Tag chip filters — file must have ALL selected tags
-    if (selectedTags.value.length > 0) {
-      result = result.filter(f =>
-        selectedTags.value.every(tag => f.tags.includes(tag))
-      )
-    }
-
-    // Description chip filters — each chip must match name or description (AND across chips)
-    if (descriptionFilters.value.length > 0) {
-      result = result.filter(f =>
-        descriptionFilters.value.every(q => {
-          const lq = q.toLowerCase()
-          return f.name.toLowerCase().includes(lq) || f.description.toLowerCase().includes(lq)
-        })
-      )
-    }
-
-    // Sort — nulls always land at the end regardless of direction
-    const dir = sortDirection.value === 'asc' ? 1 : -1
-    return [...result].sort((a, b) => {
-      switch (sortColumn.value) {
-        case 'name':
-          return dir * a.name.localeCompare(b.name)
-        case 'tags':
-          return dir * (a.tags.length - b.tags.length)
-        case 'duration': {
-          if (a.duration === null && b.duration === null) return 0
-          if (a.duration === null) return 1
-          if (b.duration === null) return -1
-          return dir * (a.duration - b.duration)
-        }
-        case 'type':
-          return dir * a.extension.localeCompare(b.extension)
-        case 'createdAt': {
-          if (!a.createdAt && !b.createdAt) return 0
-          if (!a.createdAt) return 1
-          if (!b.createdAt) return -1
-          return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-        }
-        case 'modifiedAt': {
-          if (!a.modifiedAt && !b.modifiedAt) return 0
-          if (!a.modifiedAt) return 1
-          if (!b.modifiedAt) return -1
-          return dir * (new Date(a.modifiedAt).getTime() - new Date(b.modifiedAt).getTime())
-        }
-        default:
-          return 0
-      }
-    })
-  })
 
   async function initFromPersistedDirectory() {
     const dir = await window.electronAPI.getRootDirectory()
@@ -407,7 +407,7 @@ export const useLibraryStore = defineStore('library', () => {
     isPlaying.value = false
   }
 
-  return {
+  return reactive({
     files,
     rootDirectory,
     searchQuery,
@@ -441,5 +441,21 @@ export const useLibraryStore = defineStore('library', () => {
     mergeTag,
     clearTagFromAllFiles,
     setSort,
-  }
-})
+  })
+}
+
+export function _resetLibraryStore() {
+  files.value = []
+  rootDirectory.value = null
+  searchQuery.value = ''
+  filterExtension.value = []
+  filterTagged.value = 'all'
+  isScanning.value = false
+  sortColumn.value = 'name'
+  sortDirection.value = 'asc'
+  selectedTags.value = []
+  descriptionFilters.value = []
+  lastReadMeta = null
+  currentFile.value = null
+  isPlaying.value = false
+}

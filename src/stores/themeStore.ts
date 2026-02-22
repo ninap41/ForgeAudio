@@ -1,5 +1,4 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 
 export const DEFAULT_THEME: Record<string, string> = {
   '--bg-primary': '#1e1e1e',
@@ -19,9 +18,9 @@ export const DEFAULT_THEME: Record<string, string> = {
   '--scrollbar-thumb': '#444444',
 }
 
-export const useThemeStore = defineStore('theme', () => {
-  const currentTheme = ref<Record<string, string>>({})
+const currentTheme = ref<Record<string, string>>({})
 
+export function useThemeStore() {
   function applyTheme(vars: Record<string, string>) {
     for (const [key, value] of Object.entries(vars)) {
       document.documentElement.style.setProperty(key, value)
@@ -35,7 +34,6 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function loadTheme(vars?: Record<string, string>) {
-    // localStorage takes precedence on cold start; library.json wins after rescan
     const stored = vars ?? loadFromLocalStorage()
     const merged = { ...DEFAULT_THEME, ...(stored ?? {}) }
     currentTheme.value = stored ?? {}
@@ -59,11 +57,15 @@ export const useThemeStore = defineStore('theme', () => {
     }
   }
 
-  return {
+  return reactive({
     currentTheme,
     applyTheme,
     resetTheme,
     loadTheme,
     saveTheme,
-  }
-})
+  })
+}
+
+export function _resetThemeStore() {
+  currentTheme.value = {}
+}
