@@ -387,6 +387,33 @@ export function useLibraryStore() {
     await saveMetadata()
   }
 
+  function addTagToFiles(filePaths: string[], tag: string) {
+    for (const file of files.value) {
+      if (filePaths.includes(file.path) && !file.tags.includes(tag)) {
+        file.tags.push(tag)
+      }
+    }
+    saveMetadata()
+  }
+
+  function removeTagFromFiles(filePaths: string[], tag: string) {
+    for (const file of files.value) {
+      if (filePaths.includes(file.path)) {
+        file.tags = file.tags.filter(t => t !== tag)
+      }
+    }
+    saveMetadata()
+  }
+
+  function setDescriptionForFiles(filePaths: string[], description: string) {
+    for (const file of files.value) {
+      if (filePaths.includes(file.path)) {
+        file.description = description
+      }
+    }
+    saveMetadata()
+  }
+
   function setSort(col: SortColumn) {
     if (sortColumn.value === col) {
       sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
@@ -440,6 +467,9 @@ export function useLibraryStore() {
     editTag,
     mergeTag,
     clearTagFromAllFiles,
+    addTagToFiles,
+    removeTagFromFiles,
+    setDescriptionForFiles,
     setSort,
   })
 }

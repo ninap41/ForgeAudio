@@ -16,8 +16,15 @@
 		<section class="settings-section">
 			<h3>Tags</h3>
 
-			<div class="tag-list">
-				<div v-for="(def, tagName) in tagStore.tagDefinitions" :key="tagName" class="tag-row">
+			<div class="tag-list" role="list" aria-label="Tag definitions">
+				<div
+					v-for="(def, tagName) in tagStore.tagDefinitions"
+					:key="tagName"
+					class="tag-row"
+					role="listitem"
+					tabindex="0"
+					@keydown.enter="tagName !== 'uncategorized' && (editingTag = tagName as string)"
+				>
 					<input
 						type="color"
 						:value="def.color"
@@ -28,19 +35,20 @@
 							}
 						"
 						class="color-picker"
+						:aria-label="`Color for ${tagName}`"
 					/>
 					<span class="tag-name">{{ tagName }}</span>
 					<span class="tag-count">{{ tagCounts[tagName] ?? 0 }} sound{{ (tagCounts[tagName] ?? 0) !== 1 ? "s" : "" }}</span>
-					<button v-if="tagName !== 'uncategorized'" class="btn btn-subtle btn-sm" @click="editingTag = tagName">
+					<button v-if="tagName !== 'uncategorized'" class="btn btn-subtle btn-sm" @click="editingTag = tagName as string">
 						Edit
 					</button>
-					<button v-if="tagName !== 'uncategorized'" class="btn btn-subtle btn-sm" @click="clearingTag = tagName">
+					<button v-if="tagName !== 'uncategorized'" class="btn btn-subtle btn-sm" @click="clearingTag = tagName as string">
 						Clear
 					</button>
 					<button
 						v-if="tagName !== 'uncategorized'"
 						class="btn btn-subtle btn-sm btn-danger-subtle"
-						@click="() => (tagStore.deleteTag(tagName), library.saveMetadata())"
+						@click="() => (tagStore.deleteTag(tagName as string), library.saveMetadata())"
 					>
 						Delete
 					</button>
@@ -48,16 +56,21 @@
 			</div>
 
 			<div class="new-tag-row">
-				<input v-model="newTagName" placeholder="Tag name" class="text-input" @keydown.enter="addTag" />
-				<input v-model="newTagColor" type="color" class="color-picker" />
+				<input v-model="newTagName" placeholder="Tag name" class="text-input" @keydown.enter="addTag" aria-label="New tag name" />
+				<input v-model="newTagColor" type="color" class="color-picker" aria-label="New tag color" />
 				<button class="btn" @click="addTag" :disabled="!newTagName.trim()">Add Tag</button>
 			</div>
 		</section>
 
 		<StatisticsPanel />
-		<BulkOperationsPanel />
+		<BulkBatchOperationsPanel />
 		<ExportImportPanel />
 		<BackupPanel />
+		<AutoTagPanel />
+		<AnalyticsPanel />
+		<SettingsProfilesPanel />
+		<AdvancedSettingsPanel />
+		<DangerZonePanel />
 
 		<EditTagModal v-if="editingTag !== null" :tagName="editingTag" @close="editingTag = null" />
 		<ClearTagModal v-if="clearingTag !== null" :tagName="clearingTag" @close="clearingTag = null" />
@@ -71,9 +84,14 @@ import { useTagStore } from "@/stores/tagStore"
 import EditTagModal from "@/components/EditTagModal.vue"
 import ClearTagModal from "@/components/ClearTagModal.vue"
 import StatisticsPanel from "./settings/StatisticsPanel.vue"
-import BulkOperationsPanel from "./settings/BulkOperationsPanel.vue"
+import BulkBatchOperationsPanel from "./settings/BulkBatchOperationsPanel.vue"
 import ExportImportPanel from "./settings/ExportImportPanel.vue"
 import BackupPanel from "./settings/BackupPanel.vue"
+import AutoTagPanel from "./settings/AutoTagPanel.vue"
+import AnalyticsPanel from "./settings/AnalyticsPanel.vue"
+import SettingsProfilesPanel from "./settings/SettingsProfilesPanel.vue"
+import AdvancedSettingsPanel from "./settings/AdvancedSettingsPanel.vue"
+import DangerZonePanel from "./settings/DangerZonePanel.vue"
 
 const library = useLibraryStore()
 const tagStore = useTagStore()
@@ -175,6 +193,12 @@ h3 {
 	align-items: center;
 	gap: 8px;
 	padding: 4px 0;
+	border-radius: 4px;
+	outline: none;
+}
+
+.tag-row:focus-visible {
+	box-shadow: 0 0 0 2px var(--accent);
 }
 
 .tag-name {

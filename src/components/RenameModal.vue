@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
+  <div class="modal-overlay" @click.self="$emit('close')" role="dialog" aria-modal="true" aria-label="Rename File">
     <div class="modal">
       <h3>Rename File</h3>
       <p class="modal-subtitle">{{ currentName }}</p>

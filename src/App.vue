@@ -55,7 +55,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue"
+import { onMounted, onUnmounted, ref } from "vue"
+import { useRouter } from "vue-router"
 import BootSplash from "./components/BootSplash.vue"
 import Player from "./components/Player.vue"
 import ThemeGenerator from "./components/ThemeGenerator.vue"
@@ -65,12 +66,35 @@ import { useLibraryStore } from "./stores/libraryStore"
 
 const themeStore = useThemeStore()
 const library = useLibraryStore()
+const router = useRouter()
 const showBootSplash = ref(true)
 const showDebugModal = ref(false)
+
+function handleKeydown(e: KeyboardEvent) {
+	// Cmd+, → navigate to Settings
+	if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+		e.preventDefault()
+		router.push('/settings')
+	}
+	// Cmd+1 → Library, Cmd+2 → Settings
+	if ((e.metaKey || e.ctrlKey) && e.key === '1') {
+		e.preventDefault()
+		router.push('/')
+	}
+	if ((e.metaKey || e.ctrlKey) && e.key === '2') {
+		e.preventDefault()
+		router.push('/settings')
+	}
+}
 
 onMounted(() => {
 	themeStore.loadTheme()
 	library.initFromPersistedDirectory()
+	window.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+	window.removeEventListener('keydown', handleKeydown)
 })
 
 function toggleDevTools() {

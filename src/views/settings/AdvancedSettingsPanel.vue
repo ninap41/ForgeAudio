@@ -1,0 +1,257 @@
+<template>
+  <section class="settings-section">
+    <h3>Advanced Settings</h3>
+
+    <div class="settings-grid">
+      <!-- Scanner Settings -->
+      <div class="setting-card">
+        <h4>Scanner</h4>
+        <div class="form-group">
+          <label>Batch size</label>
+          <div class="input-with-hint">
+            <input
+              type="number"
+              v-model.number="scannerBatchSize"
+              min="10"
+              max="200"
+              class="text-input number-input"
+            />
+            <span class="input-hint">Files per batch (10-200)</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Duration workers</label>
+          <div class="input-with-hint">
+            <input
+              type="number"
+              v-model.number="durationConcurrency"
+              min="1"
+              max="32"
+              class="text-input number-input"
+            />
+            <span class="input-hint">Parallel duration loaders (1-32)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Developer Mode -->
+      <div class="setting-card">
+        <h4>Developer</h4>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-label">Developer Mode</span>
+            <span class="toggle-hint">Show debug information and verbose logging</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" v-model="developerMode" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-label">Show File Paths</span>
+            <span class="toggle-hint">Display full file paths in tooltips</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" v-model="showFilePaths" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Performance -->
+      <div class="setting-card">
+        <h4>Performance</h4>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-label">Auto-load Durations</span>
+            <span class="toggle-hint">Automatically load audio durations after scan</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" v-model="autoLoadDurations" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-label">Auto-backup on Save</span>
+            <span class="toggle-hint">Create a backup every time metadata is saved</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" v-model="autoBackup" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+// These are in-memory settings for the session.
+// In a full implementation, they'd be persisted in settingsStore / library.json.
+const scannerBatchSize = ref(50)
+const durationConcurrency = ref(8)
+const developerMode = ref(false)
+const showFilePaths = ref(false)
+const autoLoadDurations = ref(true)
+const autoBackup = ref(true)
+</script>
+
+<style scoped>
+.settings-section {
+  margin-bottom: 32px;
+}
+
+h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+h4 {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.setting-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.form-group {
+  margin-bottom: 12px;
+}
+
+label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.input-with-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.text-input {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.text-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.number-input {
+  width: 70px;
+}
+
+.input-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.toggle-row:last-child {
+  border-bottom: none;
+}
+
+.toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggle-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.toggle-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: 0.2s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  bottom: 2px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(16px);
+  background: white;
+}
+</style>

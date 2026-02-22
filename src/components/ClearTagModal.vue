@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
+  <div class="modal-overlay" @click.self="$emit('close')" role="dialog" aria-modal="true" aria-label="Clear Tag">
     <div class="modal">
       <h3>Clear Tag from All Sounds</h3>
       <p class="modal-subtitle">

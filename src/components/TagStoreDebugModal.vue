@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
+  <div class="modal-overlay" @click.self="$emit('close')" role="dialog" aria-modal="true" aria-label="Tag Store Debug">
     <div class="modal debug-modal">
       <h3>Tag Store Debug Viewer</h3>
 
