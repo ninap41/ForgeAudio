@@ -17,6 +17,9 @@ claude-*.json
 claude-debug.log
 
 # Development notes (internal only)
+CLAUDE.md
 REBOOT.md
 SCANNER_OPTIMIZATION.md
+SETTINGS_ROADMAP.md
+SKILLS.md
 *.claude.md
