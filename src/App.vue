@@ -47,7 +47,9 @@
 				<div class="header-info">
 					<span class="header-info-item">
 						<span class="header-info-label">Current Profile:</span>
-						<span class="header-info-value glow">{{ activeProfileName === 'Default' ? '(Default)' : activeProfileName }}</span>
+						<span class="header-info-value glow">{{
+							activeProfileName === "Default" ? "(Default)" : activeProfileName
+						}}</span>
 					</span>
 					<span v-if="library.rootDirectory" class="header-info-item">
 						<span class="header-info-label">Directory:</span>
@@ -79,33 +81,33 @@ const library = useLibraryStore()
 const router = useRouter()
 const showBootSplash = ref(true)
 const showDebugModal = ref(false)
-const activeProfileName = ref('Default')
+const activeProfileName = ref("Default")
 
 function handleKeydown(e: KeyboardEvent) {
 	// Cmd+, → navigate to Settings
-	if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+	if ((e.metaKey || e.ctrlKey) && e.key === ",") {
 		e.preventDefault()
-		router.push('/settings')
+		router.push("/settings")
 	}
 	// Cmd+1 → Library, Cmd+2 → Settings
-	if ((e.metaKey || e.ctrlKey) && e.key === '1') {
+	if ((e.metaKey || e.ctrlKey) && e.key === "1") {
 		e.preventDefault()
-		router.push('/')
+		router.push("/")
 	}
-	if ((e.metaKey || e.ctrlKey) && e.key === '2') {
+	if ((e.metaKey || e.ctrlKey) && e.key === "2") {
 		e.preventDefault()
-		router.push('/settings')
+		router.push("/settings")
 	}
 }
 
 onMounted(() => {
 	themeStore.loadTheme()
 	library.initFromPersistedDirectory()
-	window.addEventListener('keydown', handleKeydown)
+	window.addEventListener("keydown", handleKeydown)
 })
 
 onUnmounted(() => {
-	window.removeEventListener('keydown', handleKeydown)
+	window.removeEventListener("keydown", handleKeydown)
 })
 
 function toggleDevTools() {
@@ -230,8 +232,15 @@ img.app-title {
 }
 
 @keyframes glow {
-	0%, 100% { text-shadow: 0 0 2px var(--success); }
-	50% { text-shadow: 0 0 6px var(--success), 0 0 8px var(--success); }
+	0%,
+	100% {
+		text-shadow: 0 0 2px var(--success);
+	}
+	50% {
+		text-shadow:
+			0 0 6px var(--success),
+			0 0 8px var(--success);
+	}
 }
 
 .app-main {

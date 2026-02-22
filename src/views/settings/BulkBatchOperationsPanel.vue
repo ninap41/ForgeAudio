@@ -39,38 +39,6 @@
         <div v-if="mergeSuccess" class="success-message">Tags merged successfully</div>
       </div>
 
-      <!-- Find & Replace -->
-      <div class="operation-card">
-        <h4>Find & Replace Tag Name</h4>
-        <div class="form-group">
-          <label>Tag to rename</label>
-          <select v-model="replaceSource" class="select-input">
-            <option value="">Select tag...</option>
-            <option v-for="(_, tag) in tagStore.tagDefinitions" :key="tag" :value="tag">
-              {{ tag }}
-            </option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>New name</label>
-          <input
-            v-model="replaceName"
-            type="text"
-            class="text-input"
-            placeholder="New tag name"
-          />
-        </div>
-        <button
-          class="btn btn-accent"
-          :disabled="!canReplace"
-          @click="handleReplace"
-        >
-          Rename
-        </button>
-        <div v-if="replaceError" class="error-message">{{ replaceError }}</div>
-        <div v-if="replaceSuccess" class="success-message">Tag renamed successfully</div>
-      </div>
-
       <!-- Add Tag to Files -->
       <div class="operation-card">
         <h4>Add Tag to Multiple Files</h4>
@@ -223,32 +191,6 @@ async function handleMerge() {
     mergeSource.value = ''
     mergeTarget.value = ''
     setTimeout(() => { mergeSuccess.value = false }, 3000)
-  }
-}
-
-// --- Find & Replace state ---
-const replaceSource = ref('')
-const replaceName = ref('')
-const replaceError = ref('')
-const replaceSuccess = ref(false)
-
-const canReplace = computed(() => {
-  return replaceSource.value && replaceName.value.trim()
-})
-
-async function handleReplace() {
-  replaceError.value = ''
-  replaceSuccess.value = false
-
-  const currentColor = tagStore.tagDefinitions[replaceSource.value]?.color ?? '#4da6ff'
-  const result = await library.editTag(replaceSource.value, replaceName.value, currentColor)
-  if (result.error) {
-    replaceError.value = result.error
-  } else {
-    replaceSuccess.value = true
-    replaceSource.value = ''
-    replaceName.value = ''
-    setTimeout(() => { replaceSuccess.value = false }, 3000)
   }
 }
 

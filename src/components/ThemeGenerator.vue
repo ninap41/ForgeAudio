@@ -27,7 +27,7 @@
 			<div class="source-row">
 				<label class="color-row">
 					<span class="color-label">Source color</span>
-					<input type="color" @input="applyPalette" v-model="sourceColor" />
+					<input type="color" @input="debouncedApply" v-model="sourceColor" />
 				</label>
 			</div>
 
@@ -57,7 +57,6 @@
 			</div>
 
 			<div class="panel-actions">
-				<button class="action-btn save-btn" @click="handleSave">Save</button>
 				<button class="action-btn reset-btn" @click="handleReset">Reset</button>
 			</div>
 		</div>
@@ -67,10 +66,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue"
 import chroma from "chroma-js"
-import { useThemeStore } from "@/stores/themeStore"
-import { DEFAULT_THEME } from "@/stores/themeStore"
+import { useThemeStore, DEFAULT_THEME } from "@/stores/themeStore"
+import { useLibraryStore } from "@/stores/libraryStore"
 
 const themeStore = useThemeStore()
+const library = useLibraryStore()
 
 const isOpen = ref(false)
 const containerRef = ref<HTMLElement | null>(null)
@@ -82,6 +82,7 @@ const bgBase = ref(DEFAULT_THEME["--bg-primary"])
 const textBase = ref(DEFAULT_THEME["--text-primary"])
 const danger = ref(DEFAULT_THEME["--danger"])
 const success = ref(DEFAULT_THEME["--success"])
+
 function applyPalette() {
 	const darkBG = chroma(sourceColor.value).darken(2.6)
 	const [c0, c1, c2, c3, c4] = chroma.scale([darkBG, sourceColor.value, "white"]).colors(5)
@@ -120,13 +121,24 @@ watch(derivedTheme, (vars) => {
 	themeStore.applyTheme(vars)
 })
 
+let timeoutId: any = null
+function debouncedApply() {
+	clearTimeout(timeoutId)
+	timeoutId = setTimeout(() => {
+		;(applyPalette(), handleSave())
+	}, 200)
+}
+
 function handleSave() {
 	themeStore.saveTheme(derivedTheme.value)
+	library.saveMetadata()
 	isOpen.value = false
 }
 
 function handleReset() {
 	themeStore.resetTheme()
+	library.saveMetadata()
+
 	accent.value = DEFAULT_THEME["--accent"]
 	bgBase.value = DEFAULT_THEME["--bg-primary"]
 	textBase.value = DEFAULT_THEME["--text-primary"]
