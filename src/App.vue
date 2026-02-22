@@ -1,4 +1,5 @@
 <template>
+	<BootSplash v-if="showBootSplash" @done="showBootSplash = false" />
 	<div id="app-shell">
 		<header class="app-header">
 			<div class="header-top">
@@ -55,6 +56,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
+import BootSplash from "./components/BootSplash.vue"
 import Player from "./components/Player.vue"
 import ThemeGenerator from "./components/ThemeGenerator.vue"
 import TagStoreDebugModal from "./components/TagStoreDebugModal.vue"
@@ -63,6 +65,7 @@ import { useLibraryStore } from "./stores/libraryStore"
 
 const themeStore = useThemeStore()
 const library = useLibraryStore()
+const showBootSplash = ref(true)
 const showDebugModal = ref(false)
 
 onMounted(() => {
