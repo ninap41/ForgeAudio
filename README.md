@@ -84,7 +84,7 @@ Single active audio element. No redundant reloads.
 
 Audio files are served through a **custom `atom://` protocol** registered in the Electron main process. The protocol handler implements full **HTTP Range request support**, reading only the requested byte range from disk via `fs/promises` and returning `206 Partial Content` responses. This is critical for M4A/MP4 files, whose seek index (moov atom) lives at the end of the file — without Range support, Chromium can't parse the index and seeking breaks.
 
-The player component (`src/components/Player.vue`) uses the `useMediaControls` composable from `@vueuse/core`, which wraps the `<audio>` element with reactive refs for `playing`, `currentTime`, `duration`, `buffered`, and `ended`. Track switching uses a two-phase approach: `watch(audioSrc)` pauses and sets an `awaitingPlayback` flag, then `watch(duration)` resumes playback once the new source has loaded (duration > 0). Bidirectional sync between the Pinia store and the composable is guarded by this flag to prevent feedback loops.
+The player component (`src/components/Player.vue`) uses the `useMediaControls` composable from `@vueuse/core`, which wraps the `<audio>` element with reactive refs for `playing`, `currentTime`, `duration`, `buffered`, and `ended`. Track switching uses a two-phase approach: `watch(audioSrc)` pauses and sets an `awaitingPlayback` flag, then `watch(duration)` resumes playback once the new source has loaded (duration > 0). Bidirectional sync between the library store and the composable is guarded by this flag to prevent feedback loops.
 
 The scrubber uses **display isolation** — a `displayCurrentTime` computed ref returns the drag position during scrubbing and the live playback position otherwise, preventing `timeupdate` events from snapping the thumb back mid-drag. The visual track uses a CSS `linear-gradient` with custom properties to show played, buffered, and unloaded segments.
 
@@ -150,7 +150,7 @@ Main Process (Electron)
 │
 Renderer (Vue 3)
 │
-├── Pinia Stores
+├── Composable Stores (singleton pattern)
 │   ├── libraryStore
 │   ├── tagStore
 │   └── themeStore
@@ -178,7 +178,7 @@ Renderer (Vue 3)
 | **Electron**       | Desktop shell, IPC, file system access |
 | **Vue 3**          | Composition API + `<script setup>`     |
 | **Vite**           | Fast dev server + build tooling        |
-| **Pinia**          | Setup-store state management           |
+| **Vue Composables** | Singleton store pattern (no Pinia)    |
 | **music-metadata** | Audio duration extraction              |
 | **chroma-js**      | Color math for theme generation        |
 | **TypeScript**     | Strict typing throughout               |

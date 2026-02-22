@@ -11,7 +11,7 @@ When making changes, follow these constraints strictly.
 - Fully local-first (no network requests)
 - Main/renderer separation enforced
 - Secure IPC via preload contextBridge
-- State managed with Pinia (setup-store style)
+- State managed with composable singletons (module-scope refs + `reactive()` return)
 - TypeScript everywhere
 
 ---
@@ -21,11 +21,11 @@ When making changes, follow these constraints strictly.
 1. Never block the UI thread during file scans.
 2. All file system access happens in the Electron main process.
 3. Renderer communicates via IPC only.
-4. Keep business logic in Pinia stores, not components.
+4. Keep business logic in stores (composable singletons), not components.
 5. Components are UI-only whenever possible.
 6. Filtering is pure and derived (computed), not imperative.
 7. Avoid unnecessary watchers.
-8. Do not introduce global mutable state outside Pinia.
+8. Do not introduce global mutable state outside stores.
 
 ---
 
