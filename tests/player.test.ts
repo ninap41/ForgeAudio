@@ -1,10 +1,34 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { ref, type Ref } from 'vue'
 import Player from '../src/components/Player.vue'
 import { useLibraryStore, type AudioFile } from '../src/stores/libraryStore'
 
-// Preserve DOM constructors — assign only electronAPI
+// ─── Mock @vueuse/core ──────────────────────────────────────────────────────
+
+let mockPlaying: Ref<boolean>
+let mockCurrentTime: Ref<number>
+let mockDuration: Ref<number>
+let mockBuffered: Ref<[number, number][]>
+let mockEnded: Ref<boolean>
+let mockOnPlaybackError: ReturnType<typeof vi.fn>
+
+vi.mock('@vueuse/core', () => ({
+  useMediaControls: vi.fn(() => ({
+    playing: mockPlaying,
+    currentTime: mockCurrentTime,
+    duration: mockDuration,
+    buffered: mockBuffered,
+    ended: mockEnded,
+    waiting: ref(false),
+    seeking: ref(false),
+    onPlaybackError: mockOnPlaybackError,
+  })),
+}))
+
+// ─── electronAPI stub ───────────────────────────────────────────────────────
+
 ;(window as any).electronAPI = {
   writeMetadata: vi.fn().mockResolvedValue(undefined),
   selectDirectory: vi.fn(),
@@ -32,6 +56,8 @@ import { useLibraryStore, type AudioFile } from '../src/stores/libraryStore'
   toggleDevTools: vi.fn(),
 }
 
+// ─── helpers ────────────────────────────────────────────────────────────────
+
 function makeFile(overrides: Partial<AudioFile> = {}): AudioFile {
   return {
     path: '/sounds/test.wav',
@@ -46,55 +72,24 @@ function makeFile(overrides: Partial<AudioFile> = {}): AudioFile {
   }
 }
 
-/**
- * Attach mocks to the <audio> DOM element returned by the component.
- * Returns helpers to inspect and drive the mock.
- */
-function mockAudio(audio: HTMLAudioElement, durationValue = 60) {
-  let _currentTime = 0
-  const seekedHandlers: Array<() => void> = []
-
-  Object.defineProperty(audio, 'duration', { get: () => durationValue, configurable: true })
-  Object.defineProperty(audio, 'currentTime', {
-    get: () => _currentTime,
-    set: (v: number) => { _currentTime = v },
-    configurable: true,
-  })
-
-  audio.play = vi.fn().mockResolvedValue(undefined)
-  audio.pause = vi.fn()
-  audio.load = vi.fn()
-
-  // Intercept addEventListener to capture 'seeked' listeners so tests can fire them
-  const original = audio.addEventListener.bind(audio)
-  vi.spyOn(audio, 'addEventListener').mockImplementation((type, listener, opts?) => {
-    if (type === 'seeked') {
-      seekedHandlers.push(listener as () => void)
-    } else {
-      original(type, listener as EventListener, opts as AddEventListenerOptions)
-    }
-  })
-
-  return {
-    get currentTime() { return _currentTime },
-    /** Fire all pending seeked listeners (simulates seek completing). */
-    fireSeek() { seekedHandlers.splice(0).forEach(h => h()) },
-    seekedHandlers,
-  }
-}
-
 function mountPlayer() {
+  // Fresh refs for each test
+  mockPlaying = ref(false)
+  mockCurrentTime = ref(0)
+  mockDuration = ref(0)
+  mockBuffered = ref([])
+  mockEnded = ref(false)
+  mockOnPlaybackError = vi.fn()
+
   setActivePinia(createPinia())
   const library = useLibraryStore()
   library.currentFile = makeFile()
   library.isPlaying = false
 
   const wrapper = mount(Player)
-  const audioEl = wrapper.find('audio').element as HTMLAudioElement
-  const mock = mockAudio(audioEl)
   const scrubber = wrapper.find('.scrubber')
 
-  return { wrapper, library, audioEl, mock, scrubber }
+  return { wrapper, library, scrubber }
 }
 
 // ─── formatTime ──────────────────────────────────────────────────────────────
@@ -102,23 +97,15 @@ function mountPlayer() {
 describe('formatTime', () => {
   it('formats seconds correctly', async () => {
     const { wrapper } = mountPlayer()
-    // fire loadedmetadata to set duration (the component reads audioEl.duration via onLoaded)
-    const audio = wrapper.find('audio').element as HTMLAudioElement
-    mockAudio(audio, 125)
-    await audio.dispatchEvent(new Event('loadedmetadata'))
+    mockDuration.value = 125
     await wrapper.vm.$nextTick()
 
-    // Duration span shows 2:05 for 125s
     const timeSpans = wrapper.findAll('.time')
     expect(timeSpans[1].text()).toBe('2:05')
   })
 
   it('shows 0:00 for 0', () => {
-    setActivePinia(createPinia())
-    const library = useLibraryStore()
-    library.currentFile = makeFile()
-    const wrapper = mount(Player)
-    // Both time spans default to 0:00 before audio loads
+    const { wrapper } = mountPlayer()
     const timeSpans = wrapper.findAll('.time')
     expect(timeSpans[0].text()).toBe('0:00')
     expect(timeSpans[1].text()).toBe('0:00')
@@ -129,10 +116,11 @@ describe('formatTime', () => {
 
 describe('scrub start', () => {
   it('pauses audio on pointerdown when playing', async () => {
-    const { library, audioEl, mock, scrubber } = mountPlayer()
+    const { library, scrubber } = mountPlayer()
     library.isPlaying = true
+    mockPlaying.value = true
     await scrubber.trigger('pointerdown')
-    expect(audioEl.pause).toHaveBeenCalled()
+    expect(mockPlaying.value).toBe(false)
   })
 
   it('does not throw on pointerdown when paused', async () => {
@@ -145,13 +133,11 @@ describe('scrub start', () => {
 
 describe('scrub input', () => {
   it('updates the current-time display as scrubber moves', async () => {
-    const { audioEl, mock, scrubber, wrapper } = mountPlayer()
-    // Set duration so the scrubber max is valid
-    mockAudio(audioEl, 60)
-    await audioEl.dispatchEvent(new Event('loadedmetadata'))
+    const { scrubber, wrapper } = mountPlayer()
+    mockDuration.value = 60
+    await wrapper.vm.$nextTick()
 
     await scrubber.trigger('pointerdown')
-    // Simulate moving to 30s
     ;(scrubber.element as HTMLInputElement).value = '30'
     await scrubber.trigger('input')
     await wrapper.vm.$nextTick()
@@ -164,72 +150,65 @@ describe('scrub input', () => {
 
 describe('scrub end', () => {
   it('seeks audio to the scrubber position on pointerup', async () => {
-    const { audioEl, mock, scrubber } = mountPlayer()
-    mockAudio(audioEl, 60)
-    await audioEl.dispatchEvent(new Event('loadedmetadata'))
+    const { scrubber } = mountPlayer()
+    mockDuration.value = 60
 
     await scrubber.trigger('pointerdown')
     ;(scrubber.element as HTMLInputElement).value = '45'
     await scrubber.trigger('input')
     await scrubber.trigger('pointerup')
 
-    expect(audioEl.currentTime).toBe(45)
+    expect(mockCurrentTime.value).toBe(45)
   })
 
   it('resumes playback after seek if audio was playing before scrub', async () => {
-    const { library, audioEl, mock, scrubber } = mountPlayer()
+    const { library, scrubber } = mountPlayer()
     library.isPlaying = true
-    const freshMock = mockAudio(audioEl, 60)
-    await audioEl.dispatchEvent(new Event('loadedmetadata'))
-
-    await scrubber.trigger('pointerdown')   // pauses + stores wasPlayingBeforeScrub
-    ;(scrubber.element as HTMLInputElement).value = '20'
-    await scrubber.trigger('input')
-    await scrubber.trigger('pointerup')     // calls seekTo, adds seeked listener
-    freshMock.fireSeek()                    // simulate audio seeked event
-
-    expect(audioEl.play).toHaveBeenCalled()
-  })
-
-  it('does not resume playback if audio was paused before scrub', async () => {
-    const { library, audioEl, mock, scrubber } = mountPlayer()
-    library.isPlaying = false
-    const freshMock = mockAudio(audioEl, 60)
-    await audioEl.dispatchEvent(new Event('loadedmetadata'))
+    mockPlaying.value = true
+    mockDuration.value = 60
 
     await scrubber.trigger('pointerdown')
     ;(scrubber.element as HTMLInputElement).value = '20'
     await scrubber.trigger('input')
     await scrubber.trigger('pointerup')
-    freshMock.fireSeek()
 
-    expect(audioEl.play).not.toHaveBeenCalled()
+    expect(mockPlaying.value).toBe(true)
+  })
+
+  it('does not resume playback if audio was paused before scrub', async () => {
+    const { scrubber } = mountPlayer()
+    mockDuration.value = 60
+
+    await scrubber.trigger('pointerdown')
+    ;(scrubber.element as HTMLInputElement).value = '20'
+    await scrubber.trigger('input')
+    await scrubber.trigger('pointerup')
+
+    expect(mockPlaying.value).toBe(false)
   })
 
   it('clamps seek value to 0 when scrubber value would be negative', async () => {
-    const { audioEl, mock, scrubber } = mountPlayer()
-    mockAudio(audioEl, 60)
-    await audioEl.dispatchEvent(new Event('loadedmetadata'))
+    const { scrubber } = mountPlayer()
+    mockDuration.value = 60
 
     await scrubber.trigger('pointerdown')
     ;(scrubber.element as HTMLInputElement).value = '-5'
     await scrubber.trigger('input')
     await scrubber.trigger('pointerup')
 
-    expect(audioEl.currentTime).toBe(0)
+    expect(mockCurrentTime.value).toBe(0)
   })
 
   it('clamps seek value to duration when scrubber value exceeds it', async () => {
-    const { audioEl, mock, scrubber } = mountPlayer()
-    mockAudio(audioEl, 60)
-    await audioEl.dispatchEvent(new Event('loadedmetadata'))
+    const { scrubber } = mountPlayer()
+    mockDuration.value = 60
 
     await scrubber.trigger('pointerdown')
     ;(scrubber.element as HTMLInputElement).value = '999'
     await scrubber.trigger('input')
     await scrubber.trigger('pointerup')
 
-    expect(audioEl.currentTime).toBe(60)
+    expect(mockCurrentTime.value).toBe(60)
   })
 })
 
@@ -237,9 +216,9 @@ describe('scrub end', () => {
 
 describe('timeupdate guard during scrub', () => {
   it('does not snap currentTime back when timeupdate fires during scrub', async () => {
-    const { audioEl, mock, scrubber, wrapper } = mountPlayer()
-    const freshMock = mockAudio(audioEl, 60)
-    await audioEl.dispatchEvent(new Event('loadedmetadata'))
+    const { scrubber, wrapper } = mountPlayer()
+    mockDuration.value = 60
+    await wrapper.vm.$nextTick()
 
     // Drag to 40s
     await scrubber.trigger('pointerdown')
@@ -247,36 +226,27 @@ describe('timeupdate guard during scrub', () => {
     await scrubber.trigger('input')
     await wrapper.vm.$nextTick()
 
-    // Simulate a timeupdate while still scrubbing; audio position is still at 0
-    // (freshMock.currentTime is 0 until we explicitly set it)
-    await audioEl.dispatchEvent(new Event('timeupdate'))
+    // Simulate composable updating currentTime (as if timeupdate fired)
+    mockCurrentTime.value = 5
     await wrapper.vm.$nextTick()
 
-    // The displayed time should still be 40, not snapped back to 0
+    // The displayed time should still be 40, not snapped back to 5
     expect(wrapper.findAll('.time')[0].text()).toBe('0:40')
   })
 
-  it('resumes timeupdate updates after seeked fires', async () => {
-    const { audioEl, mock, scrubber, wrapper } = mountPlayer()
-    const freshMock = mockAudio(audioEl, 60)
-    await audioEl.dispatchEvent(new Event('loadedmetadata'))
+  it('resumes timeupdate updates after scrub ends', async () => {
+    const { scrubber, wrapper } = mountPlayer()
+    mockDuration.value = 60
+    await wrapper.vm.$nextTick()
 
     await scrubber.trigger('pointerdown')
     ;(scrubber.element as HTMLInputElement).value = '40'
     await scrubber.trigger('input')
     await scrubber.trigger('pointerup')
-
-    // Seek completes — isScrubbing clears
-    freshMock.fireSeek()
     await wrapper.vm.$nextTick()
 
-    // Now update the mock audio position to 41 and fire timeupdate
-    ;(audioEl as any).__currentTime = 41
-    Object.defineProperty(audioEl, 'currentTime', {
-      get: () => 41,
-      configurable: true,
-    })
-    await audioEl.dispatchEvent(new Event('timeupdate'))
+    // Now update currentTime (simulating timeupdate after scrub ended)
+    mockCurrentTime.value = 41
     await wrapper.vm.$nextTick()
 
     expect(wrapper.findAll('.time')[0].text()).toBe('0:41')
@@ -287,14 +257,103 @@ describe('timeupdate guard during scrub', () => {
 
 describe('keyboard scrubbing', () => {
   it('seeks when change fires without a prior pointerdown (keyboard arrows)', async () => {
-    const { audioEl, mock, scrubber } = mountPlayer()
-    const freshMock = mockAudio(audioEl, 60)
-    await audioEl.dispatchEvent(new Event('loadedmetadata'))
+    const { scrubber, wrapper } = mountPlayer()
+    mockDuration.value = 60
+    await wrapper.vm.$nextTick()
 
-    // No pointerdown — simulate keyboard arrow key changing the value
     ;(scrubber.element as HTMLInputElement).value = '15'
     await scrubber.trigger('change')
 
-    expect(audioEl.currentTime).toBe(15)
+    expect(mockCurrentTime.value).toBe(15)
+  })
+
+  it('clamps negative values to 0 via change', async () => {
+    const { scrubber, wrapper } = mountPlayer()
+    mockDuration.value = 60
+    await wrapper.vm.$nextTick()
+
+    ;(scrubber.element as HTMLInputElement).value = '-5'
+    await scrubber.trigger('change')
+
+    expect(mockCurrentTime.value).toBe(0)
+  })
+
+  it('clamps over-duration values to duration via change', async () => {
+    const { scrubber, wrapper } = mountPlayer()
+    mockDuration.value = 60
+    await wrapper.vm.$nextTick()
+
+    ;(scrubber.element as HTMLInputElement).value = '999'
+    await scrubber.trigger('change')
+
+    expect(mockCurrentTime.value).toBe(60)
+  })
+})
+
+// ─── pointercancel / pointerleave ────────────────────────────────────────────
+
+describe('pointer escape during scrub', () => {
+  it('pointercancel ends scrubbing state', async () => {
+    const { scrubber, wrapper } = mountPlayer()
+    mockDuration.value = 60
+    await wrapper.vm.$nextTick()
+
+    await scrubber.trigger('pointerdown')
+    ;(scrubber.element as HTMLInputElement).value = '30'
+    await scrubber.trigger('input')
+    await scrubber.trigger('pointercancel')
+    await wrapper.vm.$nextTick()
+
+    // Scrubbing cleared — display follows currentTime, not scrub position
+    mockCurrentTime.value = 35
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('.time')[0].text()).toBe('0:35')
+  })
+
+  it('pointerleave ends scrubbing state', async () => {
+    const { scrubber, wrapper } = mountPlayer()
+    mockDuration.value = 60
+    await wrapper.vm.$nextTick()
+
+    await scrubber.trigger('pointerdown')
+    ;(scrubber.element as HTMLInputElement).value = '25'
+    await scrubber.trigger('input')
+    await scrubber.trigger('pointerleave')
+    await wrapper.vm.$nextTick()
+
+    // Scrubbing cleared — display follows currentTime
+    mockCurrentTime.value = 42
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('.time')[0].text()).toBe('0:42')
+  })
+})
+
+// ─── click-to-seek (input without pointerdown) ──────────────────────────────
+
+describe('click-to-seek', () => {
+  it('seeks on input without prior pointerdown', async () => {
+    const { scrubber, wrapper } = mountPlayer()
+    mockDuration.value = 60
+    await wrapper.vm.$nextTick()
+
+    ;(scrubber.element as HTMLInputElement).value = '15'
+    await scrubber.trigger('input')
+
+    expect(mockCurrentTime.value).toBe(15)
+  })
+})
+
+// ─── buffered indicator ──────────────────────────────────────────────────────
+
+describe('buffered indicator', () => {
+  it('renders correct --buffered-pct style', async () => {
+    const { scrubber, wrapper } = mountPlayer()
+    mockDuration.value = 100
+    mockBuffered.value = [[0, 40]]
+    await wrapper.vm.$nextTick()
+
+    expect(scrubber.attributes('style')).toContain('--buffered-pct: 40%')
   })
 })

@@ -2,11 +2,7 @@
 	<div v-if="library.currentFile" class="player">
 		<audio
 			ref="audioEl"
-			:src="'atom://localfile' + encodeURI(library.currentFile.path)"
-			@ended="onEnded"
-			@timeupdate="onTimeUpdate"
-			@loadedmetadata="onLoaded"
-			@canplay="onCanPlay"
+			:src="audioSrc"
 		/>
 
 		<div class="player-info">
@@ -23,19 +19,21 @@
 		</div>
 
 		<div class="player-timeline">
-			<span class="time">{{ formatTime(currentTime) }}</span>
+			<span class="time">{{ formatTime(displayCurrentTime) }}</span>
 			<input
 				ref="scrubberEl"
 				type="range"
 				class="scrubber"
 				min="0"
 				:max="duration || 1"
-				:value="currentTime"
+				:value="displayCurrentTime"
 				step="0.1"
-				:style="{ '--scrubber-pct': scrubberPercent + '%' }"
+				:style="{ '--scrubber-pct': scrubberPercent + '%', '--buffered-pct': bufferedPercent + '%' }"
 				@pointerdown="onScrubStart"
 				@input="onScrubInput"
 				@pointerup="onScrubEnd"
+				@pointercancel="onScrubEnd"
+				@pointerleave="onScrubEnd"
 				@change="onScrubChange"
 			/>
 			<span class="time">{{ formatTime(duration) }}</span>
@@ -56,6 +54,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue"
+import { useMediaControls } from "@vueuse/core"
 import { useLibraryStore } from "@/stores/libraryStore"
 
 const library = useLibraryStore()
@@ -63,48 +62,142 @@ const library = useLibraryStore()
 const audioEl = ref<HTMLAudioElement>()
 const scrubberEl = ref<HTMLInputElement>()
 
-const currentTime = ref(0)
-const duration = ref(0)
-const loop = ref(false)
+const audioSrc = computed(() =>
+	library.currentFile ? "atom://localfile" + encodeURI(library.currentFile.path) : ""
+)
 
+// useMediaControls provides reactive, writable refs for playing/currentTime/duration
+// and read-only refs for buffered/ended. We omit `src` from options so the composable
+// doesn't inject <source> children — the :src binding on <audio> handles our atom:// protocol.
+const { playing, currentTime, duration, buffered, ended, onPlaybackError } = useMediaControls(audioEl)
+
+// Suppress AbortError during rapid track switching
+onPlaybackError(() => {})
+
+const loop = ref(false)
 const isScrubbing = ref(false)
 const wasPlayingBeforeScrub = ref(false)
+const scrubDisplayTime = ref(0)
+
+// Display isolation: show scrub position during drag, live position otherwise.
+// Prevents timeupdate-driven currentTime updates from snapping the scrubber back mid-drag.
+const displayCurrentTime = computed(() =>
+	isScrubbing.value ? scrubDisplayTime.value : currentTime.value
+)
 
 const scrubberPercent = computed(() => {
 	if (!duration.value) return 0
-	return (currentTime.value / duration.value) * 100
+	return (displayCurrentTime.value / duration.value) * 100
 })
 
-watch(
-	() => library.currentFile,
-	() => {
-		if (!audioEl.value || !library.currentFile) return
-		// Pause first to cancel any in-flight play() promise, then reload
-		audioEl.value.pause()
-		audioEl.value.load()
+const bufferedPercent = computed(() => {
+	if (!duration.value || !buffered.value.length) return 0
+	const lastRange = buffered.value[buffered.value.length - 1]
+	return (lastRange[1] / duration.value) * 100
+})
 
-		// Reset timeline state for new file
-		currentTime.value = 0
-		duration.value = 0
-		isScrubbing.value = false
-	},
-)
+// ─── Track switching ────────────────────────────────────────────────────────
 
-watch(
-	() => library.isPlaying,
-	async (playing) => {
-		if (!audioEl.value) return
-		if (playing) {
-			try {
-				await audioEl.value.play()
-			} catch {
-				// AbortError when load() interrupts play() during track switching — @canplay handles it
-			}
+let awaitingPlayback = false
+
+watch(audioSrc, () => {
+	isScrubbing.value = false
+	scrubDisplayTime.value = 0
+	awaitingPlayback = library.isPlaying
+	// Stop current playback while the browser loads the new source.
+	// awaitingPlayback guard prevents this from propagating to library.isPlaying.
+	playing.value = false
+})
+
+watch(duration, (d) => {
+	if (d > 0 && awaitingPlayback) {
+		awaitingPlayback = false
+		playing.value = true
+	}
+})
+
+// ─── Bidirectional playing sync ─────────────────────────────────────────────
+
+// Store → composable
+watch(() => library.isPlaying, (wantPlay) => {
+	if (wantPlay) {
+		if (awaitingPlayback) return
+		if (duration.value > 0) {
+			playing.value = true
 		} else {
-			audioEl.value.pause()
+			awaitingPlayback = true
 		}
-	},
-)
+	} else {
+		awaitingPlayback = false
+		playing.value = false
+	}
+})
+
+// Composable → store (organic changes: ended, browser-initiated pause, etc.)
+watch(playing, (val) => {
+	if (awaitingPlayback) return
+	if (!val && ended.value && loop.value) return
+	if (library.isPlaying !== val) {
+		library.isPlaying = val
+	}
+})
+
+// ─── Loop / ended ───────────────────────────────────────────────────────────
+
+watch(ended, (isEnded) => {
+	if (!isEnded) return
+	if (loop.value) {
+		currentTime.value = 0
+		playing.value = true
+	} else {
+		library.stopPlayback()
+	}
+})
+
+// ─── Scrubbing ──────────────────────────────────────────────────────────────
+
+function onScrubStart() {
+	isScrubbing.value = true
+	wasPlayingBeforeScrub.value = library.isPlaying
+	scrubDisplayTime.value = currentTime.value
+	playing.value = false
+}
+
+function onScrubInput(e: Event) {
+	const val = (e.target as HTMLInputElement).valueAsNumber
+	if (isScrubbing.value) {
+		scrubDisplayTime.value = val
+	} else {
+		// Click-to-seek: input fired without pointerdown (touch tap, accessibility)
+		const d = duration.value || 0
+		const clamped = d > 0 ? Math.max(0, Math.min(val, d)) : Math.max(0, val)
+		currentTime.value = clamped
+	}
+}
+
+function onScrubEnd() {
+	if (!isScrubbing.value) return
+
+	const d = duration.value || 0
+	const clamped = d > 0 ? Math.max(0, Math.min(scrubDisplayTime.value, d)) : Math.max(0, scrubDisplayTime.value)
+
+	currentTime.value = clamped
+	isScrubbing.value = false
+
+	if (wasPlayingBeforeScrub.value) {
+		playing.value = true
+	}
+}
+
+function onScrubChange(e: Event) {
+	if (isScrubbing.value) return
+	const val = (e.target as HTMLInputElement).valueAsNumber
+	const d = duration.value || 0
+	const clamped = d > 0 ? Math.max(0, Math.min(val, d)) : Math.max(0, val)
+	currentTime.value = clamped
+}
+
+// ─── Toggle / format ────────────────────────────────────────────────────────
 
 function togglePlay() {
 	if (library.isPlaying) {
@@ -114,94 +207,6 @@ function togglePlay() {
 	}
 }
 
-function onTimeUpdate() {
-	// While scrubbing, do not let timeupdate snap the UI back
-	if (!isScrubbing.value && audioEl.value) {
-		currentTime.value = audioEl.value.currentTime
-	}
-}
-
-function onLoaded() {
-	if (audioEl.value) {
-		const d = audioEl.value.duration
-		duration.value = Number.isFinite(d) ? d : 0
-	}
-}
-
-function onEnded() {
-	if (loop.value && audioEl.value) {
-		audioEl.value.currentTime = 0
-		audioEl.value.play().catch(() => {})
-	} else {
-		library.stopPlayback()
-	}
-}
-
-function onCanPlay() {
-	if (library.isPlaying && audioEl.value) {
-		audioEl.value.play().catch(() => {})
-	}
-}
-
-/**
- * Scrubbing behavior:
- * - pointerdown: enter scrubbing mode, optionally pause
- * - input: update the UI thumb live
- * - pointerup: seek and optionally resume
- * - change: keyboard-driven seeking (arrows) should still work
- */
-function onScrubStart() {
-	if (!audioEl.value) return
-	isScrubbing.value = true
-	wasPlayingBeforeScrub.value = library.isPlaying
-
-	// Optional: pause during drag so audio doesn't "fight" the scrub.
-	// If you want audio to keep playing while you drag, remove this pause.
-	audioEl.value.pause()
-}
-
-function onScrubInput(e: Event) {
-	currentTime.value = (e.target as HTMLInputElement).valueAsNumber
-}
-
-function onScrubEnd() {
-	const val = scrubberEl.value ? scrubberEl.value.valueAsNumber : currentTime.value
-	seekTo(val)
-
-	// Optional: resume if it was playing before scrubbing
-	if (wasPlayingBeforeScrub.value) {
-		audioEl.value?.play().catch(() => {})
-	}
-}
-
-function onScrubChange(e: Event) {
-	// Keyboard scrubbing triggers change but not pointer events reliably
-	const val = (e.target as HTMLInputElement).valueAsNumber
-	seekTo(val)
-}
-
-function seekTo(val: number) {
-	if (!audioEl.value) {
-		isScrubbing.value = false
-		return
-	}
-
-	const d = duration.value || 0
-	const clamped = d > 0 ? Math.max(0, Math.min(val, d)) : Math.max(0, val)
-
-	currentTime.value = clamped
-	audioEl.value.currentTime = clamped
-
-	// ✅ Correct event is "seeked" (NOT "seekTo")
-	audioEl.value.addEventListener(
-		"seeked",
-		() => {
-			isScrubbing.value = false
-		},
-		{ once: true },
-	)
-}
-
 function formatTime(seconds: number): string {
 	if (!Number.isFinite(seconds) || seconds < 0) return "0:00"
 	const m = Math.floor(seconds / 60)
@@ -209,7 +214,8 @@ function formatTime(seconds: number): string {
 	return `${m}:${s.toString().padStart(2, "0")}`
 }
 
-// Spacebar global shortcut
+// ─── Spacebar global shortcut ───────────────────────────────────────────────
+
 function onKeydown(e: KeyboardEvent) {
 	if (e.code === "Space" && e.target === document.body) {
 		e.preventDefault()
@@ -278,6 +284,7 @@ onUnmounted(() => {
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	height: 2rem;
 }
 
 .time {
@@ -293,12 +300,20 @@ onUnmounted(() => {
 	height: 4px;
 	-webkit-appearance: none;
 	appearance: none;
-	background: linear-gradient(to right, var(--accent) var(--scrubber-pct, 0%), var(--border) var(--scrubber-pct, 0%));
 	border-radius: 2px;
 	outline: none;
 	cursor: pointer;
-}
 
+	background: linear-gradient(
+		to right,
+		/* played */ var(--accent) 0%,
+		var(--accent) var(--scrubber-pct, 0%),
+		/* buffered but not yet played */ color-mix(in srgb, var(--accent) 80%, var(--border)) var(--scrubber-pct, 0%),
+		color-mix(in srgb, var(--accent) 30%, var(--border)) var(--buffered-pct, 0%),
+		/* unbuffered */ var(--border) var(--buffered-pct, 0%),
+		var(--border) 100%
+	);
+}
 .scrubber::-webkit-slider-thumb {
 	-webkit-appearance: none;
 	appearance: none;

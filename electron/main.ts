@@ -1,289 +1,299 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, shell, protocol, net } from 'electron'
-import { join, extname, dirname } from 'path'
-import { unlink, rename, readFile as fsReadFile, writeFile, mkdir, readdir, stat } from 'fs/promises'
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell, protocol, net } from "electron"
+import { join, extname, dirname } from "path"
+import { unlink, rename, readFile as fsReadFile, writeFile, mkdir, readdir, stat } from "fs/promises"
 
 const AUDIO_MIME: Record<string, string> = {
-  '.wav':  'audio/wav',
-  '.mp3':  'audio/mpeg',
-  '.aiff': 'audio/aiff',
-  '.aif':  'audio/aiff',
-  '.flac': 'audio/flac',
-  '.ogg':  'audio/ogg',
-  '.m4a':  'audio/mp4',
+	".wav": "audio/wav",
+	".mp3": "audio/mpeg",
+	".aiff": "audio/aiff",
+	".aif": "audio/aiff",
+	".flac": "audio/flac",
+	".ogg": "audio/ogg",
+	".m4a": "audio/mp4",
 }
-import { scanDirectory, type AudioFile } from './ipc/scanner'
-import { readMetadata, writeMetadata, getMetadataPath, getRootDirectory, setRootDirectory, clearTagData } from './ipc/metadata'
-import { getAudioDuration } from './ipc/audioInfo'
+import { scanDirectory, type AudioFile } from "./ipc/scanner"
+import {
+	readMetadata,
+	writeMetadata,
+	getMetadataPath,
+	getRootDirectory,
+	setRootDirectory,
+	clearTagData,
+} from "./ipc/metadata"
+import { getAudioDuration } from "./ipc/audioInfo"
 
 // Register custom protocol for serving local audio files
-protocol.registerSchemesAsPrivileged([
-  { scheme: 'atom', privileges: { stream: true, bypassCSP: true } },
-])
+protocol.registerSchemesAsPrivileged([{ scheme: "atom", privileges: { stream: true, bypassCSP: true } }])
 
 let mainWindow: BrowserWindow | null = null
 
 function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 800,
-    minHeight: 500,
-    titleBarStyle: 'default',
-    webPreferences: {
-      preload: join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  })
+	mainWindow = new BrowserWindow({
+		width: 1200,
+		height: 800,
+		minWidth: 800,
+		minHeight: 500,
+		titleBarStyle: "default",
+		webPreferences: {
+			preload: join(__dirname, "preload.js"),
+			contextIsolation: true,
+			nodeIntegration: false,
+		},
+	})
 
-  mainWindow.setTitle('ForgeAudio')
+	mainWindow.setTitle("ForgeAudio")
 
-  if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
-  } else {
-    // In production, use app.getAppPath() to get the correct root path in asar
-    const indexPath = join(app.getAppPath(), 'dist', 'index.html')
-    mainWindow.loadFile(indexPath)
-  }
+	if (process.env.VITE_DEV_SERVER_URL) {
+		mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
+	} else {
+		// In production, use app.getAppPath() to get the correct root path in asar
+		const indexPath = join(app.getAppPath(), "dist", "index.html")
+		mainWindow.loadFile(indexPath)
+	}
 }
 
 app.whenReady().then(() => {
-  protocol.handle('atom', async (request) => {
-    const filePath = decodeURIComponent(request.url.replace('atom://localfile', ''))
-    const res = await net.fetch('file://' + filePath)
-    const mime = AUDIO_MIME[extname(filePath).toLowerCase()]
-    if (!mime) return res
-    const headers = new Headers(res.headers)
-    headers.set('content-type', mime)
-    return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
-  })
+	protocol.handle("atom", async (request) => {
+		const filePath = decodeURIComponent(request.url.replace("atom://localfile", ""))
+		// Forward Range headers so Chromium can seek into large audio files
+		const fetchHeaders = new Headers()
+		const rangeHeader = request.headers.get("range")
+		if (rangeHeader) fetchHeaders.set("range", rangeHeader)
 
-  createWindow()
+		const res = await net.fetch("file://" + filePath, { headers: fetchHeaders })
+		const mime = AUDIO_MIME[extname(filePath).toLowerCase()]
+		if (!mime) return res
+		const headers = new Headers(res.headers)
+		headers.set("content-type", mime)
+		return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
+	})
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
+	createWindow()
+
+	app.on("activate", () => {
+		if (BrowserWindow.getAllWindows().length === 0) createWindow()
+	})
 })
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+app.on("window-all-closed", () => {
+	if (process.platform !== "darwin") app.quit()
 })
 
 // --- IPC Handlers ---
 
 // Helper: get backups directory
 function getBackupsDir() {
-  return join(app.getPath('userData'), 'forgeaudio-backups')
+	return join(app.getPath("userData"), "forgeaudio-backups")
 }
 
-ipcMain.handle('dialog:selectDirectory', async () => {
-  const result = await dialog.showOpenDialog(mainWindow!, {
-    properties: ['openDirectory'],
-  })
-  if (result.canceled) return null
-  return result.filePaths[0]
+ipcMain.handle("dialog:selectDirectory", async () => {
+	const result = await dialog.showOpenDialog(mainWindow!, {
+		properties: ["openDirectory"],
+	})
+	if (result.canceled) return null
+	return result.filePaths[0]
 })
 
-ipcMain.on('fs:scanDirectory', async (event, dirPath: string) => {
-  const BATCH_SIZE = 50
-  let buffer: AudioFile[] = []
+ipcMain.on("fs:scanDirectory", async (event, dirPath: string) => {
+	const BATCH_SIZE = 50
+	let buffer: AudioFile[] = []
 
-  function flush() {
-    if (buffer.length > 0) {
-      event.sender.send('fs:scanProgress', [...buffer])
-      buffer = []
-    }
-  }
+	function flush() {
+		if (buffer.length > 0) {
+			event.sender.send("fs:scanProgress", [...buffer])
+			buffer = []
+		}
+	}
 
-  try {
-    await scanDirectory(dirPath, (file) => {
-      buffer.push(file)
-      if (buffer.length >= BATCH_SIZE) flush()
-    })
-  } finally {
-    flush()
-    event.sender.send('fs:scanDone')
-  }
+	try {
+		await scanDirectory(dirPath, (file) => {
+			buffer.push(file)
+			if (buffer.length >= BATCH_SIZE) flush()
+		})
+	} finally {
+		flush()
+		event.sender.send("fs:scanDone")
+	}
 })
 
-ipcMain.handle('metadata:read', async () => {
-  return readMetadata()
+ipcMain.handle("metadata:read", async () => {
+	return readMetadata()
 })
 
-ipcMain.handle('metadata:write', async (_event, data: string) => {
-  return writeMetadata(data)
+ipcMain.handle("metadata:write", async (_event, data: string) => {
+	return writeMetadata(data)
 })
 
-ipcMain.handle('audio:getDuration', async (_event, filePath: string) => {
-  return getAudioDuration(filePath)
+ipcMain.handle("audio:getDuration", async (_event, filePath: string) => {
+	return getAudioDuration(filePath)
 })
 
-ipcMain.handle('shell:showInFinder', async (_event, filePath: string) => {
-  shell.showItemInFolder(filePath)
+ipcMain.handle("shell:showInFinder", async (_event, filePath: string) => {
+	shell.showItemInFolder(filePath)
 })
 
-ipcMain.handle('clipboard:copyPath', async (_event, filePath: string) => {
-  const { clipboard } = await import('electron')
-  clipboard.writeText(filePath)
+ipcMain.handle("clipboard:copyPath", async (_event, filePath: string) => {
+	const { clipboard } = await import("electron")
+	clipboard.writeText(filePath)
 })
 
-ipcMain.handle('fs:deleteFile', async (_event, filePath: string) => {
-  try {
-    await unlink(filePath)
-    return { success: true }
-  } catch (err) {
-    return { success: false, error: (err as Error).message }
-  }
+ipcMain.handle("fs:deleteFile", async (_event, filePath: string) => {
+	try {
+		await unlink(filePath)
+		return { success: true }
+	} catch (err) {
+		return { success: false, error: (err as Error).message }
+	}
 })
 
-ipcMain.handle('fs:renameFile', async (_event, oldPath: string, newName: string) => {
-  try {
-    const newPath = join(dirname(oldPath), newName)
-    await rename(oldPath, newPath)
-    return { success: true, newPath }
-  } catch (err) {
-    return { success: false, error: (err as Error).message }
-  }
+ipcMain.handle("fs:renameFile", async (_event, oldPath: string, newName: string) => {
+	try {
+		const newPath = join(dirname(oldPath), newName)
+		await rename(oldPath, newPath)
+		return { success: true, newPath }
+	} catch (err) {
+		return { success: false, error: (err as Error).message }
+	}
 })
 
-ipcMain.handle('config:getRootDirectory', async () => {
-  return getRootDirectory()
+ipcMain.handle("config:getRootDirectory", async () => {
+	return getRootDirectory()
 })
 
-ipcMain.handle('config:setRootDirectory', async (_event, dir: string | null) => {
-  return setRootDirectory(dir)
+ipcMain.handle("config:setRootDirectory", async (_event, dir: string | null) => {
+	return setRootDirectory(dir)
 })
 
-ipcMain.handle('debug:getStorePath', () => {
-  return getMetadataPath()
+ipcMain.handle("debug:getStorePath", () => {
+	return getMetadataPath()
 })
 
-ipcMain.handle('debug:getStoreData', async () => {
-  return readMetadata()
+ipcMain.handle("debug:getStoreData", async () => {
+	return readMetadata()
 })
 
-ipcMain.handle('debug:clearTagData', async () => {
-  return clearTagData()
+ipcMain.handle("debug:clearTagData", async () => {
+	return clearTagData()
 })
 
-ipcMain.handle('devtools:toggle', () => {
-  if (mainWindow) {
-    if (mainWindow.webContents.isDevToolsOpened()) {
-      mainWindow.webContents.closeDevTools()
-    } else {
-      mainWindow.webContents.openDevTools()
-    }
-  }
+ipcMain.handle("devtools:toggle", () => {
+	if (mainWindow) {
+		if (mainWindow.webContents.isDevToolsOpened()) {
+			mainWindow.webContents.closeDevTools()
+		} else {
+			mainWindow.webContents.openDevTools()
+		}
+	}
 })
 
 // File dialogs
-ipcMain.handle('dialog:saveFile', async (_event, defaultName: string) => {
-  const result = await dialog.showSaveDialog(mainWindow!, {
-    defaultPath: defaultName,
-  })
-  if (result.canceled) return null
-  return result.filePath
+ipcMain.handle("dialog:saveFile", async (_event, defaultName: string) => {
+	const result = await dialog.showSaveDialog(mainWindow!, {
+		defaultPath: defaultName,
+	})
+	if (result.canceled) return null
+	return result.filePath
 })
 
-ipcMain.handle('dialog:openFile', async () => {
-  const result = await dialog.showOpenDialog(mainWindow!, {
-    properties: ['openFile'],
-  })
-  if (result.canceled) return null
-  return result.filePaths[0]
+ipcMain.handle("dialog:openFile", async () => {
+	const result = await dialog.showOpenDialog(mainWindow!, {
+		properties: ["openFile"],
+	})
+	if (result.canceled) return null
+	return result.filePaths[0]
 })
 
 // File operations
-ipcMain.handle('fs:readFile', async (_event, filePath: string) => {
-  return fsReadFile(filePath, 'utf-8')
+ipcMain.handle("fs:readFile", async (_event, filePath: string) => {
+	return fsReadFile(filePath, "utf-8")
 })
 
-ipcMain.handle('fs:writeFile', async (_event, filePath: string, data: string) => {
-  return writeFile(filePath, data, 'utf-8')
+ipcMain.handle("fs:writeFile", async (_event, filePath: string, data: string) => {
+	return writeFile(filePath, data, "utf-8")
 })
 
 // Backup operations
-ipcMain.handle('backup:create', async (_event, data: string) => {
-  const backupsDir = getBackupsDir()
-  await mkdir(backupsDir, { recursive: true })
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-  const filename = `backup-${timestamp}.json`
-  const filePath = join(backupsDir, filename)
-  await writeFile(filePath, data, 'utf-8')
-  return { filename }
+ipcMain.handle("backup:create", async (_event, data: string) => {
+	const backupsDir = getBackupsDir()
+	await mkdir(backupsDir, { recursive: true })
+	const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
+	const filename = `backup-${timestamp}.json`
+	const filePath = join(backupsDir, filename)
+	await writeFile(filePath, data, "utf-8")
+	return { filename }
 })
 
-ipcMain.handle('backup:list', async () => {
-  try {
-    const backupsDir = getBackupsDir()
-    const files = await readdir(backupsDir)
-    const backups = await Promise.all(
-      files.map(async (filename) => {
-        const filePath = join(backupsDir, filename)
-        const stats = await stat(filePath)
-        return {
-          filename,
-          timestamp: new Date(stats.mtime).toISOString(),
-          size: stats.size,
-        }
-      })
-    )
-    // Sort by mtime descending (newest first)
-    backups.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    return backups
-  } catch {
-    return []
-  }
+ipcMain.handle("backup:list", async () => {
+	try {
+		const backupsDir = getBackupsDir()
+		const files = await readdir(backupsDir)
+		const backups = await Promise.all(
+			files.map(async (filename) => {
+				const filePath = join(backupsDir, filename)
+				const stats = await stat(filePath)
+				return {
+					filename,
+					timestamp: new Date(stats.mtime).toISOString(),
+					size: stats.size,
+				}
+			}),
+		)
+		// Sort by mtime descending (newest first)
+		backups.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+		return backups
+	} catch {
+		return []
+	}
 })
 
-ipcMain.handle('backup:restore', async (_event, filename: string) => {
-  const backupsDir = getBackupsDir()
-  const filePath = join(backupsDir, filename)
-  return fsReadFile(filePath, 'utf-8')
+ipcMain.handle("backup:restore", async (_event, filename: string) => {
+	const backupsDir = getBackupsDir()
+	const filePath = join(backupsDir, filename)
+	return fsReadFile(filePath, "utf-8")
 })
 
-ipcMain.handle('backup:delete', async (_event, filename: string) => {
-  const backupsDir = getBackupsDir()
-  const filePath = join(backupsDir, filename)
-  return unlink(filePath)
+ipcMain.handle("backup:delete", async (_event, filename: string) => {
+	const backupsDir = getBackupsDir()
+	const filePath = join(backupsDir, filename)
+	return unlink(filePath)
 })
 
 // Context menu triggered from renderer
-ipcMain.on('context-menu:show', (event, params: { filePath: string }) => {
-  const menu = Menu.buildFromTemplate([
-    {
-      label: 'Play',
-      click: () => event.sender.send('context-menu:play', params.filePath),
-    },
-    {
-      label: 'Add Tag',
-      click: () => event.sender.send('context-menu:addTag', params.filePath),
-    },
-    {
-      label: 'Edit Description',
-      click: () => event.sender.send('context-menu:editDescription', params.filePath),
-    },
-    {
-      label: 'Rename…',
-      click: () => event.sender.send('context-menu:rename', params.filePath),
-    },
-    { type: 'separator' },
-    {
-      label: 'Reveal in Finder',
-      click: () => shell.showItemInFolder(params.filePath),
-    },
-    {
-      label: 'Copy File Path',
-      click: () => {
-        const { clipboard } = require('electron')
-        clipboard.writeText(params.filePath)
-      },
-    },
-    { type: 'separator' },
-    {
-      label: 'Delete File…',
-      click: () => event.sender.send('context-menu:delete', params.filePath),
-    },
-  ])
-  menu.popup()
+ipcMain.on("context-menu:show", (event, params: { filePath: string }) => {
+	const menu = Menu.buildFromTemplate([
+		{
+			label: "Play",
+			click: () => event.sender.send("context-menu:play", params.filePath),
+		},
+		{
+			label: "Add Tag",
+			click: () => event.sender.send("context-menu:addTag", params.filePath),
+		},
+		{
+			label: "Edit Description",
+			click: () => event.sender.send("context-menu:editDescription", params.filePath),
+		},
+		{
+			label: "Rename…",
+			click: () => event.sender.send("context-menu:rename", params.filePath),
+		},
+		{ type: "separator" },
+		{
+			label: "Reveal in Finder",
+			click: () => shell.showItemInFolder(params.filePath),
+		},
+		{
+			label: "Copy File Path",
+			click: () => {
+				const { clipboard } = require("electron")
+				clipboard.writeText(params.filePath)
+			},
+		},
+		{ type: "separator" },
+		{
+			label: "Delete File…",
+			click: () => event.sender.send("context-menu:delete", params.filePath),
+		},
+	])
+	menu.popup()
 })
