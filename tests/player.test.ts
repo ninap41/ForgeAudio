@@ -68,11 +68,62 @@ function makeFile(overrides: Partial<AudioFile> = {}): AudioFile {
     tags: [],
     description: '',
     lastPlayed: null,
+    createdAt: null,
+    modifiedAt: null,
     ...overrides,
   }
 }
 
-function mountPlayer() {
+/** Real audio files in tests/mocks + synthetic entries for missing formats */
+const MOCK_AUDIO_FILES: AudioFile[] = [
+  makeFile({
+    path: '/Users/ninapalumbo/Desktop/FuckTheFinder/tests/mocks/Music - Being Different.mp3',
+    name: 'Music - Being Different.mp3',
+    extension: '.mp3',
+    size: 6478922,
+  }),
+  makeFile({
+    path: '/Users/ninapalumbo/Desktop/FuckTheFinder/tests/mocks/Shire Oak - Thimblewinter - 02 Thimblewinter copy.mp3',
+    name: 'Shire Oak - Thimblewinter - 02 Thimblewinter copy.mp3',
+    extension: '.mp3',
+    size: 10454137,
+  }),
+  makeFile({
+    path: '/Users/ninapalumbo/Desktop/FuckTheFinder/tests/mocks/Magazine.m4a',
+    name: 'Magazine.m4a',
+    extension: '.m4a',
+    size: 1177452,
+  }),
+  makeFile({
+    path: '/Users/ninapalumbo/Desktop/FuckTheFinder/tests/mocks/Alert copy.aiff',
+    name: 'Alert copy.aiff',
+    extension: '.aiff',
+    size: 44740,
+  }),
+  // Synthetic entries for formats not in mocks/ — the component never reads the
+  // file from disk (useMediaControls is mocked), so these still exercise the full
+  // URL-encoding + scrubber path for each extension.
+  makeFile({
+    path: '/sounds/kick_01.wav',
+    name: 'kick_01.wav',
+    extension: '.wav',
+    size: 2048,
+  }),
+  makeFile({
+    path: '/sounds/pad with spaces.flac',
+    name: 'pad with spaces.flac',
+    extension: '.flac',
+    size: 4096,
+  }),
+  makeFile({
+    path: '/sounds/texture_loop.ogg',
+    name: 'texture_loop.ogg',
+    extension: '.ogg',
+    size: 8192,
+  }),
+]
+
+function mountPlayer(file?: AudioFile) {
   // Fresh refs for each test
   mockPlaying = ref(false)
   mockCurrentTime = ref(0)
@@ -83,7 +134,7 @@ function mountPlayer() {
 
   setActivePinia(createPinia())
   const library = useLibraryStore()
-  library.currentFile = makeFile()
+  library.currentFile = file ?? makeFile()
   library.isPlaying = false
 
   const wrapper = mount(Player)
@@ -355,5 +406,158 @@ describe('buffered indicator', () => {
     await wrapper.vm.$nextTick()
 
     expect(scrubber.attributes('style')).toContain('--buffered-pct: 40%')
+  })
+})
+
+// ─── per-format scrubbing coverage ──────────────────────────────────────────
+// Runs the full scrubbing test suite against every supported audio format
+// using real mock files where available (.mp3, .m4a, .aiff) and synthetic
+// entries for the rest (.wav, .flac, .ogg).
+
+describe.each(MOCK_AUDIO_FILES)('scrubbing: $name ($extension)', (file) => {
+  it('renders the correct filename', () => {
+    const { wrapper } = mountPlayer(file)
+    expect(wrapper.find('.player-filename').text()).toBe(file.name)
+  })
+
+  it('generates a valid atom:// src with encoded path', () => {
+    const { wrapper } = mountPlayer(file)
+    const audio = wrapper.find('audio')
+    expect(audio.attributes('src')).toBe('atom://localfile' + encodeURI(file.path))
+  })
+
+  it('scrub drag seeks to correct position', async () => {
+    const { scrubber, wrapper } = mountPlayer(file)
+    mockDuration.value = 120
+    await wrapper.vm.$nextTick()
+
+    await scrubber.trigger('pointerdown')
+    ;(scrubber.element as HTMLInputElement).value = '55'
+    await scrubber.trigger('input')
+    await scrubber.trigger('pointerup')
+
+    expect(mockCurrentTime.value).toBe(55)
+  })
+
+  it('scrub display isolation during drag', async () => {
+    const { scrubber, wrapper } = mountPlayer(file)
+    mockDuration.value = 120
+    await wrapper.vm.$nextTick()
+
+    await scrubber.trigger('pointerdown')
+    ;(scrubber.element as HTMLInputElement).value = '80'
+    await scrubber.trigger('input')
+    await wrapper.vm.$nextTick()
+
+    // Simulate composable currentTime lagging behind
+    mockCurrentTime.value = 2
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('.time')[0].text()).toBe('1:20')
+  })
+
+  it('pointercancel clears scrubbing state', async () => {
+    const { scrubber, wrapper } = mountPlayer(file)
+    mockDuration.value = 90
+    await wrapper.vm.$nextTick()
+
+    await scrubber.trigger('pointerdown')
+    ;(scrubber.element as HTMLInputElement).value = '30'
+    await scrubber.trigger('input')
+    await scrubber.trigger('pointercancel')
+    await wrapper.vm.$nextTick()
+
+    mockCurrentTime.value = 50
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('.time')[0].text()).toBe('0:50')
+  })
+
+  it('pointerleave clears scrubbing state', async () => {
+    const { scrubber, wrapper } = mountPlayer(file)
+    mockDuration.value = 90
+    await wrapper.vm.$nextTick()
+
+    await scrubber.trigger('pointerdown')
+    ;(scrubber.element as HTMLInputElement).value = '25'
+    await scrubber.trigger('input')
+    await scrubber.trigger('pointerleave')
+    await wrapper.vm.$nextTick()
+
+    mockCurrentTime.value = 60
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('.time')[0].text()).toBe('1:00')
+  })
+
+  it('click-to-seek via input without pointerdown', async () => {
+    const { scrubber, wrapper } = mountPlayer(file)
+    mockDuration.value = 200
+    await wrapper.vm.$nextTick()
+
+    ;(scrubber.element as HTMLInputElement).value = '100'
+    await scrubber.trigger('input')
+
+    expect(mockCurrentTime.value).toBe(100)
+  })
+
+  it('keyboard seek via change', async () => {
+    const { scrubber, wrapper } = mountPlayer(file)
+    mockDuration.value = 180
+    await wrapper.vm.$nextTick()
+
+    ;(scrubber.element as HTMLInputElement).value = '90'
+    await scrubber.trigger('change')
+
+    expect(mockCurrentTime.value).toBe(90)
+  })
+
+  it('clamps over-duration scrub to duration', async () => {
+    const { scrubber, wrapper } = mountPlayer(file)
+    mockDuration.value = 45
+    await wrapper.vm.$nextTick()
+
+    await scrubber.trigger('pointerdown')
+    ;(scrubber.element as HTMLInputElement).value = '999'
+    await scrubber.trigger('input')
+    await scrubber.trigger('pointerup')
+
+    expect(mockCurrentTime.value).toBe(45)
+  })
+
+  it('clamps negative scrub to 0', async () => {
+    const { scrubber, wrapper } = mountPlayer(file)
+    mockDuration.value = 45
+    await wrapper.vm.$nextTick()
+
+    await scrubber.trigger('pointerdown')
+    ;(scrubber.element as HTMLInputElement).value = '-10'
+    await scrubber.trigger('input')
+    await scrubber.trigger('pointerup')
+
+    expect(mockCurrentTime.value).toBe(0)
+  })
+
+  it('resumes playback after scrub if was playing', async () => {
+    const { library, scrubber, wrapper } = mountPlayer(file)
+    library.isPlaying = true
+    mockPlaying.value = true
+    mockDuration.value = 60
+
+    await scrubber.trigger('pointerdown')
+    ;(scrubber.element as HTMLInputElement).value = '30'
+    await scrubber.trigger('input')
+    await scrubber.trigger('pointerup')
+
+    expect(mockPlaying.value).toBe(true)
+  })
+
+  it('buffered indicator renders correctly', async () => {
+    const { scrubber, wrapper } = mountPlayer(file)
+    mockDuration.value = 200
+    mockBuffered.value = [[0, 120]]
+    await wrapper.vm.$nextTick()
+
+    expect(scrubber.attributes('style')).toContain('--buffered-pct: 60%')
   })
 })
