@@ -44,6 +44,16 @@
 			<nav class="nav-tabs">
 				<router-link to="/" class="nav-tab" active-class="active">Library</router-link>
 				<router-link to="/settings" class="nav-tab" active-class="active">Settings</router-link>
+				<div class="header-info">
+					<span class="header-info-item">
+						<span class="header-info-label">Current Profile:</span>
+						<span class="header-info-value glow">{{ activeProfileName === 'Default' ? '(Default)' : activeProfileName }}</span>
+					</span>
+					<span v-if="library.rootDirectory" class="header-info-item">
+						<span class="header-info-label">Directory:</span>
+						<span class="header-info-value glow">{{ library.rootDirectory }}</span>
+					</span>
+				</div>
 			</nav>
 		</header>
 		<main class="app-main">
@@ -69,6 +79,7 @@ const library = useLibraryStore()
 const router = useRouter()
 const showBootSplash = ref(true)
 const showDebugModal = ref(false)
+const activeProfileName = ref('Default')
 
 function handleKeydown(e: KeyboardEvent) {
 	// Cmd+, → navigate to Settings
@@ -185,6 +196,42 @@ img.app-title {
 	border: 1px solid var(--border);
 	border-bottom-color: var(--bg-primary);
 	margin-bottom: -1px;
+}
+
+.header-info {
+	margin-left: auto;
+	display: flex;
+	gap: 16px;
+	align-items: center;
+}
+
+.header-info-item {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 11px;
+}
+
+.header-info-label {
+	font-weight: 700;
+	color: var(--text-secondary);
+}
+
+.header-info-value {
+	color: var(--success);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 300px;
+}
+
+.header-info-value.glow {
+	animation: glow 1.5s steps(3, end) infinite;
+}
+
+@keyframes glow {
+	0%, 100% { text-shadow: 0 0 2px var(--success); }
+	50% { text-shadow: 0 0 6px var(--success), 0 0 8px var(--success); }
 }
 
 .app-main {

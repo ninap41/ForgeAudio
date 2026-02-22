@@ -1,6 +1,10 @@
 <template>
   <section class="settings-section">
     <h3>Auto-Tagging Rules</h3>
+    <p class="panel-description">
+      Create rules to automatically tag files based on their filename, a regex pattern, or file extension. Rules are previewed
+      before applying so you can verify what will change. Tags are applied immediately and saved to your metadata.
+    </p>
 
     <!-- Add Rule Form -->
     <div class="operation-card">
@@ -270,6 +274,13 @@ h3 {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.panel-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 16px;
 }
 
 h4 {

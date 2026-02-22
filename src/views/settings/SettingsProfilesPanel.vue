@@ -1,6 +1,12 @@
 <template>
   <section class="settings-section">
     <h3>Settings Profiles</h3>
+    <p class="panel-description">
+      A profile is a saved snapshot of your entire library metadata tied to a specific directory path. It captures your tags,
+      descriptions, theme, and the root folder you were working in. Save profiles to quickly switch between different audio
+      libraries, or export them as <code>.forgerc</code> files to share with others. Loading a profile restores all of that
+      data and rescans the directory.
+    </p>
 
     <div class="profiles-grid">
       <!-- Current Profile -->
@@ -187,6 +193,21 @@ h3 {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.panel-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.panel-description code {
+  font-size: 11px;
+  padding: 1px 4px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
 }
 
 .profiles-grid {

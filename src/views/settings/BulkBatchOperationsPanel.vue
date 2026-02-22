@@ -1,6 +1,10 @@
 <template>
   <section class="settings-section">
     <h3>Bulk and Batch Operations</h3>
+    <p class="panel-description">
+      Make large-scale changes to your library in one step. Merge or rename tags, add or remove tags from groups of files,
+      and set descriptions in bulk. Changes are applied instantly to your files and saved to metadata automatically.
+    </p>
 
     <div class="operations-grid">
       <!-- Merge Tag -->
@@ -390,6 +394,13 @@ h3 {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.panel-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 16px;
 }
 
 h4 {

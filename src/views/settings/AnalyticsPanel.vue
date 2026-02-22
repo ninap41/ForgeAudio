@@ -1,6 +1,10 @@
 <template>
   <section class="settings-section">
     <h3>Analytics & Insights</h3>
+    <p class="panel-description">
+      A read-only overview of how your library is organized. See which tags are most used, which files have the most tags,
+      your recent playback history, and coverage metrics. All data is computed live from your current library state.
+    </p>
 
     <div class="analytics-grid">
       <!-- Tag Usage Distribution -->
@@ -200,6 +204,13 @@ h3 {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.panel-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 16px;
 }
 
 h4 {

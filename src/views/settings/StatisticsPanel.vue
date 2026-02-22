@@ -1,6 +1,10 @@
 <template>
   <section class="settings-section">
     <h3>Library Statistics</h3>
+    <p class="panel-description">
+      A live summary of your library. File counts, total size, tagging coverage, and format breakdown are all
+      computed from the current scan and update whenever files are added, removed, or re-tagged.
+    </p>
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-label">Total Files</div>
@@ -88,6 +92,13 @@ h3 {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.panel-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 16px;
 }
 
 h4 {

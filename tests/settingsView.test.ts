@@ -193,6 +193,8 @@ describe('SettingsView - Tag Management', () => {
     library.files = [makeFile()]
 
     const wrapper = mount(SettingsView)
+    // Tags are now visible under the General panel
+    wrapper.vm.activePanel = 'general'
     await wrapper.vm.$nextTick()
 
     const colorPickers = wrapper.findAll('input[type="color"]')

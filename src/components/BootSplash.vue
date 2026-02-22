@@ -37,8 +37,8 @@ const dismissed = ref(false)
 
 const columns = Array.from({ length: 24 }, (_, i) => ({
 	index: i,
-	jitter: Math.random() * 80,
-	durationVar: 0.6 + Math.random() * 0.5,
+	jitter: Math.random() * 64,
+	durationVar: 0.48 + Math.random() * 0.4,
 }))
 
 function onAnimationEnd(e: AnimationEvent) {
@@ -49,13 +49,13 @@ function onAnimationEnd(e: AnimationEvent) {
 }
 
 onMounted(() => {
-	// Extended total runtime by ~3s (was 6500ms)
+	// Safety timeout (20% faster)
 	setTimeout(() => {
 		if (!dismissed.value) {
 			dismissed.value = true
 			emit("done")
 		}
-	}, 9500)
+	}, 7600)
 })
 </script>
 
@@ -67,8 +67,8 @@ onMounted(() => {
 	background: var(--bg-primary);
 	pointer-events: none;
 
-	/* Extend overall animation timing by ~3s */
-	animation: fadeOut 0.5s ease-out 8.4s forwards;
+	/* Overall fade-out (20% faster) */
+	animation: fadeOut 0.4s ease-out 6.72s forwards;
 
 	--mtn-back: color-mix(in srgb, var(--accent) 30%, black);
 	--mtn-mid: color-mix(in srgb, var(--accent) 50%, black);
@@ -116,8 +116,8 @@ onMounted(() => {
 		100% 100%
 	);
 	animation:
-		mountainsIn 0.4s ease-out 0s forwards,
-		mountainsOff 1.6s ease-in 6.9s forwards;
+		mountainsIn 0.32s ease-out 0s forwards,
+		mountainsOff 1.28s ease-in 5.52s forwards;
 }
 
 .mountain-layer.--mid {
@@ -138,8 +138,8 @@ onMounted(() => {
 		100% 100%
 	);
 	animation:
-		mountainsIn 0.4s ease-out 0.1s forwards,
-		mountainsOff 1.6s ease-in 7s forwards;
+		mountainsIn 0.32s ease-out 0.08s forwards,
+		mountainsOff 1.28s ease-in 5.6s forwards;
 }
 
 .mountain-layer.--front {
@@ -161,8 +161,8 @@ onMounted(() => {
 		100% 100%
 	);
 	animation:
-		mountainsIn 0.4s ease-out 0.2s forwards,
-		mountainsOff 1.6s ease-in 7.1s forwards;
+		mountainsIn 0.32s ease-out 0.16s forwards,
+		mountainsOff 1.28s ease-in 5.68s forwards;
 }
 
 @keyframes mountainsIn {
@@ -202,8 +202,7 @@ onMounted(() => {
 	transform: translate(-50%, -50%);
 	opacity: 0;
 	z-index: 200;
-	/* keep flash timing as-is */
-	animation: logoFlash 6s ease-in-out 3s forwards;
+	animation: logoFlash 4.8s ease-in-out 2.4s forwards;
 	filter: drop-shadow(0 0 0px transparent);
 }
 
@@ -286,8 +285,7 @@ onMounted(() => {
 	position: absolute;
 	inset: 0;
 	opacity: 0;
-	/* Keep dissolve timing, but allow the scene to linger longer overall */
-	animation: dissolveIn 6s ease-out 3.8s forwards;
+	animation: dissolveIn 4.8s ease-out 3.04s forwards;
 }
 
 @keyframes dissolveIn {
@@ -306,8 +304,7 @@ onMounted(() => {
 	top: 0;
 	left: calc(var(--i) * (100% / 24));
 	background: linear-gradient(to bottom, var(--mtn-back), var(--mtn-mid) 40%, var(--mtn-front) 70%, var(--bg-primary));
-	/* Shift column drop later to elongate overall sequence */
-	animation: columnDrop var(--drop-dur) ease-in calc(7.2s + var(--i) * 30ms + var(--jitter)) forwards;
+	animation: columnDrop var(--drop-dur) ease-in calc(5.76s + var(--i) * 24ms + var(--jitter)) forwards;
 }
 
 @keyframes columnDrop {

@@ -456,12 +456,15 @@ describe('ClearTagModal', () => {
 })
 
 describe('SettingsView — uncategorized tag', () => {
-  it('does not show Edit, Clear, or Delete buttons for uncategorized tag', () => {
+  it('does not show Edit, Clear, or Delete buttons for uncategorized tag', async () => {
     const tagStore = useTagStore()
     // uncategorized exists by default; add another tag for comparison
     tagStore.createTag('impact', '#ff0000')
 
     const wrapper = mount(SettingsView)
+    // Tags are now visible under the General panel
+    wrapper.vm.activePanel = 'general'
+    await wrapper.vm.$nextTick()
 
     const rows = wrapper.findAll('.tag-row')
     const uncatRow = rows.find(r => r.find('.tag-name').text() === 'uncategorized')!

@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Electron-Desktop-blue" />
   <img src="https://img.shields.io/badge/Vue-3-brightgreen" />
   <img src="https://img.shields.io/badge/TypeScript-Strict-blue" />
-  <img src="https://img.shields.io/badge/Tests-361-success" />
+  <img src="https://img.shields.io/badge/Tests-412-success" />
   <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
 </p>
 
@@ -50,7 +50,7 @@ to be added (gifs)
 - **Streaming results** — file list populates incrementally (no blocking UI)
 - **Resizable column list view** — Filename (+ description), Tags, Duration, Type
 - **Live file count** — shows X of Y matching files
-- **Scan overlay** — visual feedback during rescans
+- **Scan overlay** — visual feedback during rescans, with smart timer for large directories
 - **Rescan button** — refresh without changing root folder
 
 ---
@@ -122,10 +122,18 @@ Metadata stored in portable JSON format — no database required.
 
 ## ⚙ Settings
 
-- Change root library folder
-- Manage tag library with color pickers
-- Add/delete tags
-- Centralized metadata persistence
+- **General** — Consolidated panel with Library (root folder), Tags (color pickers, rename, delete, clear), and Statistics
+- **Bulk & Batch Operations** — Merge tags, find & replace tag names, batch add/remove tags across files, batch set descriptions (by extension, tag, or untagged/all)
+- **Auto-Tagging** — Create rules (filename substring, regex, or extension match) to auto-tag files with live preview before applying
+- **Statistics** — Library-wide stats (included in General panel)
+- **Export / Import** — Export and import metadata as JSON
+- **Backup / Restore** — Create and restore library.json snapshots
+- **Analytics** — Tag usage distribution, most tagged files, recently played/modified, coverage and description rates
+- **Settings Profiles** — Save, load, export (.forgerc), and import named metadata profiles
+- **Advanced Settings** — Scanner batch size, duration worker count, developer mode, UI toggles
+- **Danger Zone** — Double-confirm destructive operations (clear all tags, delete definitions, reset metadata)
+- **Keyboard shortcuts** — Cmd+, opens Settings, Cmd+1/2 switches views
+- **Accessibility** — ARIA dialog attributes on all modals, keyboard-navigable tag list
 
 ---
 
@@ -182,7 +190,7 @@ Renderer (Vue 3)
 | **music-metadata** | Audio duration extraction              |
 | **chroma-js**      | Color math for theme generation        |
 | **TypeScript**     | Strict typing throughout               |
-| **Vitest**         | 361 unit tests across 18 files         |
+| **Vitest**         | 412 unit tests across 24 files         |
 
 ---
 
@@ -190,7 +198,7 @@ Renderer (Vue 3)
 
 ForgeAudio includes:
 
-- 361 unit tests across 18 files
+- 412 unit tests across 24 files
 - Store-level logic testing
 - Filtering edge-case validation
 - Metadata persistence coverage
@@ -300,7 +308,6 @@ Metadata is keyed by **filename**, not full path — ensuring portability when m
 
 - Waveform preview rendering
 - Saved filter presets
-- Bulk tag editing
 - Virtualized list for extremely large libraries
 - Indexed search engine
 

@@ -1,6 +1,10 @@
 <template>
   <section class="settings-section">
     <h3>Advanced Settings</h3>
+    <p class="panel-description">
+      Fine-tune scanner performance and developer options. These settings apply to the current session and control how files
+      are scanned, whether durations are loaded automatically, and whether backups are created on every save.
+    </p>
 
     <div class="settings-grid">
       <!-- Scanner Settings -->
@@ -112,6 +116,13 @@ h3 {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.panel-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 16px;
 }
 
 h4 {

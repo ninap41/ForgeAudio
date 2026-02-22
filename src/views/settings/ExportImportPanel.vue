@@ -1,6 +1,10 @@
 <template>
   <section class="settings-section">
     <h3>Export & Import</h3>
+    <p class="panel-description">
+      Move your library data between machines or share it with collaborators. Exporting saves a snapshot of all your metadata
+      (tags, descriptions, theme) as a JSON file. Importing replaces your current metadata and triggers a rescan.
+    </p>
 
     <div class="actions-grid">
       <!-- Export -->
@@ -108,6 +112,13 @@ h3 {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.panel-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 16px;
 }
 
 h4 {

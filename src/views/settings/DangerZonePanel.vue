@@ -1,6 +1,10 @@
 <template>
   <section class="settings-section danger-zone">
     <h3>Danger Zone</h3>
+    <p class="panel-description">
+      Irreversible destructive actions. Clearing tags, deleting definitions, or resetting metadata cannot be undone unless you
+      have a backup. Each action requires you to type a confirmation phrase before it executes.
+    </p>
 
     <div class="danger-card">
       <div class="danger-row">
@@ -226,6 +230,13 @@ h3 {
   color: var(--danger, #ff4d4d);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.panel-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 16px;
 }
 
 h4 {

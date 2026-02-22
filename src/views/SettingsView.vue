@@ -1,76 +1,101 @@
 <template>
-	<div class="settings-view">
-		<h2>Settings</h2>
-
-		<section class="settings-section">
-			<div class="settings-directory-info">
-				<h3>Library</h3>
-				<div class="setting-row">
-					<span class="setting-label">Root directory</span>
-					<span class="setting-value">{{ library.rootDirectory ?? "Not set" }}</span>
-					<button class="btn" @click="library.selectAndScanDirectory()">Change</button>
-				</div>
+	<div class="settings-layout">
+		<nav class="settings-nav" aria-label="Settings navigation">
+			<div
+				v-for="item in navItems"
+				:key="item.id"
+				class="nav-item"
+				:class="{ active: activePanel === item.id, danger: item.id === 'danger-zone' }"
+				role="button"
+				tabindex="0"
+				@click="activePanel = item.id"
+				@keydown.enter="activePanel = item.id"
+			>
+				{{ item.label }}
 			</div>
-		</section>
+		</nav>
 
-		<section class="settings-section">
-			<h3>Tags</h3>
+		<div class="settings-content">
+			<!-- General (Library + Tags + Statistics) -->
+			<div v-if="activePanel === 'general'">
+				<p class="panel-description">
+					Your library at a glance. Set your root audio folder, manage tag definitions, and view overall statistics.
+					This panel updates automatically whenever you scan a directory, add or remove tags, or change file metadata.
+				</p>
 
-			<div class="tag-list" role="list" aria-label="Tag definitions">
-				<div
-					v-for="(def, tagName) in tagStore.tagDefinitions"
-					:key="tagName"
-					class="tag-row"
-					role="listitem"
-					tabindex="0"
-					@keydown.enter="tagName !== 'uncategorized' && (editingTag = tagName as string)"
-				>
-					<input
-						type="color"
-						:value="def.color"
-						@input="
-							(e) => {
-								tagStore.setTagColor(tagName, (e.target as HTMLInputElement).value)
-								library.saveMetadata()
-							}
-						"
-						class="color-picker"
-						:aria-label="`Color for ${tagName}`"
-					/>
-					<span class="tag-name">{{ tagName }}</span>
-					<span class="tag-count">{{ tagCounts[tagName] ?? 0 }} sound{{ (tagCounts[tagName] ?? 0) !== 1 ? "s" : "" }}</span>
-					<button v-if="tagName !== 'uncategorized'" class="btn btn-subtle btn-sm" @click="editingTag = tagName as string">
-						Edit
-					</button>
-					<button v-if="tagName !== 'uncategorized'" class="btn btn-subtle btn-sm" @click="clearingTag = tagName as string">
-						Clear
-					</button>
-					<button
-						v-if="tagName !== 'uncategorized'"
-						class="btn btn-subtle btn-sm btn-danger-subtle"
-						@click="() => (tagStore.deleteTag(tagName as string), library.saveMetadata())"
-					>
-						Delete
-					</button>
-				</div>
+				<section class="settings-section">
+					<h3>Library</h3>
+					<div class="settings-directory-info">
+						<div class="setting-row">
+							<span class="setting-label">Root directory</span>
+							<span class="setting-value">{{ library.rootDirectory ?? "Not set" }}</span>
+							<button class="btn" @click="library.selectAndScanDirectory()">Change</button>
+						</div>
+					</div>
+				</section>
+
+				<section class="settings-section">
+					<h3>Tags</h3>
+
+					<div class="tag-list" role="list" aria-label="Tag definitions">
+						<div
+							v-for="(def, tagName) in tagStore.tagDefinitions"
+							:key="tagName"
+							class="tag-row"
+							role="listitem"
+							tabindex="0"
+							@keydown.enter="tagName !== 'uncategorized' && (editingTag = tagName as string)"
+						>
+							<input
+								type="color"
+								:value="def.color"
+								@input="
+									(e) => {
+										tagStore.setTagColor(tagName, (e.target as HTMLInputElement).value)
+										library.saveMetadata()
+									}
+								"
+								class="color-picker"
+								:aria-label="`Color for ${tagName}`"
+							/>
+							<span class="tag-name">{{ tagName }}</span>
+							<span class="tag-count">{{ tagCounts[tagName] ?? 0 }} sound{{ (tagCounts[tagName] ?? 0) !== 1 ? "s" : "" }}</span>
+							<button v-if="tagName !== 'uncategorized'" class="btn btn-subtle btn-sm" @click="editingTag = tagName as string">
+								Edit
+							</button>
+							<button v-if="tagName !== 'uncategorized'" class="btn btn-subtle btn-sm" @click="clearingTag = tagName as string">
+								Clear
+							</button>
+							<button
+								v-if="tagName !== 'uncategorized'"
+								class="btn btn-subtle btn-sm btn-danger-subtle"
+								@click="() => (tagStore.deleteTag(tagName as string), library.saveMetadata())"
+							>
+								Delete
+							</button>
+						</div>
+					</div>
+
+					<div class="new-tag-row">
+						<input v-model="newTagName" placeholder="Tag name" class="text-input" @keydown.enter="addTag" aria-label="New tag name" />
+						<input v-model="newTagColor" type="color" class="color-picker" aria-label="New tag color" />
+						<button class="btn" @click="addTag" :disabled="!newTagName.trim()">Add Tag</button>
+					</div>
+				</section>
+
+				<StatisticsPanel />
 			</div>
 
-			<div class="new-tag-row">
-				<input v-model="newTagName" placeholder="Tag name" class="text-input" @keydown.enter="addTag" aria-label="New tag name" />
-				<input v-model="newTagColor" type="color" class="color-picker" aria-label="New tag color" />
-				<button class="btn" @click="addTag" :disabled="!newTagName.trim()">Add Tag</button>
-			</div>
-		</section>
-
-		<StatisticsPanel />
-		<BulkBatchOperationsPanel />
-		<ExportImportPanel />
-		<BackupPanel />
-		<AutoTagPanel />
-		<AnalyticsPanel />
-		<SettingsProfilesPanel />
-		<AdvancedSettingsPanel />
-		<DangerZonePanel />
+			<!-- Panel components -->
+			<BulkBatchOperationsPanel v-if="activePanel === 'bulk-batch'" />
+			<ExportImportPanel v-if="activePanel === 'export-import'" />
+			<BackupPanel v-if="activePanel === 'backups'" />
+			<AutoTagPanel v-if="activePanel === 'auto-tag'" />
+			<AnalyticsPanel v-if="activePanel === 'analytics'" />
+			<SettingsProfilesPanel v-if="activePanel === 'profiles'" />
+			<AdvancedSettingsPanel v-if="activePanel === 'advanced'" />
+			<DangerZonePanel v-if="activePanel === 'danger-zone'" />
+		</div>
 
 		<EditTagModal v-if="editingTag !== null" :tagName="editingTag" @close="editingTag = null" />
 		<ClearTagModal v-if="clearingTag !== null" :tagName="clearingTag" @close="clearingTag = null" />
@@ -93,9 +118,22 @@ import SettingsProfilesPanel from "./settings/SettingsProfilesPanel.vue"
 import AdvancedSettingsPanel from "./settings/AdvancedSettingsPanel.vue"
 import DangerZonePanel from "./settings/DangerZonePanel.vue"
 
+const navItems = [
+	{ id: "general", label: "General" },
+	{ id: "bulk-batch", label: "Bulk & Batch" },
+	{ id: "export-import", label: "Export / Import" },
+	{ id: "backups", label: "Backups" },
+	{ id: "auto-tag", label: "Auto-Tag" },
+	{ id: "analytics", label: "Analytics" },
+	{ id: "profiles", label: "Profiles" },
+	{ id: "advanced", label: "Advanced" },
+	{ id: "danger-zone", label: "Danger Zone" },
+] as const
+
 const library = useLibraryStore()
 const tagStore = useTagStore()
 
+const activePanel = ref<string>("general")
 const editingTag = ref<string | null>(null)
 const clearingTag = ref<string | null>(null)
 const newTagName = ref("")
@@ -130,22 +168,81 @@ function addTag() {
 </script>
 
 <style scoped>
-.settings-view {
-	padding: 24px;
-	overflow-y: auto;
+.settings-layout {
+	display: flex;
 	height: 100%;
+	overflow: hidden;
 }
 
-h2 {
-	font-size: 18px;
-	font-weight: 600;
-	margin-bottom: 24px;
+.settings-nav {
+	width: 180px;
+	min-width: 180px;
+	background: var(--bg-secondary);
+	border-right: 1px solid var(--border);
+	padding: 12px 0;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.nav-item {
+	padding: 8px 16px;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--text-secondary);
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+	outline: none;
+	white-space: nowrap;
+}
+
+.nav-item:hover {
+	background: var(--bg-hover);
+	color: var(--text-primary);
+}
+
+.nav-item:focus-visible {
+	box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.nav-item.active {
+	background: var(--bg-selected);
+	color: var(--text-primary);
+	border-left: 2px solid var(--accent);
+	padding-left: 14px;
+}
+
+.nav-item.danger {
+	color: var(--danger, #ff4d4d);
+}
+
+.nav-item.danger:hover {
+	background: color-mix(in srgb, var(--danger, #ff4d4d) 8%, transparent);
+}
+
+.nav-item.danger.active {
+	background: color-mix(in srgb, var(--danger, #ff4d4d) 12%, transparent);
+	border-left-color: var(--danger, #ff4d4d);
+}
+
+.settings-content {
+	flex: 1;
+	padding: 24px;
+	overflow-y: auto;
+}
+
+.panel-description {
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--text-muted);
+	margin-bottom: 20px;
 }
 
 h3 {
 	font-size: 14px;
 	font-weight: 600;
-	margin-bottom: 12px;
+	margin-bottom: 16px;
 	color: var(--text-secondary);
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
@@ -153,11 +250,10 @@ h3 {
 
 .settings-directory-info {
 	display: flex;
-	flex-direction: row;
-	justify-content: flex-start;
-	gap: 1rem;
-	align-items: center;
+	flex-direction: column;
+	gap: 8px;
 }
+
 .settings-section {
 	margin-bottom: 32px;
 }
