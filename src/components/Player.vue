@@ -62,9 +62,13 @@ const library = useLibraryStore()
 const audioEl = ref<HTMLAudioElement>()
 const scrubberEl = ref<HTMLInputElement>()
 
-const audioSrc = computed(() =>
-	library.currentFile ? "atom://localfile" + encodeURI(library.currentFile.path) : ""
-)
+const audioSrc = computed(() => {
+	if (!library.currentFile) return ""
+	return "atom://localfile" + library.currentFile.path
+		.split("/")
+		.map(s => encodeURIComponent(s).replace(/[!'()*]/g, c => "%" + c.charCodeAt(0).toString(16).toUpperCase()))
+		.join("/")
+})
 
 // useMediaControls provides reactive, writable refs for playing/currentTime/duration
 // and read-only refs for buffered/ended. We omit `src` from options so the composable
@@ -87,13 +91,13 @@ const displayCurrentTime = computed(() =>
 
 const scrubberPercent = computed(() => {
 	if (!duration.value) return 0
-	return (displayCurrentTime.value / duration.value) * 100
+	return Math.min(100, Math.round((displayCurrentTime.value / duration.value) * 100))
 })
 
 const bufferedPercent = computed(() => {
 	if (!duration.value || !buffered.value.length) return 0
-	const lastRange = buffered.value[buffered.value.length - 1]
-	return (lastRange[1] / duration.value) * 100
+	const maxEnd = Math.max(...buffered.value.map(r => r[1]))
+	return Math.min(100, Math.round((maxEnd / duration.value) * 100))
 })
 
 // ─── Track switching ────────────────────────────────────────────────────────
@@ -209,8 +213,12 @@ function togglePlay() {
 
 function formatTime(seconds: number): string {
 	if (!Number.isFinite(seconds) || seconds < 0) return "0:00"
-	const m = Math.floor(seconds / 60)
+	const h = Math.floor(seconds / 3600)
+	const m = Math.floor((seconds % 3600) / 60)
 	const s = Math.floor(seconds % 60)
+	if (h > 0) {
+		return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+	}
 	return `${m}:${s.toString().padStart(2, "0")}`
 }
 

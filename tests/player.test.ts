@@ -12,6 +12,8 @@ let mockCurrentTime: Ref<number>
 let mockDuration: Ref<number>
 let mockBuffered: Ref<[number, number][]>
 let mockEnded: Ref<boolean>
+let mockWaiting: Ref<boolean>
+let mockSeeking: Ref<boolean>
 let mockOnPlaybackError: ReturnType<typeof vi.fn>
 
 vi.mock('@vueuse/core', () => ({
@@ -21,8 +23,8 @@ vi.mock('@vueuse/core', () => ({
     duration: mockDuration,
     buffered: mockBuffered,
     ended: mockEnded,
-    waiting: ref(false),
-    seeking: ref(false),
+    waiting: mockWaiting,
+    seeking: mockSeeking,
     onPlaybackError: mockOnPlaybackError,
   })),
 }))
@@ -100,6 +102,12 @@ const MOCK_AUDIO_FILES: AudioFile[] = [
     extension: '.aiff',
     size: 44740,
   }),
+  makeFile({
+    path: '/Users/ninapalumbo/Desktop/FuckTheFinder/tests/mocks/(FOR BASS Andrew,Nina, Goose)Prepared to lose everything  copy.m4a',
+    name: '(FOR BASS Andrew,Nina, Goose)Prepared to lose everything  copy.m4a',
+    extension: '.m4a',
+    size: 2703047,
+  }),
   // Synthetic entries for formats not in mocks/ — the component never reads the
   // file from disk (useMediaControls is mocked), so these still exercise the full
   // URL-encoding + scrubber path for each extension.
@@ -130,6 +138,8 @@ function mountPlayer(file?: AudioFile) {
   mockDuration = ref(0)
   mockBuffered = ref([])
   mockEnded = ref(false)
+  mockWaiting = ref(false)
+  mockSeeking = ref(false)
   mockOnPlaybackError = vi.fn()
 
   setActivePinia(createPinia())
@@ -423,7 +433,11 @@ describe.each(MOCK_AUDIO_FILES)('scrubbing: $name ($extension)', (file) => {
   it('generates a valid atom:// src with encoded path', () => {
     const { wrapper } = mountPlayer(file)
     const audio = wrapper.find('audio')
-    expect(audio.attributes('src')).toBe('atom://localfile' + encodeURI(file.path))
+    const expectedSrc = 'atom://localfile' + file.path
+      .split('/')
+      .map(s => encodeURIComponent(s).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase()))
+      .join('/')
+    expect(audio.attributes('src')).toBe(expectedSrc)
   })
 
   it('scrub drag seeks to correct position', async () => {
@@ -559,5 +573,303 @@ describe.each(MOCK_AUDIO_FILES)('scrubbing: $name ($extension)', (file) => {
     await wrapper.vm.$nextTick()
 
     expect(scrubber.attributes('style')).toContain('--buffered-pct: 60%')
+  })
+})
+
+// ─── large file behavior ────────────────────────────────────────────────────
+// Simulates 10MB+ file behavior: long durations, incremental buffered ranges,
+// waiting/seeking states, delayed metadata. No real audio decoding — all via
+// mocked useMediaControls refs.
+
+describe('large file behavior', () => {
+
+  // 1) Long duration formatting
+  describe('long duration formatting', () => {
+    it('formats hours when duration >= 1 hour', async () => {
+      const { wrapper } = mountPlayer()
+      mockDuration.value = 3 * 3600 + 5 * 60 + 7 // 11107s = 3:05:07
+      mockCurrentTime.value = 2 * 3600 + 4        // 7204s = 2:00:04
+      await wrapper.vm.$nextTick()
+
+      const times = wrapper.findAll('.time')
+      expect(times[0].text()).toBe('2:00:04')
+      expect(times[1].text()).toBe('3:05:07')
+    })
+
+    it('keeps m:ss for durations under 1 hour', async () => {
+      const { wrapper } = mountPlayer()
+      mockDuration.value = 3599 // 59:59
+      mockCurrentTime.value = 125 // 2:05
+      await wrapper.vm.$nextTick()
+
+      const times = wrapper.findAll('.time')
+      expect(times[0].text()).toBe('2:05')
+      expect(times[1].text()).toBe('59:59')
+    })
+
+    it('timeline and scrubber still render for very long durations', async () => {
+      const { wrapper, scrubber } = mountPlayer()
+      mockDuration.value = 10 * 3600 // 10 hours
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('.player-timeline').exists()).toBe(true)
+      expect(scrubber.exists()).toBe(true)
+    })
+  })
+
+  // 2) Scrubber max updates when duration arrives late
+  describe('late duration metadata', () => {
+    it('scrubber max defaults to safe value when duration is 0', () => {
+      const { scrubber } = mountPlayer()
+      expect(scrubber.attributes('max')).toBe('1')
+    })
+
+    it('scrubber max updates when duration arrives', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+      mockDuration.value = 5400
+      await wrapper.vm.$nextTick()
+
+      expect(scrubber.attributes('max')).toBe('5400')
+    })
+
+    it('duration display updates from 0:00 to correct value', async () => {
+      const { wrapper } = mountPlayer()
+      expect(wrapper.findAll('.time')[1].text()).toBe('0:00')
+
+      mockDuration.value = 5400 // 1:30:00
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.findAll('.time')[1].text()).toBe('1:30:00')
+    })
+
+    it('buffered-pct does not become NaN when duration arrives', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+
+      // Duration 0, buffered empty
+      let style = scrubber.attributes('style') || ''
+      expect(style).not.toContain('NaN')
+
+      mockDuration.value = 5400
+      mockBuffered.value = [[0, 100]]
+      await wrapper.vm.$nextTick()
+
+      style = scrubber.attributes('style') || ''
+      expect(style).not.toContain('NaN')
+    })
+  })
+
+  // 3) Progressive buffering in chunks
+  describe('progressive buffering', () => {
+    it('buffered-pct updates through incremental chunks', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+      mockDuration.value = 600
+      await wrapper.vm.$nextTick()
+
+      const steps: Array<{ buffered: [number, number][]; expectedPct: number }> = [
+        { buffered: [[0, 5]], expectedPct: 1 },    // 0.833% → rounds to 1
+        { buffered: [[0, 30]], expectedPct: 5 },    // 5%
+        { buffered: [[0, 120]], expectedPct: 20 },   // 20%
+      ]
+
+      for (const step of steps) {
+        mockBuffered.value = step.buffered
+        await wrapper.vm.$nextTick()
+        expect(scrubber.attributes('style')).toContain(
+          `--buffered-pct: ${step.expectedPct}%`
+        )
+      }
+    })
+  })
+
+  // 4) Non-contiguous buffered ranges
+  describe('non-contiguous buffered ranges', () => {
+    it('uses max end across all ranges for buffered-pct', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+      mockDuration.value = 600
+      mockBuffered.value = [[0, 15], [200, 260]]
+      await wrapper.vm.$nextTick()
+
+      // max end = 260, 260/600*100 = 43.333 → rounds to 43
+      expect(scrubber.attributes('style')).toContain('--buffered-pct: 43%')
+    })
+
+    it('handles unsorted buffered ranges correctly', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+      mockDuration.value = 600
+      mockBuffered.value = [[200, 260], [0, 15]] // reverse order
+      await wrapper.vm.$nextTick()
+
+      // max end is still 260 → 43%
+      expect(scrubber.attributes('style')).toContain('--buffered-pct: 43%')
+    })
+  })
+
+  // 5) Waiting/seeking state stability
+  describe('waiting/seeking state stability', () => {
+    it('scrubber stays enabled and time stable during waiting toggle', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+      mockDuration.value = 600
+      mockCurrentTime.value = 100
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.findAll('.time')[0].text()).toBe('1:40')
+
+      mockWaiting.value = true
+      await wrapper.vm.$nextTick()
+      expect(wrapper.findAll('.time')[0].text()).toBe('1:40')
+      expect(scrubber.exists()).toBe(true)
+
+      mockWaiting.value = false
+      await wrapper.vm.$nextTick()
+      expect(wrapper.findAll('.time')[0].text()).toBe('1:40')
+    })
+
+    it('time display stays stable during seeking toggle', async () => {
+      const { wrapper } = mountPlayer()
+      mockDuration.value = 600
+      mockCurrentTime.value = 250
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.findAll('.time')[0].text()).toBe('4:10')
+
+      mockSeeking.value = true
+      await wrapper.vm.$nextTick()
+      expect(wrapper.findAll('.time')[0].text()).toBe('4:10')
+
+      mockSeeking.value = false
+      await wrapper.vm.$nextTick()
+      expect(wrapper.findAll('.time')[0].text()).toBe('4:10')
+    })
+  })
+
+  // 6) Seek far ahead into unbuffered region
+  describe('seek into unbuffered region', () => {
+    it('updates time and scrubber-pct on far seek', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+      mockDuration.value = 600
+      mockBuffered.value = [[0, 30]]
+      await wrapper.vm.$nextTick()
+
+      ;(scrubber.element as HTMLInputElement).value = '500'
+      await scrubber.trigger('change')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.findAll('.time')[0].text()).toBe('8:20')
+      expect(scrubber.attributes('style')).toContain('--scrubber-pct: 83%')
+      expect(scrubber.attributes('style')).toContain('--buffered-pct: 5%')
+    })
+
+    it('UI remains stable when waiting follows far seek', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+      mockDuration.value = 600
+      mockBuffered.value = [[0, 30]]
+      mockCurrentTime.value = 500
+      await wrapper.vm.$nextTick()
+
+      mockWaiting.value = true
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.findAll('.time')[0].text()).toBe('8:20')
+      expect(scrubber.exists()).toBe(true)
+
+      mockWaiting.value = false
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.findAll('.time')[0].text()).toBe('8:20')
+    })
+  })
+
+  // 7) Out-of-range values clamped, no NaN
+  describe('out-of-range values clamped safely', () => {
+    it('clamps scrubber-pct to 100% when currentTime exceeds duration', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+      mockDuration.value = 600
+      mockCurrentTime.value = 9999
+      await wrapper.vm.$nextTick()
+
+      expect(scrubber.attributes('style')).toContain('--scrubber-pct: 100%')
+    })
+
+    it('clamps buffered-pct to 100% when buffered exceeds duration', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+      mockDuration.value = 600
+      mockBuffered.value = [[0, 9999]]
+      await wrapper.vm.$nextTick()
+
+      expect(scrubber.attributes('style')).toContain('--buffered-pct: 100%')
+    })
+
+    it('no NaN appears in scrubber style for overflow values', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+      mockDuration.value = 600
+      mockCurrentTime.value = 9999
+      mockBuffered.value = [[0, 9999]]
+      await wrapper.vm.$nextTick()
+
+      const style = scrubber.attributes('style') || ''
+      expect(style).not.toContain('NaN')
+    })
+
+    it('time display shows valid format for overflow currentTime', async () => {
+      const { wrapper } = mountPlayer()
+      mockDuration.value = 600
+      mockCurrentTime.value = 9999
+      await wrapper.vm.$nextTick()
+
+      const timeText = wrapper.findAll('.time')[0].text()
+      // Should be a valid time string (m:ss or h:mm:ss), not NaN or empty
+      expect(timeText).toMatch(/^\d+:\d{2}(:\d{2})?$/)
+    })
+  })
+
+  // 8) Style string stability under rapid updates
+  describe('style string stability', () => {
+    it('only contains expected CSS custom properties after updates', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+      mockDuration.value = 600
+
+      for (let i = 1; i <= 5; i++) {
+        mockBuffered.value = [[0, i * 50]]
+        mockCurrentTime.value = i * 10
+        await wrapper.vm.$nextTick()
+      }
+
+      const style = scrubber.attributes('style') || ''
+      const vars = style.match(/--[\w-]+/g) || []
+      expect(vars).toEqual(expect.arrayContaining(['--scrubber-pct', '--buffered-pct']))
+      expect(vars.length).toBe(2)
+    })
+
+    it('no NaN or Infinity in style after rapid buffered updates', async () => {
+      const { scrubber, wrapper } = mountPlayer()
+      mockDuration.value = 600
+
+      for (let i = 0; i < 10; i++) {
+        mockBuffered.value = [[0, i * 60]]
+        await wrapper.vm.$nextTick()
+      }
+
+      const style = scrubber.attributes('style') || ''
+      expect(style).not.toContain('NaN')
+      expect(style).not.toContain('Infinity')
+    })
+  })
+
+  // 9) Large file size metadata doesn't affect UI
+  describe('large file metadata', () => {
+    it('renders normally with very large file size', () => {
+      const bigFile = makeFile({
+        path: '/sounds/huge_recording.wav',
+        name: 'huge_recording.wav',
+        extension: '.wav',
+        size: 50 * 1024 * 1024,
+      })
+      const { wrapper, scrubber } = mountPlayer(bigFile)
+
+      expect(wrapper.find('.player-filename').text()).toBe('huge_recording.wav')
+      expect(wrapper.find('.player-timeline').exists()).toBe(true)
+      expect(scrubber.exists()).toBe(true)
+      expect(wrapper.findAll('.time').length).toBe(2)
+    })
   })
 })
