@@ -27,9 +27,8 @@
 			<div class="source-row">
 				<label class="color-row">
 					<span class="color-label">Source color</span>
-					<input type="color" v-model="sourceColor" />
+					<input type="color" @input="applyPalette" v-model="sourceColor" />
 				</label>
-				<button class="action-btn apply-btn" @click="applyPalette">Apply palette</button>
 			</div>
 
 			<div class="divider" />
