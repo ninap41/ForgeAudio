@@ -36,14 +36,25 @@
 			</div>
 		</div>
 
-		<div v-if="!library.rootDirectory" class="empty-state">
-			<p>No folder selected.</p>
-			<button class="btn btn-accent" @click="library.selectAndScanDirectory()">Choose Audio Folder</button>
+		<div class="content-area">
+			<AlertBanner
+				v-if="scanAlert"
+				type="success"
+				:message="scanAlert.message"
+				:details="scanAlert.details"
+				:duration="5000"
+				@dismiss="scanAlert = null"
+			/>
+
+			<div v-if="!library.rootDirectory" class="empty-state">
+				<p>No folder selected.</p>
+				<button class="btn btn-accent" @click="library.selectAndScanDirectory()">Choose Audio Folder</button>
+			</div>
+
+			<SpinnerOverlay v-else-if="library.isScanning" />
+
+			<AudioList v-else ref="audioListRef" />
 		</div>
-
-		<SpinnerOverlay v-else-if="library.isScanning" />
-
-		<AudioList v-else ref="audioListRef" />
 
 		<AddTagModal v-if="addTagFilePath" :filePath="addTagFilePath" @close="addTagFilePath = null" />
 		<EditDescriptionModal v-if="editDescFilePath" :filePath="editDescFilePath" @close="editDescFilePath = null" />
@@ -53,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from "vue"
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue"
 import { useLibraryStore } from "@/stores/libraryStore"
 import SearchBar from "@/components/SearchBar.vue"
 import AudioList from "@/components/AudioList.vue"
@@ -62,6 +73,7 @@ import AddTagModal from "@/components/AddTagModal.vue"
 import EditDescriptionModal from "@/components/EditDescriptionModal.vue"
 import DeleteConfirmModal from "@/components/DeleteConfirmModal.vue"
 import RenameModal from "@/components/RenameModal.vue"
+import AlertBanner from "@/components/AlertBanner.vue"
 
 const EXTENSIONS = [".wav", ".mp3", ".aiff", ".flac", ".ogg", ".m4a"]
 
@@ -73,6 +85,26 @@ const deleteFilePath = ref<string | null>(null)
 const renameFilePath = ref<string | null>(null)
 const formatDropdownOpen = ref(false)
 const formatDropdownRef = ref<HTMLElement | null>(null)
+const scanStartTime = ref<number | null>(null)
+const scanAlert = ref<{ message: string; details: string } | null>(null)
+
+watch(
+	() => library.isScanning,
+	(scanning, wasPrev) => {
+		if (scanning) {
+			scanStartTime.value = Date.now()
+			scanAlert.value = null
+		} else if (wasPrev && scanStartTime.value !== null) {
+			const elapsed = ((Date.now() - scanStartTime.value) / 1000).toFixed(1)
+			const count = library.files.length.toLocaleString()
+			scanAlert.value = {
+				message: `Scan complete — ${count} file${library.files.length !== 1 ? "s" : ""} found`,
+				details: `in ${elapsed}s`,
+			}
+			scanStartTime.value = null
+		}
+	},
+)
 
 const formatLabel = computed(() => {
 	if (library.filterExtension.length === 0) {
@@ -194,6 +226,14 @@ onBeforeUnmount(() => {
 	color: var(--text-muted);
 	white-space: nowrap;
 	flex-shrink: 0;
+}
+
+.content-area {
+	position: relative;
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 }
 
 .empty-state {
