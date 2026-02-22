@@ -1,5 +1,22 @@
+# Dependencies
 node_modules
 dist
 dist-electron
+
+# Environment
 *.local
 .DS_Store
+.env
+.env.local
+
+# Claude Code (hide all Claude usage)
+.claude
+.clauderc
+.claude/
+claude-*.json
+claude-debug.log
+
+# Development notes (internal only)
+REBOOT.md
+SCANNER_OPTIMIZATION.md
+*.claude.md

@@ -3,7 +3,15 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('electronAPI', {
   // Directory
   selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory'),
-  scanDirectory: (dirPath: string) => ipcRenderer.invoke('fs:scanDirectory', dirPath),
+  startScan: (dirPath: string) => ipcRenderer.send('fs:scanDirectory', dirPath),
+  onScanProgress: (callback: (files: any[]) => void) =>
+    ipcRenderer.on('fs:scanProgress', (_event, files) => callback(files)),
+  onScanDone: (callback: () => void) =>
+    ipcRenderer.on('fs:scanDone', () => callback()),
+  removeScanListeners: () => {
+    ipcRenderer.removeAllListeners('fs:scanProgress')
+    ipcRenderer.removeAllListeners('fs:scanDone')
+  },
 
   // Metadata
   readMetadata: () => ipcRenderer.invoke('metadata:read'),
@@ -20,6 +28,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showContextMenu: (params: { filePath: string }) =>
     ipcRenderer.send('context-menu:show', params),
 
+  // File operations
+  deleteFile: (filePath: string) => ipcRenderer.invoke('fs:deleteFile', filePath),
+  renameFile: (oldPath: string, newName: string) => ipcRenderer.invoke('fs:renameFile', oldPath, newName),
+
+  // Config persistence
+  getRootDirectory: () => ipcRenderer.invoke('config:getRootDirectory'),
+  setRootDirectory: (dir: string | null) => ipcRenderer.invoke('config:setRootDirectory', dir),
+
+  // Debug
+  getStorePath: () => ipcRenderer.invoke('debug:getStorePath'),
+  getStoreData: () => ipcRenderer.invoke('debug:getStoreData'),
+  clearTagData: () => ipcRenderer.invoke('debug:clearTagData'),
+
+  // DevTools
+  toggleDevTools: () => ipcRenderer.invoke('devtools:toggle'),
+
   // Context menu listeners
   onContextMenuPlay: (callback: (filePath: string) => void) =>
     ipcRenderer.on('context-menu:play', (_event, filePath) => callback(filePath)),
@@ -27,4 +51,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('context-menu:addTag', (_event, filePath) => callback(filePath)),
   onContextMenuEditDescription: (callback: (filePath: string) => void) =>
     ipcRenderer.on('context-menu:editDescription', (_event, filePath) => callback(filePath)),
+  onContextMenuDelete: (callback: (filePath: string) => void) =>
+    ipcRenderer.on('context-menu:delete', (_event, filePath) => callback(filePath)),
+  onContextMenuRename: (callback: (filePath: string) => void) =>
+    ipcRenderer.on('context-menu:rename', (_event, filePath) => callback(filePath)),
 })
