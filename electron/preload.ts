@@ -3,7 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('electronAPI', {
   // Directory
   selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory'),
-  startScan: (dirPath: string) => ipcRenderer.send('fs:scanDirectory', dirPath),
+  startScan: (dirPath: string, batchSize?: number) => ipcRenderer.send('fs:scanDirectory', dirPath, batchSize),
   onScanProgress: (callback: (files: any[]) => void) =>
     ipcRenderer.on('fs:scanProgress', (_event, files) => callback(files)),
   onScanDone: (callback: () => void) =>

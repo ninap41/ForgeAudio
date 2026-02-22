@@ -5,6 +5,12 @@ const backupsLoading = ref(false)
 const backupsError = ref<string | null>(null)
 const maxBackups = ref(10)
 
+// Advanced settings
+const scannerBatchSize = ref(50)
+const durationConcurrency = ref(8)
+const autoLoadDurations = ref(true)
+const autoBackup = ref(true)
+
 export function useSettingsStore() {
   async function loadBackups() {
     try {
@@ -54,15 +60,47 @@ export function useSettingsStore() {
     }
   }
 
+  function loadSettings(settings?: Record<string, unknown>) {
+    if (!settings || typeof settings !== 'object') return
+
+    if (typeof settings.scannerBatchSize === 'number') {
+      scannerBatchSize.value = Math.max(10, Math.min(200, settings.scannerBatchSize))
+    }
+    if (typeof settings.durationConcurrency === 'number') {
+      durationConcurrency.value = Math.max(1, Math.min(32, settings.durationConcurrency))
+    }
+    if (typeof settings.autoLoadDurations === 'boolean') {
+      autoLoadDurations.value = settings.autoLoadDurations
+    }
+    if (typeof settings.autoBackup === 'boolean') {
+      autoBackup.value = settings.autoBackup
+    }
+  }
+
+  function getSettingsSnapshot() {
+    return {
+      scannerBatchSize: scannerBatchSize.value,
+      durationConcurrency: durationConcurrency.value,
+      autoLoadDurations: autoLoadDurations.value,
+      autoBackup: autoBackup.value,
+    }
+  }
+
   return reactive({
     backups,
     backupsLoading,
     backupsError,
     maxBackups,
+    scannerBatchSize,
+    durationConcurrency,
+    autoLoadDurations,
+    autoBackup,
     loadBackups,
     createBackup,
     deleteBackup,
     purgeOldBackups,
+    loadSettings,
+    getSettingsSnapshot,
   })
 }
 
@@ -71,4 +109,8 @@ export function _resetSettingsStore() {
   backupsLoading.value = false
   backupsError.value = null
   maxBackups.value = 10
+  scannerBatchSize.value = 50
+  durationConcurrency.value = 8
+  autoLoadDurations.value = true
+  autoBackup.value = true
 }

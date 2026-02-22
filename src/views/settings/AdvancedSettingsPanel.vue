@@ -2,7 +2,7 @@
   <section class="settings-section">
     <h3>Advanced Settings</h3>
     <p class="panel-description">
-      Fine-tune scanner performance and developer options. These settings apply to the current session and control how files
+      Fine-tune scanner performance and automation. These settings control how files
       are scanned, whether durations are loaded automatically, and whether backups are created on every save.
     </p>
 
@@ -15,10 +15,11 @@
           <div class="input-with-hint">
             <input
               type="number"
-              v-model.number="scannerBatchSize"
+              v-model.number="settings.scannerBatchSize"
               min="10"
               max="200"
               class="text-input number-input"
+              @change="persistSettings"
             />
             <span class="input-hint">Files per batch (10-200)</span>
           </div>
@@ -28,38 +29,14 @@
           <div class="input-with-hint">
             <input
               type="number"
-              v-model.number="durationConcurrency"
+              v-model.number="settings.durationConcurrency"
               min="1"
               max="32"
               class="text-input number-input"
+              @change="persistSettings"
             />
             <span class="input-hint">Parallel duration loaders (1-32)</span>
           </div>
-        </div>
-      </div>
-
-      <!-- Developer Mode -->
-      <div class="setting-card">
-        <h4>Developer</h4>
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <span class="toggle-label">Developer Mode</span>
-            <span class="toggle-hint">Show debug information and verbose logging</span>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" v-model="developerMode" />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <span class="toggle-label">Show File Paths</span>
-            <span class="toggle-hint">Display full file paths in tooltips</span>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" v-model="showFilePaths" />
-            <span class="toggle-slider"></span>
-          </label>
         </div>
       </div>
 
@@ -72,7 +49,7 @@
             <span class="toggle-hint">Automatically load audio durations after scan</span>
           </div>
           <label class="toggle-switch">
-            <input type="checkbox" v-model="autoLoadDurations" />
+            <input type="checkbox" v-model="settings.autoLoadDurations" @change="persistSettings" />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -82,7 +59,7 @@
             <span class="toggle-hint">Create a backup every time metadata is saved</span>
           </div>
           <label class="toggle-switch">
-            <input type="checkbox" v-model="autoBackup" />
+            <input type="checkbox" v-model="settings.autoBackup" @change="persistSettings" />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -92,16 +69,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { useSettingsStore } from '@/stores/settingsStore'
+import { useLibraryStore } from '@/stores/libraryStore'
 
-// These are in-memory settings for the session.
-// In a full implementation, they'd be persisted in settingsStore / library.json.
-const scannerBatchSize = ref(50)
-const durationConcurrency = ref(8)
-const developerMode = ref(false)
-const showFilePaths = ref(false)
-const autoLoadDurations = ref(true)
-const autoBackup = ref(true)
+const settings = useSettingsStore()
+const library = useLibraryStore()
+
+function persistSettings() {
+  library.saveMetadata()
+}
 </script>
 
 <style scoped>

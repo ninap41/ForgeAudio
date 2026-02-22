@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useLibraryStore, _resetLibraryStore } from '../src/stores/libraryStore'
 import { _resetTagStore } from '../src/stores/tagStore'
 import { _resetThemeStore } from '../src/stores/themeStore'
+import { _resetSettingsStore } from '../src/stores/settingsStore'
 
 const mockElectronAPI = {
   selectDirectory: vi.fn(),
@@ -28,6 +29,9 @@ const mockElectronAPI = {
   getStoreData: vi.fn(),
   clearTagData: vi.fn(),
   toggleDevTools: vi.fn(),
+  backupCreate: vi.fn().mockResolvedValue({ filename: 'test.json' }),
+  backupList: vi.fn().mockResolvedValue([]),
+  backupDelete: vi.fn(),
 }
 
 vi.stubGlobal('window', { electronAPI: mockElectronAPI })
@@ -36,6 +40,7 @@ beforeEach(() => {
   _resetLibraryStore()
   _resetTagStore()
   _resetThemeStore()
+  _resetSettingsStore()
   vi.resetAllMocks()
   mockElectronAPI.writeMetadata.mockResolvedValue(undefined)
   mockElectronAPI.setRootDirectory.mockResolvedValue(undefined)
@@ -55,7 +60,7 @@ describe('root directory persistence', () => {
     await store.initFromPersistedDirectory()
 
     expect(store.rootDirectory).toBe('/sounds/library')
-    expect(mockElectronAPI.startScan).toHaveBeenCalledWith('/sounds/library')
+    expect(mockElectronAPI.startScan).toHaveBeenCalledWith('/sounds/library', 50)
   })
 
   it('initFromPersistedDirectory does nothing when no stored dir', async () => {

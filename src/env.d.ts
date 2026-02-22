@@ -14,7 +14,7 @@ interface BackupEntry {
 
 interface ElectronAPI {
   selectDirectory: () => Promise<string | null>
-  startScan: (dirPath: string) => void
+  startScan: (dirPath: string, batchSize?: number) => void
   onScanProgress: (callback: (files: import('../electron/ipc/scanner').AudioFile[]) => void) => void
   onScanDone: (callback: () => void) => void
   removeScanListeners: () => void

@@ -1,6 +1,7 @@
 import { ref, computed, reactive } from 'vue'
 import { useTagStore } from './tagStore'
 import { useThemeStore } from './themeStore'
+import { useSettingsStore } from './settingsStore'
 
 export type SortColumn = 'name' | 'tags' | 'duration' | 'type' | 'createdAt' | 'modifiedAt'
 
@@ -26,6 +27,12 @@ export interface LibraryMetadata {
   }>
   tags: Record<string, { color: string }>
   theme?: Record<string, string>
+  settings?: {
+    scannerBatchSize?: number
+    durationConcurrency?: number
+    autoLoadDurations?: boolean
+    autoBackup?: boolean
+  }
 }
 
 // Module-scope state (singleton)
@@ -119,6 +126,7 @@ const filteredFiles = computed(() => {
 export function useLibraryStore() {
   const tagStore = useTagStore()
   const themeStore = useThemeStore()
+  const settingsStore = useSettingsStore()
 
   async function initFromPersistedDirectory() {
     const dir = await window.electronAPI.getRootDirectory()
@@ -151,6 +159,7 @@ export function useLibraryStore() {
 
       tagStore.loadTags(meta.tags)
       themeStore.loadTheme(meta.theme)
+      settingsStore.loadSettings(meta.settings)
 
       // Clean up any leftover listeners from a previous scan
       window.electronAPI.removeScanListeners()
@@ -174,18 +183,20 @@ export function useLibraryStore() {
           resolve()
         })
 
-        window.electronAPI.startScan(rootDirectory.value!)
+        window.electronAPI.startScan(rootDirectory.value!, settingsStore.scannerBatchSize)
       })
 
       // Kick off parallel duration loading
-      loadDurations()
+      if (settingsStore.autoLoadDurations) {
+        loadDurations()
+      }
     } finally {
       isScanning.value = false
     }
   }
 
   async function loadDurations() {
-    const CONCURRENCY = 8
+    const CONCURRENCY = settingsStore.durationConcurrency
     const snapshot = [...files.value]
     let index = 0
 
@@ -207,6 +218,7 @@ export function useLibraryStore() {
       files: {},
       tags: tagStore.tagDefinitions,
       theme: Object.keys(themeStore.currentTheme).length > 0 ? themeStore.currentTheme : undefined,
+      settings: settingsStore.getSettingsSnapshot(),
     }
 
     // Seed with the last read state so files not yet in files.value (e.g. during
@@ -237,12 +249,11 @@ export function useLibraryStore() {
     await window.electronAPI.writeMetadata(JSON.stringify(meta, null, 2))
 
     // Fire-and-forget auto-backup
-    import('./settingsStore').then(({ useSettingsStore }) => {
-      const settingsStore = useSettingsStore()
+    if (settingsStore.autoBackup) {
       window.electronAPI.backupCreate(JSON.stringify(meta, null, 2))
         .then(() => settingsStore.purgeOldBackups())
         .catch(() => {}) // non-fatal
-    })
+    }
   }
 
   function addTagToFile(filePath: string, tag: string) {

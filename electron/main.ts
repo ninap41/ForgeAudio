@@ -137,8 +137,8 @@ ipcMain.handle("dialog:selectDirectory", async () => {
 	return result.filePaths[0]
 })
 
-ipcMain.on("fs:scanDirectory", async (event, dirPath: string) => {
-	const BATCH_SIZE = 50
+ipcMain.on("fs:scanDirectory", async (event, dirPath: string, batchSize?: number) => {
+	const BATCH_SIZE = (typeof batchSize === 'number' && batchSize >= 10 && batchSize <= 200) ? batchSize : 50
 	let buffer: AudioFile[] = []
 
 	function flush() {
