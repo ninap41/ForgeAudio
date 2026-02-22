@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, shell, protocol, net } from 'electron'
 import { join, extname, dirname } from 'path'
-import { unlink, rename } from 'fs/promises'
+import { unlink, rename, readFile as fsReadFile, writeFile, mkdir, readdir, stat } from 'fs/promises'
 
 const AUDIO_MIME: Record<string, string> = {
   '.wav':  'audio/wav',
@@ -41,7 +41,9 @@ function createWindow() {
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
   } else {
-    mainWindow.loadFile(join(__dirname, '../dist/index.html'))
+    // In production, use app.getAppPath() to get the correct root path in asar
+    const indexPath = join(app.getAppPath(), 'dist', 'index.html')
+    mainWindow.loadFile(indexPath)
   }
 }
 
@@ -68,6 +70,11 @@ app.on('window-all-closed', () => {
 })
 
 // --- IPC Handlers ---
+
+// Helper: get backups directory
+function getBackupsDir() {
+  return join(app.getPath('userData'), 'forgeaudio-backups')
+}
 
 ipcMain.handle('dialog:selectDirectory', async () => {
   const result = await dialog.showOpenDialog(mainWindow!, {
@@ -167,6 +174,78 @@ ipcMain.handle('devtools:toggle', () => {
       mainWindow.webContents.openDevTools()
     }
   }
+})
+
+// File dialogs
+ipcMain.handle('dialog:saveFile', async (_event, defaultName: string) => {
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: defaultName,
+  })
+  if (result.canceled) return null
+  return result.filePath
+})
+
+ipcMain.handle('dialog:openFile', async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openFile'],
+  })
+  if (result.canceled) return null
+  return result.filePaths[0]
+})
+
+// File operations
+ipcMain.handle('fs:readFile', async (_event, filePath: string) => {
+  return fsReadFile(filePath, 'utf-8')
+})
+
+ipcMain.handle('fs:writeFile', async (_event, filePath: string, data: string) => {
+  return writeFile(filePath, data, 'utf-8')
+})
+
+// Backup operations
+ipcMain.handle('backup:create', async (_event, data: string) => {
+  const backupsDir = getBackupsDir()
+  await mkdir(backupsDir, { recursive: true })
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const filename = `backup-${timestamp}.json`
+  const filePath = join(backupsDir, filename)
+  await writeFile(filePath, data, 'utf-8')
+  return { filename }
+})
+
+ipcMain.handle('backup:list', async () => {
+  try {
+    const backupsDir = getBackupsDir()
+    const files = await readdir(backupsDir)
+    const backups = await Promise.all(
+      files.map(async (filename) => {
+        const filePath = join(backupsDir, filename)
+        const stats = await stat(filePath)
+        return {
+          filename,
+          timestamp: new Date(stats.mtime).toISOString(),
+          size: stats.size,
+        }
+      })
+    )
+    // Sort by mtime descending (newest first)
+    backups.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    return backups
+  } catch {
+    return []
+  }
+})
+
+ipcMain.handle('backup:restore', async (_event, filename: string) => {
+  const backupsDir = getBackupsDir()
+  const filePath = join(backupsDir, filename)
+  return fsReadFile(filePath, 'utf-8')
+})
+
+ipcMain.handle('backup:delete', async (_event, filename: string) => {
+  const backupsDir = getBackupsDir()
+  const filePath = join(backupsDir, filename)
+  return unlink(filePath)
 })
 
 // Context menu triggered from renderer

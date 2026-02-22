@@ -29,6 +29,14 @@ const mockElectronAPI = {
   getStoreData: vi.fn(),
   clearTagData: vi.fn(),
   toggleDevTools: vi.fn(),
+  backupCreate: vi.fn(),
+  backupList: vi.fn(),
+  backupDelete: vi.fn(),
+  backupRestore: vi.fn(),
+  saveFileDialog: vi.fn(),
+  selectFile: vi.fn(),
+  readFile: vi.fn(),
+  writeFile: vi.fn(),
 }
 
 vi.stubGlobal('window', { electronAPI: mockElectronAPI })
@@ -55,6 +63,8 @@ beforeEach(() => {
   mockElectronAPI.writeMetadata.mockResolvedValue(undefined)
   mockElectronAPI.deleteFile.mockResolvedValue({ success: true })
   mockElectronAPI.renameFile.mockResolvedValue({ success: true, newPath: '/sounds/renamed.wav' })
+  mockElectronAPI.backupCreate.mockResolvedValue({})
+  mockElectronAPI.backupList.mockResolvedValue([])
 })
 
 describe('libraryStore', () => {

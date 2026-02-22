@@ -44,6 +44,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // DevTools
   toggleDevTools: () => ipcRenderer.invoke('devtools:toggle'),
 
+  // File dialogs
+  saveFileDialog: (defaultName: string) => ipcRenderer.invoke('dialog:saveFile', defaultName),
+  selectFile: () => ipcRenderer.invoke('dialog:openFile'),
+
+  // File operations
+  readFile: (filePath: string) => ipcRenderer.invoke('fs:readFile', filePath),
+  writeFile: (filePath: string, data: string) => ipcRenderer.invoke('fs:writeFile', filePath, data),
+
+  // Backup operations
+  backupCreate: (data: string) => ipcRenderer.invoke('backup:create', data),
+  backupList: () => ipcRenderer.invoke('backup:list'),
+  backupRestore: (filename: string) => ipcRenderer.invoke('backup:restore', filename),
+  backupDelete: (filename: string) => ipcRenderer.invoke('backup:delete', filename),
+
   // Context menu listeners
   onContextMenuPlay: (callback: (filePath: string) => void) =>
     ipcRenderer.on('context-menu:play', (_event, filePath) => callback(filePath)),

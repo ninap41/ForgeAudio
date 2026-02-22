@@ -34,6 +34,14 @@ const mockAPI = {
   getStoreData: vi.fn(),
   clearTagData: vi.fn(),
   toggleDevTools: vi.fn(),
+  backupCreate: vi.fn().mockResolvedValue({}),
+  backupList: vi.fn().mockResolvedValue([]),
+  backupDelete: vi.fn().mockResolvedValue(undefined),
+  backupRestore: vi.fn(),
+  saveFileDialog: vi.fn(),
+  selectFile: vi.fn(),
+  readFile: vi.fn(),
+  writeFile: vi.fn(),
 }
 ;(window as any).electronAPI = mockAPI
 
@@ -43,6 +51,8 @@ beforeEach(() => {
   mockAPI.writeMetadata.mockResolvedValue(undefined)
   mockAPI.deleteFile.mockResolvedValue({ success: true })
   mockAPI.renameFile.mockResolvedValue({ success: true, newPath: '/sounds/new_name.wav' })
+  mockAPI.backupCreate.mockResolvedValue({})
+  mockAPI.backupList.mockResolvedValue([])
 })
 
 describe('AddTagModal', () => {

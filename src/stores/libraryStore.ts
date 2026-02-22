@@ -235,6 +235,14 @@ export const useLibraryStore = defineStore('library', () => {
     }
 
     await window.electronAPI.writeMetadata(JSON.stringify(meta, null, 2))
+
+    // Fire-and-forget auto-backup
+    import('./settingsStore').then(({ useSettingsStore }) => {
+      const settingsStore = useSettingsStore()
+      window.electronAPI.backupCreate(JSON.stringify(meta, null, 2))
+        .then(() => settingsStore.purgeOldBackups())
+        .catch(() => {}) // non-fatal
+    })
   }
 
   function addTagToFile(filePath: string, tag: string) {
@@ -338,6 +346,40 @@ export const useLibraryStore = defineStore('library', () => {
     return {}
   }
 
+  async function mergeTag(source: string, target: string): Promise<{ error?: string }> {
+    // Guard: source cannot be uncategorized
+    if (source === 'uncategorized') {
+      return { error: 'Cannot merge from uncategorized tag' }
+    }
+    // Guard: source and target must be different
+    if (source === target) {
+      return { error: 'Source and target tags must be different' }
+    }
+    // Guard: both must exist in tagStore
+    if (!tagStore.tagDefinitions[source]) {
+      return { error: `Source tag "${source}" does not exist` }
+    }
+    if (!tagStore.tagDefinitions[target]) {
+      return { error: `Target tag "${target}" does not exist` }
+    }
+
+    // For each file with source tag: add target (if absent), remove source
+    for (const file of files.value) {
+      if (file.tags.includes(source)) {
+        if (!file.tags.includes(target)) {
+          file.tags.push(target)
+        }
+        file.tags = file.tags.filter(t => t !== source)
+      }
+    }
+
+    // Delete source tag
+    tagStore.deleteTag(source)
+
+    await saveMetadata()
+    return {}
+  }
+
   async function clearTagFromAllFiles(tagName: string) {
     for (const file of files.value) {
       file.tags = file.tags.filter(t => t !== tagName)
@@ -396,6 +438,7 @@ export const useLibraryStore = defineStore('library', () => {
     removeDescriptionFilter,
     clearAllFilters,
     editTag,
+    mergeTag,
     clearTagFromAllFiles,
     setSort,
   }

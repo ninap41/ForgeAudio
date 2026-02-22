@@ -6,6 +6,12 @@ declare module '*.vue' {
   export default component
 }
 
+interface BackupEntry {
+  filename: string
+  timestamp: string
+  size: number
+}
+
 interface ElectronAPI {
   selectDirectory: () => Promise<string | null>
   startScan: (dirPath: string) => void
@@ -31,6 +37,14 @@ interface ElectronAPI {
   getStoreData: () => Promise<string>
   clearTagData: () => Promise<void>
   toggleDevTools: () => Promise<void>
+  saveFileDialog: (defaultName: string) => Promise<string | null>
+  selectFile: () => Promise<string | null>
+  readFile: (filePath: string) => Promise<string>
+  writeFile: (filePath: string, data: string) => Promise<void>
+  backupCreate: (data: string) => Promise<{ filename: string }>
+  backupList: () => Promise<BackupEntry[]>
+  backupRestore: (filename: string) => Promise<string>
+  backupDelete: (filename: string) => Promise<void>
 }
 
 interface Window {

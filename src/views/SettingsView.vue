@@ -11,6 +11,11 @@
       </div>
     </section>
 
+    <StatisticsPanel />
+    <BulkOperationsPanel />
+    <ExportImportPanel />
+    <BackupPanel />
+
     <section class="settings-section">
       <h3>Tags</h3>
 
@@ -83,6 +88,10 @@ import { useLibraryStore } from '@/stores/libraryStore'
 import { useTagStore } from '@/stores/tagStore'
 import EditTagModal from '@/components/EditTagModal.vue'
 import ClearTagModal from '@/components/ClearTagModal.vue'
+import StatisticsPanel from './settings/StatisticsPanel.vue'
+import BulkOperationsPanel from './settings/BulkOperationsPanel.vue'
+import ExportImportPanel from './settings/ExportImportPanel.vue'
+import BackupPanel from './settings/BackupPanel.vue'
 
 const library = useLibraryStore()
 const tagStore = useTagStore()
@@ -94,11 +103,20 @@ const newTagColor = ref('#4da6ff')
 
 const tagCounts = computed(() => {
   const counts: Record<string, number> = {}
+
+  // Count files with each tag
   for (const file of library.files) {
     for (const tag of file.tags) {
       counts[tag] = (counts[tag] ?? 0) + 1
     }
   }
+
+  // Count uncategorized files (those with no tags)
+  const uncategorizedCount = library.files.filter(f => f.tags.length === 0).length
+  if (uncategorizedCount > 0) {
+    counts['uncategorized'] = uncategorizedCount
+  }
+
   return counts
 })
 
