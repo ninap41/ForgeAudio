@@ -1,6 +1,12 @@
 <template>
   <section class="settings-section">
     <h3>Backups</h3>
+    <p class="section-description">
+      A backup is created automatically every time your metadata changes (adding tags, editing descriptions, renaming files, etc.).
+      Each backup is a full snapshot of your entire library.json — this includes all file metadata, tag definitions, theme settings,
+      and your root directory, not just the files in the current folder. Restoring a backup replaces all of that data at once and
+      triggers a rescan. Old backups are automatically purged to stay within the limit below.
+    </p>
 
     <div class="backup-controls">
       <button class="btn btn-primary" @click="handleCreateBackup" :disabled="creating">
@@ -135,6 +141,13 @@ h3 {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.section-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 16px;
 }
 
 .backup-controls {
