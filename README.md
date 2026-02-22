@@ -36,9 +36,7 @@ Designed for sound designers, musicians, and developers who need speed and contr
 
 ## 🎥 Demo
 
-<p align="center">
-  <img src="public/ForgeAudioHome.png" width="900" />
-</p>
+to be added (gifs)
 
 ---
 
