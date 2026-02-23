@@ -49,7 +49,7 @@
 					<span class="header-info-item">
 						<span class="header-info-label">Current Profile:</span>
 						<span class="header-info-value glow">{{
-							activeProfileName === "Default" ? "(Default)" : activeProfileName
+							library.activeProfileName === "Default" ? "(Default)" : library.activeProfileName
 						}}</span>
 					</span>
 					<span v-if="library.rootDirectory" class="header-info-item">
@@ -82,7 +82,6 @@ const library = useLibraryStore()
 const router = useRouter()
 const showBootSplash = ref(true)
 const showDebugModal = ref(false)
-const activeProfileName = ref("Default")
 
 function handleKeydown(e: KeyboardEvent) {
 	// Cmd+, → navigate to Settings

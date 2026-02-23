@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useLibraryStore, _resetLibraryStore, type AudioFile, type SortColumn } from '../src/stores/libraryStore'
+import { useLibraryStore, _resetLibraryStore, type AudioFile, type SortColumn, type ProfileSnapshot } from '../src/stores/libraryStore'
 import { useTagStore, _resetTagStore } from '../src/stores/tagStore'
 import { _resetThemeStore } from '../src/stores/themeStore'
 
@@ -516,6 +516,28 @@ describe('libraryStore', () => {
       expect(saved.files['/library/deep/kick_01.wav']).toBeUndefined()
     })
 
+    it('writes rootDirectory.value directly instead of echoing lastReadMeta', async () => {
+      const store = useLibraryStore()
+      store.rootDirectory = '/new/path'
+      store.files = []
+
+      await store.saveMetadata()
+
+      const saved = JSON.parse(mockElectronAPI.writeMetadata.mock.calls[0][0])
+      expect(saved.rootDirectory).toBe('/new/path')
+    })
+
+    it('does not write rootDirectory when it is null', async () => {
+      const store = useLibraryStore()
+      store.rootDirectory = null
+      store.files = []
+
+      await store.saveMetadata()
+
+      const saved = JSON.parse(mockElectronAPI.writeMetadata.mock.calls[0][0])
+      expect(saved.rootDirectory).toBeUndefined()
+    })
+
     it('preserves tags for files not yet loaded during a partial scan', async () => {
       // Regression: if saveMetadata() is called while files.value is only partially
       // populated (e.g. user clicks a file mid-scan), files not yet arrived in batches
@@ -834,6 +856,327 @@ describe('libraryStore', () => {
 
       expect(store.sortColumn).toBe(before)
       expect(store.sortDirection).toBe('asc')
+    })
+  })
+
+  describe('profiles', () => {
+    it('starts with Default active and empty profiles map', () => {
+      const store = useLibraryStore()
+      expect(store.activeProfileName).toBe('Default')
+      expect(Object.keys(store.profiles)).toHaveLength(0)
+    })
+
+    describe('createProfile', () => {
+      it('creates a profile and switches to it', async () => {
+        const store = useLibraryStore()
+        const tagStore = useTagStore()
+        tagStore.createTag('impact', '#ff0000')
+        store.files = [makeFile({ tags: ['impact'], description: 'A kick' })]
+
+        const result = await store.createProfile('Studio')
+
+        expect(result.error).toBeUndefined()
+        expect(store.activeProfileName).toBe('Studio')
+        expect(store.profiles['Studio']).toBeDefined()
+        expect(store.profiles['Studio'].snapshot.tags).toHaveProperty('impact')
+      })
+
+      it('saves Default profile on first non-Default creation', async () => {
+        const store = useLibraryStore()
+        store.files = [makeFile({ tags: ['perc'] })]
+
+        await store.createProfile('Studio')
+
+        expect(store.profiles['Default']).toBeDefined()
+        expect(store.profiles['Default'].snapshot.files['test.wav']).toBeDefined()
+      })
+
+      it('rejects empty name', async () => {
+        const store = useLibraryStore()
+        const result = await store.createProfile('  ')
+        expect(result.error).toBe('Profile name cannot be empty')
+      })
+
+      it('rejects duplicate name', async () => {
+        const store = useLibraryStore()
+        await store.createProfile('Studio')
+        const result = await store.createProfile('Studio')
+        expect(result.error).toBe('Profile "Studio" already exists')
+      })
+
+      it('persists profiles via saveMetadata', async () => {
+        const store = useLibraryStore()
+        await store.createProfile('Studio')
+
+        const saved = JSON.parse(mockElectronAPI.writeMetadata.mock.calls[0][0])
+        expect(saved.activeProfile).toBe('Studio')
+        expect(saved.profiles['Studio']).toBeDefined()
+      })
+    })
+
+    describe('switchProfile', () => {
+      it('auto-saves current profile and applies target data', async () => {
+        const store = useLibraryStore()
+        const tagStore = useTagStore()
+
+        // Set up Default state
+        tagStore.createTag('impact', '#ff0000')
+        store.files = [makeFile({ tags: ['impact'], description: 'Default kick' })]
+
+        // Create Studio profile with different data
+        await store.createProfile('Studio')
+
+        // Modify Studio state
+        tagStore.createTag('ambient', '#0000ff')
+        store.files[0].tags = ['ambient']
+        store.files[0].description = 'Studio pad'
+
+        // Switch back to Default
+        await store.switchProfile('Default')
+
+        expect(store.activeProfileName).toBe('Default')
+        // Tags should be restored to Default's state
+        expect(store.files[0].tags).toContain('impact')
+        expect(store.files[0].description).toBe('Default kick')
+      })
+
+      it('is a no-op when switching to the already active profile', async () => {
+        const store = useLibraryStore()
+        await store.createProfile('Studio')
+
+        mockElectronAPI.writeMetadata.mockClear()
+        const result = await store.switchProfile('Studio')
+
+        expect(result.error).toBeUndefined()
+        expect(mockElectronAPI.writeMetadata).not.toHaveBeenCalled()
+      })
+
+      it('returns error for nonexistent profile', async () => {
+        const store = useLibraryStore()
+        const result = await store.switchProfile('NoSuchProfile')
+        expect(result.error).toBe('Profile "NoSuchProfile" does not exist')
+      })
+
+      it('does NOT call setRootDirectory when switching profiles with the same directory', async () => {
+        const store = useLibraryStore()
+        store.rootDirectory = '/sounds'
+        store.files = [makeFile({ tags: ['impact'] })]
+
+        await store.createProfile('Studio')
+        // Both profiles have /sounds as rootDirectory
+        await store.switchProfile('Default')
+
+        expect(mockElectronAPI.setRootDirectory).not.toHaveBeenCalled()
+      })
+
+      it('calls setRootDirectory and rescans when switching to a profile with a different directory', async () => {
+        const store = useLibraryStore()
+        store.rootDirectory = '/sounds'
+        store.files = [makeFile({ tags: ['impact'] })]
+
+        // Create Studio (active becomes Studio), then go back to Default
+        await store.createProfile('Studio')
+        await store.switchProfile('Default')
+
+        // Manually set Studio's snapshot to a different directory
+        store.profiles['Studio'].snapshot.rootDirectory = '/other/sounds'
+
+        // Set up mocks for the rescan that will happen
+        mockElectronAPI.readMetadata.mockResolvedValue(JSON.stringify({ version: 1, files: {}, tags: {} }))
+        mockElectronAPI.onScanProgress.mockImplementation(() => {})
+        mockElectronAPI.onScanDone.mockImplementation((cb: () => void) => cb())
+        mockElectronAPI.startScan.mockImplementation(() => {})
+
+        await store.switchProfile('Studio')
+
+        expect(mockElectronAPI.setRootDirectory).toHaveBeenCalledWith('/other/sounds')
+        expect(store.rootDirectory).toBe('/other/sounds')
+      })
+
+      it('clears files when switching to a profile with null directory', async () => {
+        const store = useLibraryStore()
+        store.rootDirectory = '/sounds'
+        store.files = [makeFile({ tags: ['impact'] })]
+
+        // Create Empty (active becomes Empty), then go back to Default
+        await store.createProfile('Empty')
+        await store.switchProfile('Default')
+
+        // Set Empty's snapshot to null directory
+        store.profiles['Empty'].snapshot.rootDirectory = null
+
+        await store.switchProfile('Empty')
+
+        expect(mockElectronAPI.setRootDirectory).toHaveBeenCalledWith(null)
+        expect(store.rootDirectory).toBeNull()
+        expect(store.files).toHaveLength(0)
+      })
+
+      it('clears file metadata for files not in the target profile', async () => {
+        const store = useLibraryStore()
+        store.files = [
+          makeFile({ name: 'a.wav', path: '/a.wav', tags: ['impact'], description: 'hit' }),
+          makeFile({ name: 'b.wav', path: '/b.wav', tags: [], description: '' }),
+        ]
+
+        // Create a profile that only has metadata for b.wav
+        await store.createProfile('Minimal')
+
+        // Modify: give b.wav tags in Minimal
+        store.files[1].tags = ['ambient']
+
+        // Create another profile
+        await store.createProfile('Full')
+
+        // Give a.wav tags in Full
+        store.files[0].tags = ['percussion']
+
+        // Switch to Minimal — a.wav should have no metadata from Full
+        await store.switchProfile('Minimal')
+        // a.wav had tags=['impact'] when Minimal was created
+        expect(store.files[0].tags).toContain('impact')
+      })
+    })
+
+    describe('deleteProfile', () => {
+      it('removes a profile from the map', async () => {
+        const store = useLibraryStore()
+        await store.createProfile('Temp')
+        await store.switchProfile('Default')
+
+        const result = await store.deleteProfile('Temp')
+
+        expect(result.error).toBeUndefined()
+        expect(store.profiles['Temp']).toBeUndefined()
+      })
+
+      it('cannot delete Default', async () => {
+        const store = useLibraryStore()
+        await store.createProfile('Studio') // creates Default implicitly
+
+        const result = await store.deleteProfile('Default')
+        expect(result.error).toBe('Cannot delete the Default profile')
+        expect(store.profiles['Default']).toBeDefined()
+      })
+
+      it('switches to Default when deleting the active profile', async () => {
+        const store = useLibraryStore()
+        store.files = [makeFile()]
+        await store.createProfile('Studio')
+
+        expect(store.activeProfileName).toBe('Studio')
+        await store.deleteProfile('Studio')
+
+        expect(store.activeProfileName).toBe('Default')
+        expect(store.profiles['Studio']).toBeUndefined()
+      })
+
+      it('returns error for nonexistent profile', async () => {
+        const store = useLibraryStore()
+        const result = await store.deleteProfile('Ghost')
+        expect(result.error).toBe('Profile "Ghost" does not exist')
+      })
+    })
+
+    describe('renameProfile', () => {
+      it('renames a profile and updates the key', async () => {
+        const store = useLibraryStore()
+        await store.createProfile('Old')
+
+        const result = await store.renameProfile('Old', 'New')
+
+        expect(result.error).toBeUndefined()
+        expect(store.profiles['Old']).toBeUndefined()
+        expect(store.profiles['New']).toBeDefined()
+        expect(store.profiles['New'].name).toBe('New')
+      })
+
+      it('updates activeProfileName if renaming the active profile', async () => {
+        const store = useLibraryStore()
+        await store.createProfile('Studio')
+        expect(store.activeProfileName).toBe('Studio')
+
+        await store.renameProfile('Studio', 'My Studio')
+        expect(store.activeProfileName).toBe('My Studio')
+      })
+
+      it('cannot rename Default', async () => {
+        const store = useLibraryStore()
+        await store.createProfile('Studio') // creates Default implicitly
+
+        const result = await store.renameProfile('Default', 'Base')
+        expect(result.error).toBe('Cannot rename the Default profile')
+      })
+
+      it('rejects empty new name', async () => {
+        const store = useLibraryStore()
+        await store.createProfile('Studio')
+
+        const result = await store.renameProfile('Studio', '  ')
+        expect(result.error).toBe('Profile name cannot be empty')
+      })
+
+      it('rejects duplicate new name', async () => {
+        const store = useLibraryStore()
+        await store.createProfile('A')
+        await store.createProfile('B')
+
+        const result = await store.renameProfile('B', 'A')
+        expect(result.error).toBe('Profile "A" already exists')
+      })
+
+      it('is a no-op when old and new names are the same', async () => {
+        const store = useLibraryStore()
+        await store.createProfile('Studio')
+
+        mockElectronAPI.writeMetadata.mockClear()
+        const result = await store.renameProfile('Studio', 'Studio')
+        expect(result.error).toBeUndefined()
+        expect(mockElectronAPI.writeMetadata).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('getProfileSnapshot', () => {
+      it('captures current files, tags, theme and settings', () => {
+        const store = useLibraryStore()
+        const tagStore = useTagStore()
+        tagStore.createTag('impact', '#ff0000')
+        store.files = [makeFile({ tags: ['impact'], description: 'A kick' })]
+
+        const snapshot = store.getProfileSnapshot()
+
+        expect(snapshot.files['test.wav']).toBeDefined()
+        expect(snapshot.files['test.wav'].tags).toEqual(['impact'])
+        expect(snapshot.tags).toHaveProperty('impact')
+        expect(snapshot.settings).toBeDefined()
+      })
+
+      it('excludes files with no metadata', () => {
+        const store = useLibraryStore()
+        store.files = [makeFile({ tags: [], description: '', lastPlayed: null })]
+
+        const snapshot = store.getProfileSnapshot()
+
+        expect(snapshot.files['test.wav']).toBeUndefined()
+      })
+
+      it('captures rootDirectory', () => {
+        const store = useLibraryStore()
+        store.rootDirectory = '/Users/test/sounds'
+
+        const snapshot = store.getProfileSnapshot()
+
+        expect(snapshot.rootDirectory).toBe('/Users/test/sounds')
+      })
+
+      it('captures null when no directory set', () => {
+        const store = useLibraryStore()
+        store.rootDirectory = null
+
+        const snapshot = store.getProfileSnapshot()
+
+        expect(snapshot.rootDirectory).toBeNull()
+      })
     })
   })
 })

@@ -1,49 +1,73 @@
-import { ref, computed, reactive } from 'vue'
-import { useTagStore } from './tagStore'
-import { useThemeStore } from './themeStore'
-import { useSettingsStore } from './settingsStore'
+import { ref, computed, reactive } from "vue"
+import { useTagStore } from "./tagStore"
+import { useThemeStore } from "./themeStore"
+import { useSettingsStore } from "./settingsStore"
 
-export type SortColumn = 'name' | 'tags' | 'duration' | 'type' | 'createdAt' | 'modifiedAt'
+export type SortColumn = "name" | "tags" | "duration" | "type" | "createdAt" | "modifiedAt"
 
 export interface AudioFile {
-  path: string
-  name: string
-  extension: string
-  size: number
-  duration: number | null
-  tags: string[]
-  description: string
-  lastPlayed: string | null
-  createdAt: string | null
-  modifiedAt: string | null
+	path: string
+	name: string
+	extension: string
+	size: number
+	duration: number | null
+	tags: string[]
+	description: string
+	lastPlayed: string | null
+	createdAt: string | null
+	modifiedAt: string | null
 }
 
 export interface LibraryMetadata {
-  version: number
-  files: Record<string, {
-    tags: string[]
-    description: string
-    lastPlayed: string | null
-  }>
-  tags: Record<string, { color: string }>
-  theme?: Record<string, string>
-  settings?: {
-    scannerBatchSize?: number
-    durationConcurrency?: number
-    autoLoadDurations?: boolean
-    autoBackup?: boolean
-  }
+	version: number
+	files: Record<
+		string,
+		{
+			tags: string[]
+			description: string
+			lastPlayed: string | null
+		}
+	>
+	tags: Record<string, { color: string }>
+	theme?: Record<string, string>
+	settings?: {
+		scannerBatchSize?: number
+		durationConcurrency?: number
+		autoLoadDurations?: boolean
+		autoBackup?: boolean
+	}
+	activeProfile?: string
+	profiles?: Record<string, ProfileEntry>
+}
+
+export interface ProfileSnapshot {
+	files: Record<string, { tags: string[]; description: string; lastPlayed: string | null }>
+	tags: Record<string, { color: string }>
+	theme?: Record<string, string>
+	settings?: {
+		scannerBatchSize?: number
+		durationConcurrency?: number
+		autoLoadDurations?: boolean
+		autoBackup?: boolean
+	}
+	rootDirectory?: string | null
+}
+
+export interface ProfileEntry {
+	name: string
+	createdAt: string
+	snapshot: ProfileSnapshot
 }
 
 // Module-scope state (singleton)
 const files = ref<AudioFile[]>([])
 const rootDirectory = ref<string | null>(null)
-const searchQuery = ref('')
+const searchQuery = ref("")
 const filterExtension = ref<string[]>([])
-const filterTagged = ref<'all' | 'tagged' | 'untagged'>('all')
+const filterTagged = ref<"all" | "tagged" | "untagged">("all")
 const isScanning = ref(false)
-const sortColumn = ref<SortColumn>('name')
-const sortDirection = ref<'asc' | 'desc'>('asc')
+const sortColumn = ref<SortColumn>("name")
+const sortDirection = ref<"asc" | "desc">("asc")
 
 // Chip-based active filters
 const selectedTags = ref<string[]>([])
@@ -53,450 +77,663 @@ const descriptionFilters = ref<string[]>([])
 // tags for files that haven't arrived in the scan yet (partial-scan data loss).
 let lastReadMeta: LibraryMetadata | null = null
 
+// Profile state
+const activeProfileName = ref<string>("Default")
+const profiles = ref<Record<string, ProfileEntry>>({})
+
 // Current playback
 const currentFile = ref<AudioFile | null>(null)
 const isPlaying = ref(false)
 
 const filteredFiles = computed(() => {
-  let result = files.value
+	let result = files.value
 
-  // Extension filter
-  if (filterExtension.value.length > 0) {
-    result = result.filter(f => filterExtension.value.includes(f.extension))
-  }
+	// Extension filter
+	if (filterExtension.value.length > 0) {
+		result = result.filter((f) => filterExtension.value.includes(f.extension))
+	}
 
-  // Tagged filter
-  if (filterTagged.value === 'tagged') {
-    result = result.filter(f => f.tags.length > 0)
-  } else if (filterTagged.value === 'untagged') {
-    result = result.filter(f => f.tags.length === 0)
-  }
+	// Tagged filter
+	if (filterTagged.value === "tagged") {
+		result = result.filter((f) => f.tags.length > 0)
+	} else if (filterTagged.value === "untagged") {
+		result = result.filter((f) => f.tags.length === 0)
+	}
 
-  // Tag chip filters — file must have ALL selected tags
-  if (selectedTags.value.length > 0) {
-    result = result.filter(f =>
-      selectedTags.value.every(tag => f.tags.includes(tag))
-    )
-  }
+	// Tag chip filters — file must have ALL selected tags
+	if (selectedTags.value.length > 0) {
+		result = result.filter((f) => selectedTags.value.every((tag) => f.tags.includes(tag)))
+	}
 
-  // Description chip filters — each chip must match name or description (AND across chips)
-  if (descriptionFilters.value.length > 0) {
-    result = result.filter(f =>
-      descriptionFilters.value.every(q => {
-        const lq = q.toLowerCase()
-        return f.name.toLowerCase().includes(lq) || f.description.toLowerCase().includes(lq)
-      })
-    )
-  }
+	// Description chip filters — each chip must match name or description (AND across chips)
+	if (descriptionFilters.value.length > 0) {
+		result = result.filter((f) =>
+			descriptionFilters.value.every((q) => {
+				const lq = q.toLowerCase()
+				return f.name.toLowerCase().includes(lq) || f.description.toLowerCase().includes(lq)
+			}),
+		)
+	}
 
-  // Sort — nulls always land at the end regardless of direction
-  const dir = sortDirection.value === 'asc' ? 1 : -1
-  return [...result].sort((a, b) => {
-    switch (sortColumn.value) {
-      case 'name':
-        return dir * a.name.localeCompare(b.name)
-      case 'tags':
-        return dir * (a.tags.length - b.tags.length)
-      case 'duration': {
-        if (a.duration === null && b.duration === null) return 0
-        if (a.duration === null) return 1
-        if (b.duration === null) return -1
-        return dir * (a.duration - b.duration)
-      }
-      case 'type':
-        return dir * a.extension.localeCompare(b.extension)
-      case 'createdAt': {
-        if (!a.createdAt && !b.createdAt) return 0
-        if (!a.createdAt) return 1
-        if (!b.createdAt) return -1
-        return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-      }
-      case 'modifiedAt': {
-        if (!a.modifiedAt && !b.modifiedAt) return 0
-        if (!a.modifiedAt) return 1
-        if (!b.modifiedAt) return -1
-        return dir * (new Date(a.modifiedAt).getTime() - new Date(b.modifiedAt).getTime())
-      }
-      default:
-        return 0
-    }
-  })
+	// Sort — nulls always land at the end regardless of direction
+	const dir = sortDirection.value === "asc" ? 1 : -1
+	return [...result].sort((a, b) => {
+		switch (sortColumn.value) {
+			case "name":
+				return dir * a.name.localeCompare(b.name)
+			case "tags":
+				return dir * (a.tags.length - b.tags.length)
+			case "duration": {
+				if (a.duration === null && b.duration === null) return 0
+				if (a.duration === null) return 1
+				if (b.duration === null) return -1
+				return dir * (a.duration - b.duration)
+			}
+			case "type":
+				return dir * a.extension.localeCompare(b.extension)
+			case "createdAt": {
+				if (!a.createdAt && !b.createdAt) return 0
+				if (!a.createdAt) return 1
+				if (!b.createdAt) return -1
+				return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+			}
+			case "modifiedAt": {
+				if (!a.modifiedAt && !b.modifiedAt) return 0
+				if (!a.modifiedAt) return 1
+				if (!b.modifiedAt) return -1
+				return dir * (new Date(a.modifiedAt).getTime() - new Date(b.modifiedAt).getTime())
+			}
+			default:
+				return 0
+		}
+	})
 })
 
 export function useLibraryStore() {
-  const tagStore = useTagStore()
-  const themeStore = useThemeStore()
-  const settingsStore = useSettingsStore()
+	const tagStore = useTagStore()
+	const themeStore = useThemeStore()
+	const settingsStore = useSettingsStore()
 
-  async function initFromPersistedDirectory() {
-    const dir = await window.electronAPI.getRootDirectory()
-    if (dir) {
-      rootDirectory.value = dir
-      await rescan()
-    }
-  }
+	async function loadMetadata() {
+		try {
+			const metaRaw = await window.electronAPI.readMetadata()
+			const meta: LibraryMetadata = JSON.parse(metaRaw)
+			lastReadMeta = meta
 
-  async function selectAndScanDirectory() {
-    const dir = await window.electronAPI.selectDirectory()
-    if (!dir) return
+			tagStore.loadTags(meta.tags)
+			themeStore.loadTheme(meta.theme)
+			settingsStore.loadSettings(meta.settings)
 
-    rootDirectory.value = dir
-    await window.electronAPI.setRootDirectory(dir)
-    await rescan()
-  }
+			if (meta.activeProfile) {
+				activeProfileName.value = meta.activeProfile
+			}
+			if (meta.profiles) {
+				profiles.value = meta.profiles
+			}
+		} catch {
+			// library.json missing or corrupt — keep defaults
+		}
+	}
 
-  async function rescan() {
-    if (!rootDirectory.value) return
+	async function initFromPersistedDirectory() {
+		await loadMetadata()
+		const dir = await window.electronAPI.getRootDirectory()
+		if (dir) {
+			rootDirectory.value = dir
+			await rescan()
+		}
+	}
 
-    isScanning.value = true
-    files.value = []
+	async function selectAndScanDirectory() {
+		const dir = await window.electronAPI.selectDirectory()
+		if (!dir) return
 
-    try {
-      // Read metadata first (fast local file read) so it's ready when batches arrive
-      const metaRaw = await window.electronAPI.readMetadata()
-      const meta: LibraryMetadata = JSON.parse(metaRaw)
-      lastReadMeta = meta
+		rootDirectory.value = dir
+		await window.electronAPI.setRootDirectory(dir)
+		await rescan()
+	}
 
-      tagStore.loadTags(meta.tags)
-      themeStore.loadTheme(meta.theme)
-      settingsStore.loadSettings(meta.settings)
+	async function rescan() {
+		if (!rootDirectory.value) return
 
-      // Clean up any leftover listeners from a previous scan
-      window.electronAPI.removeScanListeners()
+		isScanning.value = true
+		files.value = []
 
-      // Stream scan results, merging each batch with metadata as it arrives
-      await new Promise<void>((resolve) => {
-        window.electronAPI.onScanProgress((batch) => {
-          files.value.push(...batch.map(sf => {
-            const fileMeta = meta.files[sf.name]
-            return {
-              ...sf,
-              duration: null,
-              tags: fileMeta?.tags ?? [],
-              description: fileMeta?.description ?? '',
-              lastPlayed: fileMeta?.lastPlayed ?? null,
-            } as AudioFile
-          }))
-        })
+		try {
+			// Read metadata first (fast local file read) so it's ready when batches arrive
+			const metaRaw = await window.electronAPI.readMetadata()
+			const meta: LibraryMetadata = JSON.parse(metaRaw)
+			lastReadMeta = meta
 
-        window.electronAPI.onScanDone(() => {
-          resolve()
-        })
+			tagStore.loadTags(meta.tags)
+			themeStore.loadTheme(meta.theme)
+			settingsStore.loadSettings(meta.settings)
 
-        window.electronAPI.startScan(rootDirectory.value!, settingsStore.scannerBatchSize)
-      })
+			// Load profile state
+			if (meta.activeProfile) {
+				activeProfileName.value = meta.activeProfile || "Default"
+			}
+			if (meta.profiles) {
+				profiles.value = meta.profiles
+			}
 
-      // Kick off parallel duration loading
-      if (settingsStore.autoLoadDurations) {
-        loadDurations()
-      }
-    } finally {
-      isScanning.value = false
-    }
-  }
+			// Clean up any leftover listeners from a previous scan
+			window.electronAPI.removeScanListeners()
 
-  async function loadDurations() {
-    const CONCURRENCY = settingsStore.durationConcurrency
-    const snapshot = [...files.value]
-    let index = 0
+			// Stream scan results, merging each batch with metadata as it arrives
+			await new Promise<void>((resolve) => {
+				window.electronAPI.onScanProgress((batch) => {
+					files.value.push(
+						...batch.map((sf) => {
+							const fileMeta = meta.files[sf.name]
+							return {
+								...sf,
+								duration: null,
+								tags: fileMeta?.tags ?? [],
+								description: fileMeta?.description ?? "",
+								lastPlayed: fileMeta?.lastPlayed ?? null,
+							} as AudioFile
+						}),
+					)
+				})
 
-    async function worker() {
-      while (index < snapshot.length) {
-        const file = snapshot[index++]
-        if (file.duration === null) {
-          file.duration = await window.electronAPI.getAudioDuration(file.path)
-        }
-      }
-    }
+				window.electronAPI.onScanDone(() => {
+					resolve()
+				})
 
-    await Promise.all(Array.from({ length: CONCURRENCY }, worker))
-  }
+				window.electronAPI.startScan(rootDirectory.value!, settingsStore.scannerBatchSize)
+			})
 
-  async function saveMetadata() {
-    const meta: LibraryMetadata = {
-      version: 1,
-      files: {},
-      tags: tagStore.tagDefinitions,
-      theme: Object.keys(themeStore.currentTheme).length > 0 ? themeStore.currentTheme : undefined,
-      settings: settingsStore.getSettingsSnapshot(),
-    }
+			// Kick off parallel duration loading
+			if (settingsStore.autoLoadDurations) {
+				loadDurations()
+			}
+		} finally {
+			isScanning.value = false
+		}
+	}
 
-    // Seed with the last read state so files not yet in files.value (e.g. during
-    // a partial scan) keep their saved tags instead of being silently erased.
-    if (lastReadMeta) {
-      Object.assign(meta.files, lastReadMeta.files)
-    }
+	async function loadDurations() {
+		const CONCURRENCY = settingsStore.durationConcurrency
+		const snapshot = [...files.value]
+		let index = 0
 
-    // Overlay with the current in-memory state for every file we do have loaded.
-    // Files with no data are explicitly removed so stale entries don't accumulate.
-    for (const file of files.value) {
-      if (file.tags.length > 0 || file.description || file.lastPlayed) {
-        meta.files[file.name] = {
-          tags: file.tags,
-          description: file.description,
-          lastPlayed: file.lastPlayed,
-        }
-      } else {
-        delete meta.files[file.name]
-      }
-    }
+		async function worker() {
+			while (index < snapshot.length) {
+				const file = snapshot[index++]
+				if (file.duration === null) {
+					file.duration = await window.electronAPI.getAudioDuration(file.path)
+				}
+			}
+		}
 
-    // Preserve rootDirectory if it exists in the stored metadata
-    if (lastReadMeta && (lastReadMeta as any).rootDirectory) {
-      ;(meta as any).rootDirectory = (lastReadMeta as any).rootDirectory
-    }
+		await Promise.all(Array.from({ length: CONCURRENCY }, worker))
+	}
 
-    await window.electronAPI.writeMetadata(JSON.stringify(meta, null, 2))
+	async function saveMetadata() {
+		const meta: LibraryMetadata = {
+			version: 1,
+			files: {},
+			tags: tagStore.tagDefinitions,
+			theme: Object.keys(themeStore.currentTheme).length > 0 ? themeStore.currentTheme : undefined,
+			settings: settingsStore.getSettingsSnapshot(),
+		}
 
-    // Fire-and-forget auto-backup
-    if (settingsStore.autoBackup) {
-      window.electronAPI.backupCreate(JSON.stringify(meta, null, 2))
-        .then(() => settingsStore.purgeOldBackups())
-        .catch(() => {}) // non-fatal
-    }
-  }
+		// Seed with the last read state so files not yet in files.value (e.g. during
+		// a partial scan) keep their saved tags instead of being silently erased.
+		if (lastReadMeta) {
+			Object.assign(meta.files, lastReadMeta.files)
+		}
 
-  function addTagToFile(filePath: string, tag: string) {
-    const file = files.value.find(f => f.path === filePath)
-    if (file && !file.tags.includes(tag)) {
-      file.tags.push(tag)
-      saveMetadata()
-    }
-  }
+		// Overlay with the current in-memory state for every file we do have loaded.
+		// Files with no data are explicitly removed so stale entries don't accumulate.
+		for (const file of files.value) {
+			if (file.tags.length > 0 || file.description || file.lastPlayed) {
+				meta.files[file.name] = {
+					tags: file.tags,
+					description: file.description,
+					lastPlayed: file.lastPlayed,
+				}
+			} else {
+				delete meta.files[file.name]
+			}
+		}
 
-  function removeTagFromFile(filePath: string, tag: string) {
-    const file = files.value.find(f => f.path === filePath)
-    if (file) {
-      file.tags = file.tags.filter(t => t !== tag)
-      saveMetadata()
-    }
-  }
+		// Persist rootDirectory from the live ref (single source of truth)
+		if (rootDirectory.value) {
+			;(meta as any).rootDirectory = rootDirectory.value
+		}
 
-  function setDescription(filePath: string, description: string) {
-    const file = files.value.find(f => f.path === filePath)
-    if (file) {
-      file.description = description
-      saveMetadata()
-    }
-  }
+		// Persist profile state
+		meta.activeProfile = activeProfileName.value
+		if (Object.keys(profiles.value).length > 0) {
+			meta.profiles = profiles.value
+		}
 
-  async function deleteFile(filePath: string): Promise<{ error?: string }> {
-    const result = await window.electronAPI.deleteFile(filePath)
-    if (!result.success) return { error: result.error }
+		await window.electronAPI.writeMetadata(JSON.stringify(meta, null, 2))
 
-    files.value = files.value.filter(f => f.path !== filePath)
-    if (currentFile.value?.path === filePath) {
-      currentFile.value = null
-      isPlaying.value = false
-    }
-    await saveMetadata()
-    return {}
-  }
+		// Fire-and-forget auto-backup
+		if (settingsStore.autoBackup) {
+			window.electronAPI
+				.backupCreate(JSON.stringify(meta, null, 2))
+				.then(() => settingsStore.purgeOldBackups())
+				.catch(() => {}) // non-fatal
+		}
+	}
 
-  async function renameFile(oldPath: string, newName: string): Promise<{ error?: string; newPath?: string }> {
-    const result = await window.electronAPI.renameFile(oldPath, newName)
-    if (!result.success) return { error: result.error }
+	function addTagToFile(filePath: string, tag: string) {
+		const file = files.value.find((f) => f.path === filePath)
+		if (file && !file.tags.includes(tag)) {
+			file.tags.push(tag)
+			saveMetadata()
+		}
+	}
 
-    const file = files.value.find(f => f.path === oldPath)
-    if (file) {
-      file.path = result.newPath!
-      file.name = newName
-    }
-    if (currentFile.value?.path === oldPath && file) {
-      currentFile.value = file
-    }
-    await saveMetadata()
-    return { newPath: result.newPath }
-  }
+	function removeTagFromFile(filePath: string, tag: string) {
+		const file = files.value.find((f) => f.path === filePath)
+		if (file) {
+			file.tags = file.tags.filter((t) => t !== tag)
+			saveMetadata()
+		}
+	}
 
-  function addTagFilter(tag: string) {
-    if (!selectedTags.value.includes(tag)) {
-      selectedTags.value = [...selectedTags.value, tag]
-    }
-  }
+	function setDescription(filePath: string, description: string) {
+		const file = files.value.find((f) => f.path === filePath)
+		if (file) {
+			file.description = description
+			saveMetadata()
+		}
+	}
 
-  function removeTagFilter(tag: string) {
-    selectedTags.value = selectedTags.value.filter(t => t !== tag)
-  }
+	async function deleteFile(filePath: string): Promise<{ error?: string }> {
+		const result = await window.electronAPI.deleteFile(filePath)
+		if (!result.success) return { error: result.error }
 
-  function addDescriptionFilter(text: string) {
-    const trimmed = text.trim()
-    if (trimmed && !descriptionFilters.value.includes(trimmed)) {
-      descriptionFilters.value = [...descriptionFilters.value, trimmed]
-    }
-  }
+		files.value = files.value.filter((f) => f.path !== filePath)
+		if (currentFile.value?.path === filePath) {
+			currentFile.value = null
+			isPlaying.value = false
+		}
+		await saveMetadata()
+		return {}
+	}
 
-  function removeDescriptionFilter(text: string) {
-    descriptionFilters.value = descriptionFilters.value.filter(t => t !== text)
-  }
+	async function renameFile(oldPath: string, newName: string): Promise<{ error?: string; newPath?: string }> {
+		const result = await window.electronAPI.renameFile(oldPath, newName)
+		if (!result.success) return { error: result.error }
 
-  function clearAllFilters() {
-    selectedTags.value = []
-    descriptionFilters.value = []
-  }
+		const file = files.value.find((f) => f.path === oldPath)
+		if (file) {
+			file.path = result.newPath!
+			file.name = newName
+		}
+		if (currentFile.value?.path === oldPath && file) {
+			currentFile.value = file
+		}
+		await saveMetadata()
+		return { newPath: result.newPath }
+	}
 
-  async function editTag(
-    oldName: string,
-    newName: string,
-    newColor: string,
-  ): Promise<{ error?: string }> {
-    const trimmed = newName.trim().toLowerCase()
-    if (!trimmed) return { error: 'Tag name cannot be empty' }
-    if (trimmed !== oldName && tagStore.tagDefinitions[trimmed]) {
-      return { error: `Tag "${trimmed}" already exists` }
-    }
-    if (trimmed !== oldName) {
-      tagStore.renameTag(oldName, trimmed)
-      for (const file of files.value) {
-        const idx = file.tags.indexOf(oldName)
-        if (idx !== -1) file.tags[idx] = trimmed
-      }
-    }
-    tagStore.setTagColor(trimmed, newColor)
-    await saveMetadata()
-    return {}
-  }
+	function addTagFilter(tag: string) {
+		if (!selectedTags.value.includes(tag)) {
+			selectedTags.value = [...selectedTags.value, tag]
+		}
+	}
 
-  async function mergeTag(source: string, target: string): Promise<{ error?: string }> {
-    // Guard: source cannot be uncategorized
-    if (source === 'uncategorized') {
-      return { error: 'Cannot merge from uncategorized tag' }
-    }
-    // Guard: source and target must be different
-    if (source === target) {
-      return { error: 'Source and target tags must be different' }
-    }
-    // Guard: both must exist in tagStore
-    if (!tagStore.tagDefinitions[source]) {
-      return { error: `Source tag "${source}" does not exist` }
-    }
-    if (!tagStore.tagDefinitions[target]) {
-      return { error: `Target tag "${target}" does not exist` }
-    }
+	function removeTagFilter(tag: string) {
+		selectedTags.value = selectedTags.value.filter((t) => t !== tag)
+	}
 
-    // For each file with source tag: add target (if absent), remove source
-    for (const file of files.value) {
-      if (file.tags.includes(source)) {
-        if (!file.tags.includes(target)) {
-          file.tags.push(target)
-        }
-        file.tags = file.tags.filter(t => t !== source)
-      }
-    }
+	function addDescriptionFilter(text: string) {
+		const trimmed = text.trim()
+		if (trimmed && !descriptionFilters.value.includes(trimmed)) {
+			descriptionFilters.value = [...descriptionFilters.value, trimmed]
+		}
+	}
 
-    // Delete source tag
-    tagStore.deleteTag(source)
+	function removeDescriptionFilter(text: string) {
+		descriptionFilters.value = descriptionFilters.value.filter((t) => t !== text)
+	}
 
-    await saveMetadata()
-    return {}
-  }
+	function clearAllFilters() {
+		selectedTags.value = []
+		descriptionFilters.value = []
+	}
 
-  async function clearTagFromAllFiles(tagName: string) {
-    for (const file of files.value) {
-      file.tags = file.tags.filter(t => t !== tagName)
-    }
-    await saveMetadata()
-  }
+	async function editTag(oldName: string, newName: string, newColor: string): Promise<{ error?: string }> {
+		const trimmed = newName.trim().toLowerCase()
+		if (!trimmed) return { error: "Tag name cannot be empty" }
+		if (trimmed !== oldName && tagStore.tagDefinitions[trimmed]) {
+			return { error: `Tag "${trimmed}" already exists` }
+		}
+		if (trimmed !== oldName) {
+			tagStore.renameTag(oldName, trimmed)
+			for (const file of files.value) {
+				const idx = file.tags.indexOf(oldName)
+				if (idx !== -1) file.tags[idx] = trimmed
+			}
+		}
+		tagStore.setTagColor(trimmed, newColor)
+		await saveMetadata()
+		return {}
+	}
 
-  function addTagToFiles(filePaths: string[], tag: string) {
-    for (const file of files.value) {
-      if (filePaths.includes(file.path) && !file.tags.includes(tag)) {
-        file.tags.push(tag)
-      }
-    }
-    saveMetadata()
-  }
+	async function mergeTag(source: string, target: string): Promise<{ error?: string }> {
+		// Guard: source cannot be uncategorized
+		if (source === "uncategorized") {
+			return { error: "Cannot merge from uncategorized tag" }
+		}
+		// Guard: source and target must be different
+		if (source === target) {
+			return { error: "Source and target tags must be different" }
+		}
+		// Guard: both must exist in tagStore
+		if (!tagStore.tagDefinitions[source]) {
+			return { error: `Source tag "${source}" does not exist` }
+		}
+		if (!tagStore.tagDefinitions[target]) {
+			return { error: `Target tag "${target}" does not exist` }
+		}
 
-  function removeTagFromFiles(filePaths: string[], tag: string) {
-    for (const file of files.value) {
-      if (filePaths.includes(file.path)) {
-        file.tags = file.tags.filter(t => t !== tag)
-      }
-    }
-    saveMetadata()
-  }
+		// For each file with source tag: add target (if absent), remove source
+		for (const file of files.value) {
+			if (file.tags.includes(source)) {
+				if (!file.tags.includes(target)) {
+					file.tags.push(target)
+				}
+				file.tags = file.tags.filter((t) => t !== source)
+			}
+		}
 
-  function setDescriptionForFiles(filePaths: string[], description: string) {
-    for (const file of files.value) {
-      if (filePaths.includes(file.path)) {
-        file.description = description
-      }
-    }
-    saveMetadata()
-  }
+		// Delete source tag
+		tagStore.deleteTag(source)
 
-  function setSort(col: SortColumn) {
-    if (sortColumn.value === col) {
-      sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
-    } else {
-      sortColumn.value = col
-      sortDirection.value = 'asc'
-    }
-  }
+		await saveMetadata()
+		return {}
+	}
 
-  function playFile(file: AudioFile) {
-    currentFile.value = file
-    isPlaying.value = true
-    file.lastPlayed = new Date().toISOString()
-    saveMetadata()
-  }
+	async function clearTagFromAllFiles(tagName: string) {
+		for (const file of files.value) {
+			file.tags = file.tags.filter((t) => t !== tagName)
+		}
+		await saveMetadata()
+	}
 
-  function stopPlayback() {
-    isPlaying.value = false
-  }
+	function addTagToFiles(filePaths: string[], tag: string) {
+		for (const file of files.value) {
+			if (filePaths.includes(file.path) && !file.tags.includes(tag)) {
+				file.tags.push(tag)
+			}
+		}
+		saveMetadata()
+	}
 
-  return reactive({
-    files,
-    rootDirectory,
-    searchQuery,
-    filterExtension,
-    filterTagged,
-    isScanning,
-    sortColumn,
-    sortDirection,
-    selectedTags,
-    descriptionFilters,
-    currentFile,
-    isPlaying,
-    filteredFiles,
-    initFromPersistedDirectory,
-    selectAndScanDirectory,
-    rescan,
-    saveMetadata,
-    addTagToFile,
-    removeTagFromFile,
-    setDescription,
-    deleteFile,
-    renameFile,
-    playFile,
-    stopPlayback,
-    addTagFilter,
-    removeTagFilter,
-    addDescriptionFilter,
-    removeDescriptionFilter,
-    clearAllFilters,
-    editTag,
-    mergeTag,
-    clearTagFromAllFiles,
-    addTagToFiles,
-    removeTagFromFiles,
-    setDescriptionForFiles,
-    setSort,
-  })
+	function removeTagFromFiles(filePaths: string[], tag: string) {
+		for (const file of files.value) {
+			if (filePaths.includes(file.path)) {
+				file.tags = file.tags.filter((t) => t !== tag)
+			}
+		}
+		saveMetadata()
+	}
+
+	function setDescriptionForFiles(filePaths: string[], description: string) {
+		for (const file of files.value) {
+			if (filePaths.includes(file.path)) {
+				file.description = description
+			}
+		}
+		saveMetadata()
+	}
+
+	function setSort(col: SortColumn) {
+		if (sortColumn.value === col) {
+			sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc"
+		} else {
+			sortColumn.value = col
+			sortDirection.value = "asc"
+		}
+	}
+
+	function playFile(file: AudioFile) {
+		currentFile.value = file
+		isPlaying.value = true
+		file.lastPlayed = new Date().toISOString()
+		saveMetadata()
+	}
+
+	function stopPlayback() {
+		isPlaying.value = false
+	}
+
+	function getProfileSnapshot(): ProfileSnapshot {
+		const snapshotFiles: ProfileSnapshot["files"] = {}
+
+		// Start with lastReadMeta to preserve files not yet loaded
+		if (lastReadMeta) {
+			for (const [name, data] of Object.entries(lastReadMeta.files)) {
+				snapshotFiles[name] = {
+					tags: data.tags,
+					description: data.description,
+					lastPlayed: data.lastPlayed,
+				}
+			}
+		}
+
+		// Overlay current in-memory files
+		for (const file of files.value) {
+			if (file.tags.length > 0 || file.description || file.lastPlayed) {
+				snapshotFiles[file.name] = {
+					tags: [...file.tags],
+					description: file.description,
+					lastPlayed: file.lastPlayed,
+				}
+			} else {
+				delete snapshotFiles[file.name]
+			}
+		}
+
+		return {
+			files: snapshotFiles,
+			tags: { ...tagStore.tagDefinitions },
+			theme: Object.keys(themeStore.currentTheme).length > 0 ? { ...themeStore.currentTheme } : undefined,
+			settings: settingsStore.getSettingsSnapshot(),
+			rootDirectory: rootDirectory.value,
+		}
+	}
+
+	function applyProfileData(snapshot: ProfileSnapshot) {
+		// 1. Replace tags (full replacement, not merge)
+		tagStore.replaceTags(snapshot.tags)
+
+		// 2. Apply theme
+		themeStore.loadTheme(snapshot.theme)
+
+		// 3. Apply settings
+		settingsStore.loadSettings(snapshot.settings)
+
+		// 4. Update file metadata in-place
+		for (const file of files.value) {
+			const meta = snapshot.files[file.name]
+			if (meta) {
+				file.tags = [...meta.tags]
+				file.description = meta.description
+				file.lastPlayed = meta.lastPlayed
+			} else {
+				file.tags = []
+				file.description = ""
+				file.lastPlayed = null
+			}
+		}
+
+		// 5. Update lastReadMeta so saveMetadata() merges correctly
+		lastReadMeta = {
+			version: 1,
+			files: snapshot.files,
+			tags: snapshot.tags,
+			theme: snapshot.theme,
+			settings: snapshot.settings,
+			activeProfile: activeProfileName.value,
+			profiles: profiles.value,
+		}
+	}
+
+	async function createProfile(name: string): Promise<{ error?: string }> {
+		const trimmed = name.trim()
+		if (!trimmed) return { error: "Profile name cannot be empty" }
+		if (profiles.value[trimmed]) return { error: `Profile "${trimmed}" already exists` }
+
+		// On first non-Default profile creation, save the current state as "Default"
+		if (!profiles.value["Default"] && activeProfileName.value === "Default") {
+			profiles.value["Default"] = {
+				name: "Default",
+				createdAt: new Date().toISOString(),
+				snapshot: getProfileSnapshot(),
+			}
+		}
+
+		// Snapshot current state into the new profile
+		profiles.value[trimmed] = {
+			name: trimmed,
+			createdAt: new Date().toISOString(),
+			snapshot: getProfileSnapshot(),
+		}
+
+		activeProfileName.value = trimmed
+		await saveMetadata()
+		return {}
+	}
+
+	async function switchProfile(name: string): Promise<{ error?: string }> {
+		if (name === activeProfileName.value) return {}
+		if (!profiles.value[name]) return { error: `Profile "${name}" does not exist` }
+
+		// Auto-save current state into the current profile
+		if (profiles.value[activeProfileName.value]) {
+			profiles.value[activeProfileName.value].snapshot = getProfileSnapshot()
+		}
+
+		const targetSnapshot = profiles.value[name].snapshot
+		const oldDir = rootDirectory.value
+		const newDir = targetSnapshot.rootDirectory ?? null
+
+		// Apply target profile data (tags, theme, settings, file metadata in-place)
+		applyProfileData(targetSnapshot)
+		activeProfileName.value = name
+
+		if (newDir !== oldDir) {
+			rootDirectory.value = newDir
+			await window.electronAPI.setRootDirectory(newDir)
+			await saveMetadata()
+			if (newDir) {
+				await rescan()
+			} else {
+				files.value = []
+			}
+		} else {
+			await saveMetadata()
+		}
+
+		return {}
+	}
+
+	async function deleteProfile(name: string): Promise<{ error?: string }> {
+		if (name === "Default") return { error: "Cannot delete the Default profile" }
+		if (!profiles.value[name]) return { error: `Profile "${name}" does not exist` }
+
+		// If deleting the active profile, switch to Default first
+		if (name === activeProfileName.value) {
+			await switchProfile("Default")
+		}
+
+		delete profiles.value[name]
+		await saveMetadata()
+		return {}
+	}
+
+	async function renameProfile(oldName: string, newName: string): Promise<{ error?: string }> {
+		if (oldName === "Default") return { error: "Cannot rename the Default profile" }
+		const trimmed = newName.trim()
+		if (!trimmed) return { error: "Profile name cannot be empty" }
+		if (trimmed === oldName) return {}
+		if (profiles.value[trimmed]) return { error: `Profile "${trimmed}" already exists` }
+		if (!profiles.value[oldName]) return { error: `Profile "${oldName}" does not exist` }
+
+		const entry = profiles.value[oldName]
+		entry.name = trimmed
+		profiles.value[trimmed] = entry
+		delete profiles.value[oldName]
+
+		if (activeProfileName.value === oldName) {
+			activeProfileName.value = trimmed
+		}
+
+		await saveMetadata()
+		return {}
+	}
+
+	return reactive({
+		files,
+		rootDirectory,
+		searchQuery,
+		filterExtension,
+		filterTagged,
+		isScanning,
+		sortColumn,
+		sortDirection,
+		selectedTags,
+		descriptionFilters,
+		currentFile,
+		isPlaying,
+		filteredFiles,
+		initFromPersistedDirectory,
+		selectAndScanDirectory,
+		rescan,
+		saveMetadata,
+		addTagToFile,
+		removeTagFromFile,
+		setDescription,
+		deleteFile,
+		renameFile,
+		playFile,
+		stopPlayback,
+		addTagFilter,
+		removeTagFilter,
+		addDescriptionFilter,
+		removeDescriptionFilter,
+		clearAllFilters,
+		editTag,
+		mergeTag,
+		clearTagFromAllFiles,
+		addTagToFiles,
+		removeTagFromFiles,
+		setDescriptionForFiles,
+		setSort,
+		activeProfileName,
+		profiles,
+		getProfileSnapshot,
+		applyProfileData,
+		createProfile,
+		switchProfile,
+		deleteProfile,
+		renameProfile,
+	})
 }
 
 export function _resetLibraryStore() {
-  files.value = []
-  rootDirectory.value = null
-  searchQuery.value = ''
-  filterExtension.value = []
-  filterTagged.value = 'all'
-  isScanning.value = false
-  sortColumn.value = 'name'
-  sortDirection.value = 'asc'
-  selectedTags.value = []
-  descriptionFilters.value = []
-  lastReadMeta = null
-  currentFile.value = null
-  isPlaying.value = false
+	files.value = []
+	rootDirectory.value = null
+	searchQuery.value = ""
+	filterExtension.value = []
+	filterTagged.value = "all"
+	isScanning.value = false
+	sortColumn.value = "name"
+	sortDirection.value = "asc"
+	selectedTags.value = []
+	descriptionFilters.value = []
+	lastReadMeta = null
+	currentFile.value = null
+	isPlaying.value = false
+	activeProfileName.value = "Default"
+	profiles.value = {}
 }

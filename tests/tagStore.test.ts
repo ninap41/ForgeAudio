@@ -88,6 +88,35 @@ describe('tagStore', () => {
     expect(store.getColor('nonexistent')).toBe('#888888')
   })
 
+  describe('replaceTags', () => {
+    it('replaces all tags with the provided set', () => {
+      const store = useTagStore()
+      store.createTag('old1', '#ff0000')
+      store.createTag('old2', '#00ff00')
+
+      store.replaceTags({ newTag: { color: '#0000ff' } })
+
+      expect(store.tagDefinitions).not.toHaveProperty('old1')
+      expect(store.tagDefinitions).not.toHaveProperty('old2')
+      expect(store.tagDefinitions.newTag.color).toBe('#0000ff')
+    })
+
+    it('always preserves uncategorized with default color', () => {
+      const store = useTagStore()
+      store.replaceTags({ ambient: { color: '#4da6ff' } })
+
+      expect(store.tagDefinitions.uncategorized).toBeDefined()
+      expect(store.tagDefinitions.uncategorized.color).toBe('#888888')
+    })
+
+    it('allows overriding uncategorized color', () => {
+      const store = useTagStore()
+      store.replaceTags({ uncategorized: { color: '#ff0000' } })
+
+      expect(store.tagDefinitions.uncategorized.color).toBe('#ff0000')
+    })
+  })
+
   describe('renameTag', () => {
     it('renames a tag key and preserves its color', () => {
       const store = useTagStore()

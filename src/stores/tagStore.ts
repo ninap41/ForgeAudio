@@ -38,6 +38,10 @@ export function useTagStore() {
     delete tagDefinitions.value[oldName]
   }
 
+  function replaceTags(tags: Record<string, { color: string }>) {
+    tagDefinitions.value = { uncategorized: { color: '#888888' }, ...tags }
+  }
+
   function getColor(tagName: string): string {
     return tagDefinitions.value[tagName]?.color ?? '#888888'
   }
@@ -45,6 +49,7 @@ export function useTagStore() {
   return reactive({
     tagDefinitions,
     loadTags,
+    replaceTags,
     createTag,
     setTagColor,
     deleteTag,

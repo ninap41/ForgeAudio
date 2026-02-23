@@ -2,41 +2,43 @@
   <section class="settings-section">
     <h3>Settings Profiles</h3>
     <p class="panel-description">
-      A profile is a saved snapshot of your entire library metadata tied to a specific directory path. It captures your tags,
-      descriptions, theme, and the root folder you were working in. Save profiles to quickly switch between different audio
-      libraries, or export them as <code>.forgerc</code> files to share with others. Loading a profile restores all of that
-      data and rescans the directory.
+      A profile is a saved snapshot of your entire library metadata. It captures your tags,
+      descriptions, theme, settings, and root directory. Save profiles to quickly switch between
+      different configurations, or export them as <code>.forgerc</code> files to share with others.
+      Switching profiles with the same directory is instant; switching to a different directory
+      triggers a rescan.
     </p>
 
     <div class="profiles-grid">
-      <!-- Current Profile -->
-      <div class="profile-card active">
-        <div class="profile-header">
-          <span class="profile-name">{{ currentProfileName }}</span>
-          <span class="profile-badge">Active</span>
-        </div>
-        <div class="profile-meta">
-          {{ tagCount }} tags, {{ fileCount }} files with metadata
-        </div>
-      </div>
-
       <!-- Saved Profiles -->
       <div
-        v-for="profile in profiles"
+        v-for="profile in profileList"
         :key="profile.name"
-        class="profile-card"
+        :class="['profile-card', { active: profile.name === library.activeProfileName }]"
       >
         <div class="profile-header">
           <span class="profile-name">{{ profile.name }}</span>
-          <span class="profile-date">{{ formatDate(profile.createdAt) }}</span>
+          <span v-if="profile.name === library.activeProfileName" class="profile-badge">Active</span>
+          <span v-else class="profile-date">{{ formatDate(profile.createdAt) }}</span>
         </div>
         <div class="profile-meta">
-          {{ profile.tagCount }} tags, {{ profile.fileCount }} files
+          {{ Object.keys(profile.snapshot.tags).length }} tags,
+          {{ Object.keys(profile.snapshot.files).length }} files
         </div>
-        <div class="profile-actions">
-          <button class="btn btn-sm" @click="loadProfile(profile)">Load</button>
-          <button class="btn btn-sm" @click="exportProfile(profile)">Export</button>
-          <button class="btn btn-sm btn-danger-subtle" @click="deleteProfile(profile)">Delete</button>
+        <div v-if="profile.snapshot.rootDirectory" class="profile-directory" :title="profile.snapshot.rootDirectory">
+          {{ profile.snapshot.rootDirectory }}
+        </div>
+        <div v-if="profile.name !== library.activeProfileName" class="profile-actions">
+          <button class="btn btn-sm" @click="loadProfile(profile.name)">Load</button>
+          <button class="btn btn-sm" @click="exportProfile(profile.name)">Export</button>
+          <button
+            v-if="profile.name !== 'Default'"
+            class="btn btn-sm btn-danger-subtle"
+            @click="handleDeleteProfile(profile.name)"
+          >Delete</button>
+        </div>
+        <div v-else class="profile-actions">
+          <button class="btn btn-sm" @click="exportProfile(profile.name)">Export</button>
         </div>
       </div>
     </div>
@@ -70,30 +72,22 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useLibraryStore } from '@/stores/libraryStore'
-import { useTagStore } from '@/stores/tagStore'
-
-interface Profile {
-  name: string
-  createdAt: string
-  tagCount: number
-  fileCount: number
-  data: string  // JSON stringified metadata
-}
+import { useLibraryStore, type ProfileEntry } from '@/stores/libraryStore'
 
 const library = useLibraryStore()
-const tagStore = useTagStore()
 
-const profiles = ref<Profile[]>([])
 const newProfileName = ref('')
-const currentProfileName = ref('Default')
 const statusMessage = ref('')
 const statusType = ref<'success' | 'error'>('success')
 
-const tagCount = computed(() => Object.keys(tagStore.tagDefinitions).length)
-const fileCount = computed(() =>
-  library.files.filter(f => f.tags.length > 0 || f.description).length
-)
+const profileList = computed(() => {
+  return Object.values(library.profiles as Record<string, ProfileEntry>).sort((a, b) => {
+    // Default always first
+    if (a.name === 'Default') return -1
+    if (b.name === 'Default') return 1
+    return a.name.localeCompare(b.name)
+  })
+})
 
 function formatDate(iso: string): string {
   const d = new Date(iso)
@@ -105,46 +99,61 @@ async function saveProfile() {
   if (!name) return
 
   try {
-    const metaRaw = await window.electronAPI.readMetadata()
-    profiles.value.push({
-      name,
-      createdAt: new Date().toISOString(),
-      tagCount: tagCount.value,
-      fileCount: fileCount.value,
-      data: metaRaw,
-    })
+    const result = await library.createProfile(name)
+    if (result.error) {
+      showStatus(result.error, 'error')
+      return
+    }
     newProfileName.value = ''
-    showStatus('Profile saved', 'success')
+    showStatus(`Profile "${name}" saved`, 'success')
   } catch (err) {
     showStatus(`Failed to save profile: ${(err as Error).message}`, 'error')
   }
 }
 
-async function loadProfile(profile: Profile) {
+async function loadProfile(name: string) {
   try {
-    await window.electronAPI.writeMetadata(profile.data)
-    currentProfileName.value = profile.name
-    await library.rescan()
-    showStatus(`Loaded profile "${profile.name}"`, 'success')
+    const result = await library.switchProfile(name)
+    if (result.error) {
+      showStatus(result.error, 'error')
+      return
+    }
+    showStatus(`Switched to profile "${name}"`, 'success')
   } catch (err) {
-    showStatus(`Failed to load profile: ${(err as Error).message}`, 'error')
+    showStatus(`Failed to switch profile: ${(err as Error).message}`, 'error')
   }
 }
 
-async function exportProfile(profile: Profile) {
+async function exportProfile(name: string) {
   try {
-    const path = await window.electronAPI.saveFileDialog(`${profile.name}.forgerc`)
+    const entry = (library.profiles as Record<string, ProfileEntry>)[name]
+    if (!entry) return
+
+    const exportData = JSON.stringify({
+      version: 1,
+      ...entry.snapshot,
+    }, null, 2)
+
+    const path = await window.electronAPI.saveFileDialog(`${name}.forgerc`)
     if (!path) return
-    await window.electronAPI.writeFile(path, profile.data)
+    await window.electronAPI.writeFile(path, exportData)
     showStatus(`Exported to ${path}`, 'success')
   } catch (err) {
     showStatus(`Failed to export: ${(err as Error).message}`, 'error')
   }
 }
 
-function deleteProfile(profile: Profile) {
-  profiles.value = profiles.value.filter(p => p.name !== profile.name)
-  showStatus(`Deleted profile "${profile.name}"`, 'success')
+async function handleDeleteProfile(name: string) {
+  try {
+    const result = await library.deleteProfile(name)
+    if (result.error) {
+      showStatus(result.error, 'error')
+      return
+    }
+    showStatus(`Deleted profile "${name}"`, 'success')
+  } catch (err) {
+    showStatus(`Failed to delete: ${(err as Error).message}`, 'error')
+  }
 }
 
 async function importProfile() {
@@ -153,7 +162,6 @@ async function importProfile() {
     if (!filePath) return
     const data = await window.electronAPI.readFile(filePath)
 
-    // Validate it's valid metadata JSON
     const parsed = JSON.parse(data)
     if (!parsed.version) {
       showStatus('Invalid profile: missing version field', 'error')
@@ -161,13 +169,24 @@ async function importProfile() {
     }
 
     const name = filePath.split('/').pop()?.replace('.forgerc', '').replace('.json', '') ?? 'Imported'
-    profiles.value.push({
+
+    // Build a ProfileSnapshot from the imported data
+    const snapshot = {
+      files: parsed.files ?? {},
+      tags: parsed.tags ?? {},
+      theme: parsed.theme,
+      settings: parsed.settings,
+      rootDirectory: parsed.rootDirectory ?? null,
+    }
+
+    // Add directly to the profiles map
+    ;(library.profiles as Record<string, ProfileEntry>)[name] = {
       name,
       createdAt: new Date().toISOString(),
-      tagCount: Object.keys(parsed.tags ?? {}).length,
-      fileCount: Object.keys(parsed.files ?? {}).length,
-      data,
-    })
+      snapshot,
+    }
+
+    await library.saveMetadata()
     showStatus(`Imported profile "${name}"`, 'success')
   } catch (err) {
     showStatus(`Failed to import: ${(err as Error).message}`, 'error')
@@ -259,7 +278,17 @@ h3 {
 .profile-meta {
   font-size: 11px;
   color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.profile-directory {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.7;
   margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-actions {
