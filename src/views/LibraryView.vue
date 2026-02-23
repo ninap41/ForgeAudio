@@ -40,9 +40,9 @@
 			<AlertBanner
 				v-if="scanAlert"
 				type="success"
-				:message="scanAlert.message"
+				:message="scanAlert.message + ` *For faster operations update batch operation settings.`"
 				:details="scanAlert.details"
-				:duration="5000"
+				:duration="8000"
 				@dismiss="scanAlert = null"
 			/>
 
