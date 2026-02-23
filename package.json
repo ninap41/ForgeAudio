@@ -43,11 +43,23 @@
 		"productName": "ForgeAudio",
 		"files": [
 			"dist/**/*",
-			"dist-electron/**/*"
+			"dist-electron/**/*",
+			"!dist/mac-arm64",
+			"!dist/mac",
+			"!dist/win-unpacked",
+			"!dist/*.dmg",
+			"!dist/*.zip",
+			"!dist/*.blockmap",
+			"!dist/*.yml",
+			"!dist/*.yaml",
+			"!dist/*.exe",
+			"!dist/*.nsis"
 		],
 		"directories": {
-			"buildResources": "build"
+			"buildResources": "build",
+			"output": "release"
 		},
+		"electronLanguages": ["en"],
 		"mac": {
 			"icon": "build/icon.icns"
 		},
