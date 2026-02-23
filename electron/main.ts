@@ -327,7 +327,7 @@ ipcMain.on("context-menu:show", (event, params: { filePath: string }) => {
 		},
 		{ type: "separator" },
 		{
-			label: "Reveal in Finder",
+			label: process.platform === "darwin" ? "Reveal in Finder" : "Show in Explorer",
 			click: () => shell.showItemInFolder(params.filePath),
 		},
 		{

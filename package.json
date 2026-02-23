@@ -10,6 +10,9 @@
     "preview": "vite preview",
     "electron:dev": "vite --mode electron",
     "electron:build": "vite build && electron-builder",
+    "electron:build:win": "vite build && electron-builder --win",
+    "electron:build:mac": "vite build && electron-builder --mac",
+    "electron:build:all": "vite build && electron-builder --mac --win",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -49,7 +52,8 @@
       "icon": "build/icon.icns"
     },
     "win": {
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "target": ["nsis"]
     },
     "linux": {
       "icon": "build/icon.png"
