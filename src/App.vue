@@ -220,9 +220,11 @@ img.app-title {
 .ember-glow {
 	position: absolute;
 	bottom: 50px;
-	left: 8%;
-	right: 8%;
+	left: 0;
+	right: 0;
 	height: 20px;
+	z-index: -1;
+
 	background: radial-gradient(
 		ellipse at 50% 0%,
 		color-mix(in srgb, var(--ember-color) 25%, transparent) 0%,
@@ -230,7 +232,6 @@ img.app-title {
 		transparent 100%
 	);
 	filter: blur(5px);
-	z-index: 0;
 	animation: ember-glow-pulse 2.5s ease-in-out infinite;
 }
 
