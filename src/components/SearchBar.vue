@@ -30,6 +30,14 @@
         &times;
       </button>
       <button v-if="hasFilters" class="clear-all-btn" @click="onClearAll">Clear all</button>
+      <button class="help-btn" @click="showHelpModal = true" title="Filter help">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      </button>
     </div>
 
     <!-- Tag autocomplete dropdown — shown when input starts with # or !# -->
@@ -69,6 +77,8 @@
         <button class="chip-remove" @click="library.removeExcludeDescriptionFilter(desc)">&times;</button>
       </span>
     </div>
+
+    <FilterHelpModal v-if="showHelpModal" @close="showHelpModal = false" />
   </div>
 </template>
 
@@ -76,6 +86,7 @@
 import { ref, computed, watch } from 'vue'
 import { useLibraryStore } from '@/stores/libraryStore'
 import { useTagStore } from '@/stores/tagStore'
+import FilterHelpModal from '@/components/FilterHelpModal.vue'
 
 const library = useLibraryStore()
 const tagStore = useTagStore()
@@ -84,6 +95,7 @@ const inputRef = ref<HTMLInputElement>()
 const containerRef = ref<HTMLElement>()
 const showDropdown = ref(false)
 const highlightedIndex = ref(-1)
+const showHelpModal = ref(false)
 
 const hasFilters = computed(() =>
   library.selectedTags.length > 0 ||
@@ -384,5 +396,20 @@ function onClearAll() {
 
 .chip-remove:hover {
   opacity: 1;
+}
+
+.help-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding: 2px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.help-btn:hover {
+  color: var(--text-primary);
 }
 </style>
