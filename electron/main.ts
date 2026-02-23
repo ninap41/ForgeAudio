@@ -204,6 +204,20 @@ ipcMain.handle("fs:renameFile", async (_event, oldPath: string, newName: string)
 	}
 })
 
+ipcMain.handle("fs:createDirectory", async (_event, parentPath: string, folderName: string) => {
+	const fullPath = join(parentPath, folderName)
+	try {
+		await stat(fullPath)
+		return { error: "A folder with this name already exists at this location" }
+	} catch {}
+	try {
+		await mkdir(fullPath)
+		return { path: fullPath }
+	} catch (err) {
+		return { error: (err as Error).message }
+	}
+})
+
 ipcMain.handle("config:getRootDirectory", async () => {
 	return getRootDirectory()
 })

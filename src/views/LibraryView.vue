@@ -25,6 +25,7 @@
 				<button class="btn" @click="library.selectAndScanDirectory()">
 					{{ library.rootDirectory ? "Change Folder" : "Open Folder" }}
 				</button>
+				<button class="btn" @click="showCreateDirectoryModal = true">Create New Folder</button>
 				<button
 					v-if="library.rootDirectory"
 					class="btn btn-subtle"
@@ -48,7 +49,10 @@
 
 			<div v-if="!library.rootDirectory" class="empty-state">
 				<p>No folder selected.</p>
-				<button class="btn btn-accent" @click="library.selectAndScanDirectory()">Choose Audio Folder</button>
+				<div class="empty-state-actions">
+					<button class="btn btn-accent" @click="library.selectAndScanDirectory()">Choose Audio Folder</button>
+					<button class="btn" @click="showCreateDirectoryModal = true">Create New Folder</button>
+				</div>
 			</div>
 
 			<SpinnerOverlay v-else-if="library.isScanning" />
@@ -60,6 +64,7 @@
 		<EditDescriptionModal v-if="editDescFilePath" :filePath="editDescFilePath" @close="editDescFilePath = null" />
 		<DeleteConfirmModal v-if="deleteFilePath" :filePath="deleteFilePath" @close="deleteFilePath = null" />
 		<RenameModal v-if="renameFilePath" :filePath="renameFilePath" @close="renameFilePath = null" @renamed="onRenamed" />
+		<CreateDirectoryModal v-if="showCreateDirectoryModal" @close="showCreateDirectoryModal = false" />
 	</div>
 </template>
 
@@ -74,6 +79,7 @@ import EditDescriptionModal from "@/components/EditDescriptionModal.vue"
 import DeleteConfirmModal from "@/components/DeleteConfirmModal.vue"
 import RenameModal from "@/components/RenameModal.vue"
 import AlertBanner from "@/components/AlertBanner.vue"
+import CreateDirectoryModal from "@/components/CreateDirectoryModal.vue"
 
 const EXTENSIONS = [".wav", ".mp3", ".aiff", ".flac", ".ogg", ".m4a"]
 
@@ -83,6 +89,7 @@ const addTagFilePath = ref<string | null>(null)
 const editDescFilePath = ref<string | null>(null)
 const deleteFilePath = ref<string | null>(null)
 const renameFilePath = ref<string | null>(null)
+const showCreateDirectoryModal = ref(false)
 const formatDropdownOpen = ref(false)
 const formatDropdownRef = ref<HTMLElement | null>(null)
 const scanStartTime = ref<number | null>(null)
@@ -244,6 +251,11 @@ onBeforeUnmount(() => {
 	justify-content: center;
 	gap: 16px;
 	color: var(--text-secondary);
+}
+
+.empty-state-actions {
+	display: flex;
+	gap: 10px;
 }
 
 .format-filter {

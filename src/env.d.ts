@@ -26,6 +26,7 @@ interface ElectronAPI {
   showContextMenu: (params: { filePath: string }) => void
   deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>
   renameFile: (oldPath: string, newName: string) => Promise<{ success: boolean; error?: string; newPath?: string }>
+  createDirectory: (parentPath: string, folderName: string) => Promise<{ path?: string; error?: string }>
   onContextMenuPlay: (callback: (filePath: string) => void) => void
   onContextMenuAddTag: (callback: (filePath: string) => void) => void
   onContextMenuEditDescription: (callback: (filePath: string) => void) => void

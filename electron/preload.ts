@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File operations
   deleteFile: (filePath: string) => ipcRenderer.invoke('fs:deleteFile', filePath),
   renameFile: (oldPath: string, newName: string) => ipcRenderer.invoke('fs:renameFile', oldPath, newName),
+  createDirectory: (parentPath: string, folderName: string) =>
+    ipcRenderer.invoke('fs:createDirectory', parentPath, folderName),
 
   // Config persistence
   getRootDirectory: () => ipcRenderer.invoke('config:getRootDirectory'),

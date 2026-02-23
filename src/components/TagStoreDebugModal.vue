@@ -1,36 +1,35 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')" role="dialog" aria-modal="true" aria-label="Tag Store Debug">
-    <div class="modal debug-modal">
-      <h3>Tag Store Debug Viewer</h3>
+  <BaseModal title="Tag Store Debug Viewer" maxWidth="600px" @close="$emit('close')">
+    <div class="store-path">
+      <label>Store file:</label>
+      <span class="path-value">{{ storePath }}</span>
+    </div>
 
-      <div class="store-path">
-        <label>Store file:</label>
-        <span class="path-value">{{ storePath }}</span>
-      </div>
+    <div class="json-container">
+      <pre><code>{{ storeJson }}</code></pre>
+    </div>
 
-      <div class="json-container">
-        <pre><code>{{ storeJson }}</code></pre>
-      </div>
-
-      <div v-if="!confirmDelete" class="modal-actions">
+    <template #actions>
+      <template v-if="!confirmDelete">
         <button class="btn" @click="$emit('close')">Close</button>
         <button class="btn btn-danger" @click="confirmDelete = true">
           Delete {{ dirName }} Taglist
         </button>
-      </div>
-      <div v-else class="modal-actions confirm-row">
+      </template>
+      <template v-else>
         <span class="confirm-text">Are you sure? This clears all tags.</span>
         <button class="btn" @click="confirmDelete = false">Cancel</button>
         <button class="btn btn-danger" @click="doClear">Continue</button>
-      </div>
-    </div>
-  </div>
+      </template>
+    </template>
+  </BaseModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useTagStore } from '@/stores/tagStore'
 import { useLibraryStore } from '@/stores/libraryStore'
+import BaseModal from './BaseModal.vue'
 
 defineEmits<{ close: [] }>()
 
@@ -75,32 +74,6 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-
-.modal {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 20px;
-  min-width: 320px;
-  max-width: 600px;
-  width: 90%;
-}
-
-.debug-modal h3 {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-
 .store-path {
   font-size: 12px;
   margin-bottom: 12px;
@@ -140,42 +113,9 @@ onMounted(loadData)
   word-break: break-word;
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.confirm-row {
-  align-items: center;
-}
-
 .confirm-text {
   font-size: 12px;
   color: var(--text-secondary);
   margin-right: auto;
 }
-
-.btn {
-  padding: 6px 14px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.btn:hover { background: var(--bg-hover); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-danger {
-  background: #7f1d1d;
-  border-color: #991b1b;
-  color: #fca5a5;
-}
-
-.btn-danger:hover { background: #991b1b; }
 </style>

@@ -24,6 +24,7 @@ const mockAPI = {
   showContextMenu: vi.fn(),
   deleteFile: vi.fn(),
   renameFile: vi.fn(),
+  createDirectory: vi.fn().mockResolvedValue({ path: '/mock' }),
   onContextMenuPlay: vi.fn(),
   onContextMenuAddTag: vi.fn(),
   onContextMenuEditDescription: vi.fn(),

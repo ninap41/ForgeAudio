@@ -193,6 +193,12 @@ export function useLibraryStore() {
 		await rescan()
 	}
 
+	async function createAndSetDirectory(fullPath: string) {
+		rootDirectory.value = fullPath
+		await window.electronAPI.setRootDirectory(fullPath)
+		await rescan()
+	}
+
 	async function rescan() {
 		if (!rootDirectory.value) return
 
@@ -688,6 +694,7 @@ export function useLibraryStore() {
 		filteredFiles,
 		initFromPersistedDirectory,
 		selectAndScanDirectory,
+		createAndSetDirectory,
 		rescan,
 		saveMetadata,
 		addTagToFile,
