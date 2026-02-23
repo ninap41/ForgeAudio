@@ -82,7 +82,15 @@
 			</div>
 		</div>
 
-		<div class="list-body" ref="listBody">
+		<div
+			class="list-body"
+			ref="listBody"
+			:class="{ 'drop-active': isDragOver }"
+			@dragover.prevent="onDragOver"
+			@dragenter.prevent="onDragEnter"
+			@dragleave="onDragLeave"
+			@drop.prevent="onDrop"
+		>
 			<div v-if="library.filteredFiles.length === 0" class="no-results">No audio files found.</div>
 
 			<!-- Pass widths so rows can align perfectly with the header -->
@@ -102,8 +110,40 @@ import { ref, reactive, nextTick, onBeforeUnmount } from "vue"
 import { useLibraryStore } from "@/stores/libraryStore"
 import AudioRow from "./AudioRow.vue"
 
+const emit = defineEmits<{ filesDropped: [paths: string[]] }>()
+
 const library = useLibraryStore()
 const listBody = ref<HTMLElement>()
+const isDragOver = ref(false)
+let dragCounter = 0
+
+function onDragOver(e: DragEvent) {
+	if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"
+}
+
+function onDragEnter() {
+	dragCounter++
+	isDragOver.value = true
+}
+
+function onDragLeave() {
+	dragCounter--
+	if (dragCounter <= 0) {
+		dragCounter = 0
+		isDragOver.value = false
+	}
+}
+
+function onDrop(e: DragEvent) {
+	dragCounter = 0
+	isDragOver.value = false
+	if (!e.dataTransfer?.files.length) return
+	const paths: string[] = []
+	for (const file of Array.from(e.dataTransfer.files)) {
+		if ((file as any).path) paths.push((file as any).path)
+	}
+	if (paths.length) emit("filesDropped", paths)
+}
 
 type ColKey = "play" | "name" | "tags" | "duration" | "type" | "createdAt" | "modifiedAt"
 
@@ -198,6 +238,12 @@ defineExpose({ scrollToPath })
 .list-body {
 	flex: 1;
 	overflow-y: auto;
+}
+
+.list-body.drop-active {
+	outline: 2px dashed var(--accent);
+	outline-offset: -2px;
+	background: color-mix(in srgb, var(--accent) 5%, transparent);
 }
 
 .list-footer {

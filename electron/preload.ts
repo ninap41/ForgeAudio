@@ -33,6 +33,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   renameFile: (oldPath: string, newName: string) => ipcRenderer.invoke('fs:renameFile', oldPath, newName),
   createDirectory: (parentPath: string, folderName: string) =>
     ipcRenderer.invoke('fs:createDirectory', parentPath, folderName),
+  resolveDroppedPaths: (droppedPaths: string[], destDir: string) =>
+    ipcRenderer.invoke('fs:resolveDroppedPaths', droppedPaths, destDir),
+  copyFileToLibrary: (sourcePath: string, destDir: string, fileName: string, resolution: 'direct' | 'overwrite' | 'rename') =>
+    ipcRenderer.invoke('fs:copyFileToLibrary', sourcePath, destDir, fileName, resolution),
 
   // Config persistence
   getRootDirectory: () => ipcRenderer.invoke('config:getRootDirectory'),

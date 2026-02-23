@@ -27,6 +27,14 @@ interface ElectronAPI {
   deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>
   renameFile: (oldPath: string, newName: string) => Promise<{ success: boolean; error?: string; newPath?: string }>
   createDirectory: (parentPath: string, folderName: string) => Promise<{ path?: string; error?: string }>
+  resolveDroppedPaths: (droppedPaths: string[], destDir: string) => Promise<{
+    readyToCopy: Array<{ sourcePath: string; destPath: string; fileName: string }>
+    conflicts: Array<{ sourcePath: string; destPath: string; fileName: string }>
+    skippedCount: number
+  }>
+  copyFileToLibrary: (sourcePath: string, destDir: string, fileName: string, resolution: 'direct' | 'overwrite' | 'rename') => Promise<{
+    success: boolean; destPath?: string; finalName?: string; error?: string
+  }>
   onContextMenuPlay: (callback: (filePath: string) => void) => void
   onContextMenuAddTag: (callback: (filePath: string) => void) => void
   onContextMenuEditDescription: (callback: (filePath: string) => void) => void

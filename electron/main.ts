@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, shell, protocol } from "electron"
 import { join, extname, dirname } from "path"
-import { open as fsOpen, unlink, rename, readFile as fsReadFile, writeFile, mkdir, readdir, stat } from "fs/promises"
+import { open as fsOpen, unlink, rename, readFile as fsReadFile, writeFile, mkdir, readdir, stat, copyFile } from "fs/promises"
 
 const AUDIO_MIME: Record<string, string> = {
 	".wav": "audio/wav",
@@ -319,6 +319,125 @@ ipcMain.handle("backup:delete", async (_event, filename: string) => {
 	const filePath = join(backupsDir, filename)
 	return unlink(filePath)
 })
+
+// Drag-and-drop import: resolve dropped paths
+const SUPPORTED_EXTENSIONS = new Set([".wav", ".mp3", ".aiff", ".aif", ".flac", ".ogg", ".m4a"])
+
+async function walkForAudioFiles(dir: string): Promise<string[]> {
+	const results: string[] = []
+	let entries
+	try {
+		entries = await readdir(dir, { withFileTypes: true })
+	} catch {
+		return results
+	}
+	const subdirWalks: Promise<string[]>[] = []
+	for (const entry of entries) {
+		if (entry.name.startsWith(".")) continue
+		const fullPath = join(dir, entry.name)
+		if (entry.isDirectory()) {
+			subdirWalks.push(walkForAudioFiles(fullPath))
+		} else if (entry.isFile()) {
+			const ext = extname(entry.name).toLowerCase()
+			if (SUPPORTED_EXTENSIONS.has(ext)) {
+				results.push(fullPath)
+			}
+		}
+	}
+	const subResults = await Promise.all(subdirWalks)
+	for (const sub of subResults) results.push(...sub)
+	return results
+}
+
+ipcMain.handle(
+	"fs:resolveDroppedPaths",
+	async (_event, droppedPaths: string[], destDir: string) => {
+		const readyToCopy: { sourcePath: string; destPath: string; fileName: string }[] = []
+		const conflicts: { sourcePath: string; destPath: string; fileName: string }[] = []
+		let skippedCount = 0
+
+		const audioFiles: string[] = []
+
+		for (const p of droppedPaths) {
+			let s
+			try {
+				s = await stat(p)
+			} catch {
+				skippedCount++
+				continue
+			}
+			if (s.isDirectory()) {
+				const found = await walkForAudioFiles(p)
+				audioFiles.push(...found)
+			} else if (s.isFile()) {
+				const ext = extname(p).toLowerCase()
+				if (SUPPORTED_EXTENSIONS.has(ext)) {
+					audioFiles.push(p)
+				} else {
+					skippedCount++
+				}
+			}
+		}
+
+		for (const sourcePath of audioFiles) {
+			const fileName = sourcePath.split(/[\\/]/).pop()!
+			const destPath = join(destDir, fileName)
+			let exists = false
+			try {
+				await stat(destPath)
+				exists = true
+			} catch {}
+			if (exists) {
+				conflicts.push({ sourcePath, destPath, fileName })
+			} else {
+				readyToCopy.push({ sourcePath, destPath, fileName })
+			}
+		}
+
+		return { readyToCopy, conflicts, skippedCount }
+	},
+)
+
+ipcMain.handle(
+	"fs:copyFileToLibrary",
+	async (
+		_event,
+		sourcePath: string,
+		destDir: string,
+		fileName: string,
+		resolution: "direct" | "overwrite" | "rename",
+	) => {
+		try {
+			if (resolution === "direct" || resolution === "overwrite") {
+				const destPath = join(destDir, fileName)
+				await copyFile(sourcePath, destPath)
+				return { success: true, destPath, finalName: fileName }
+			}
+			// rename: generate unique name
+			const ext = extname(fileName)
+			const base = fileName.slice(0, -ext.length)
+			let candidate = `${base}_copy${ext}`
+			let counter = 2
+			// eslint-disable-next-line no-constant-condition
+			while (true) {
+				const destPath = join(destDir, candidate)
+				let exists = false
+				try {
+					await stat(destPath)
+					exists = true
+				} catch {}
+				if (!exists) {
+					await copyFile(sourcePath, destPath)
+					return { success: true, destPath, finalName: candidate }
+				}
+				candidate = `${base}_copy_${counter}${ext}`
+				counter++
+			}
+		} catch (err) {
+			return { success: false, error: (err as Error).message }
+		}
+	},
+)
 
 // Context menu triggered from renderer
 ipcMain.on("context-menu:show", (event, params: { filePath: string }) => {

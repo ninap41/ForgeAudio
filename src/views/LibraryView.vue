@@ -37,7 +37,14 @@
 			</div>
 		</div>
 
-		<div class="content-area">
+		<div
+			class="content-area"
+			:class="{ 'drop-active-content': isDragOverContent }"
+			@dragover="onContentDragOver"
+			@dragenter="onContentDragEnter"
+			@dragleave="onContentDragLeave"
+			@drop="onContentDrop"
+		>
 			<AlertBanner
 				v-if="scanAlert"
 				type="success"
@@ -45,6 +52,15 @@
 				:details="scanAlert.details"
 				:duration="8000"
 				@dismiss="scanAlert = null"
+			/>
+
+			<AlertBanner
+				v-if="importAlert"
+				:type="importAlert.type"
+				:message="importAlert.message"
+				:details="importAlert.details"
+				:duration="6000"
+				@dismiss="importAlert = null"
 			/>
 
 			<div v-if="!library.rootDirectory" class="empty-state">
@@ -57,7 +73,7 @@
 
 			<SpinnerOverlay v-else-if="library.isScanning" />
 
-			<AudioList v-else ref="audioListRef" />
+			<AudioList v-else ref="audioListRef" @filesDropped="handleDroppedPaths" />
 		</div>
 
 		<AddTagModal v-if="addTagFilePath" :filePath="addTagFilePath" @close="addTagFilePath = null" />
@@ -65,6 +81,7 @@
 		<DeleteConfirmModal v-if="deleteFilePath" :filePath="deleteFilePath" @close="deleteFilePath = null" />
 		<RenameModal v-if="renameFilePath" :filePath="renameFilePath" @close="renameFilePath = null" @renamed="onRenamed" />
 		<CreateDirectoryModal v-if="showCreateDirectoryModal" @close="showCreateDirectoryModal = false" />
+		<ImportConflictModal v-if="importConflicts" :conflicts="importConflicts" @resolved="onConflictsResolved" @cancelled="onConflictsCancelled" />
 	</div>
 </template>
 
@@ -80,6 +97,7 @@ import DeleteConfirmModal from "@/components/DeleteConfirmModal.vue"
 import RenameModal from "@/components/RenameModal.vue"
 import AlertBanner from "@/components/AlertBanner.vue"
 import CreateDirectoryModal from "@/components/CreateDirectoryModal.vue"
+import ImportConflictModal from "@/components/ImportConflictModal.vue"
 
 const EXTENSIONS = [".wav", ".mp3", ".aiff", ".flac", ".ogg", ".m4a"]
 
@@ -94,6 +112,15 @@ const formatDropdownOpen = ref(false)
 const formatDropdownRef = ref<HTMLElement | null>(null)
 const scanStartTime = ref<number | null>(null)
 const scanAlert = ref<{ message: string; details: string } | null>(null)
+
+// Drag-and-drop import state
+const isDragOverContent = ref(false)
+let contentDragCounter = 0
+const importConflicts = ref<Array<{ sourcePath: string; destPath: string; fileName: string }> | null>(null)
+const importReadyToCopy = ref<Array<{ sourcePath: string; destPath: string; fileName: string }>>([])
+const importSkippedCount = ref(0)
+const isImporting = ref(false)
+const importAlert = ref<{ type: "info" | "success" | "warning" | "error"; message: string; details?: string } | null>(null)
 
 watch(
 	() => library.isScanning,
@@ -126,6 +153,115 @@ const formatLabel = computed(() => {
 function onRenamed(newPath: string) {
 	renameFilePath.value = null
 	audioListRef.value?.scrollToPath(newPath)
+}
+
+// Content-area drag handlers (for empty state / scanning fallback)
+function onContentDragOver(e: DragEvent) {
+	e.preventDefault()
+	if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"
+}
+
+function onContentDragEnter(e: DragEvent) {
+	e.preventDefault()
+	contentDragCounter++
+	isDragOverContent.value = true
+}
+
+function onContentDragLeave() {
+	contentDragCounter--
+	if (contentDragCounter <= 0) {
+		contentDragCounter = 0
+		isDragOverContent.value = false
+	}
+}
+
+function onContentDrop(e: DragEvent) {
+	e.preventDefault()
+	contentDragCounter = 0
+	isDragOverContent.value = false
+	if (!e.dataTransfer?.files.length) return
+	const paths: string[] = []
+	for (const file of Array.from(e.dataTransfer.files)) {
+		if ((file as any).path) paths.push((file as any).path)
+	}
+	if (paths.length) handleDroppedPaths(paths)
+}
+
+async function handleDroppedPaths(paths: string[]) {
+	if (!library.rootDirectory) {
+		importAlert.value = { type: "warning", message: "Set a library folder before importing files" }
+		return
+	}
+	if (isImporting.value) return
+
+	isImporting.value = true
+	importAlert.value = null
+
+	try {
+		const result = await window.electronAPI.resolveDroppedPaths(paths, library.rootDirectory)
+
+		if (result.conflicts.length > 0) {
+			importReadyToCopy.value = result.readyToCopy
+			importSkippedCount.value = result.skippedCount
+			importConflicts.value = result.conflicts
+		} else {
+			await performImport(result.readyToCopy, [], result.skippedCount)
+		}
+	} catch (err) {
+		isImporting.value = false
+		importAlert.value = { type: "error", message: "Import failed", details: (err as Error).message }
+	}
+}
+
+function onConflictsResolved(results: Array<{ sourcePath: string; fileName: string; resolution: "overwrite" | "rename" }>) {
+	const ready = importReadyToCopy.value
+	const skipped = importSkippedCount.value
+	importConflicts.value = null
+	performImport(ready, results, skipped)
+}
+
+function onConflictsCancelled() {
+	importConflicts.value = null
+	importReadyToCopy.value = []
+	importSkippedCount.value = 0
+	isImporting.value = false
+	importAlert.value = { type: "info", message: "Import cancelled" }
+}
+
+async function performImport(
+	readyToCopy: Array<{ sourcePath: string; destPath: string; fileName: string }>,
+	conflictResolutions: Array<{ sourcePath: string; fileName: string; resolution: "overwrite" | "rename" }>,
+	skippedCount: number,
+) {
+	let successCount = 0
+	let errorCount = 0
+	const destDir = library.rootDirectory!
+
+	for (const item of readyToCopy) {
+		const res = await window.electronAPI.copyFileToLibrary(item.sourcePath, destDir, item.fileName, "direct")
+		if (res.success) successCount++
+		else errorCount++
+	}
+
+	for (const item of conflictResolutions) {
+		const res = await window.electronAPI.copyFileToLibrary(item.sourcePath, destDir, item.fileName, item.resolution)
+		if (res.success) successCount++
+		else errorCount++
+	}
+
+	isImporting.value = false
+
+	await library.rescan()
+
+	const parts: string[] = []
+	if (successCount > 0) parts.push(`${successCount} copied`)
+	if (errorCount > 0) parts.push(`${errorCount} failed`)
+	if (skippedCount > 0) parts.push(`${skippedCount} non-audio skipped`)
+
+	importAlert.value = {
+		type: errorCount > 0 ? "warning" : "success",
+		message: `Import complete: ${parts.join(", ")}`,
+	}
 }
 
 function handleDocumentMouseDown(e: MouseEvent) {
@@ -241,6 +377,11 @@ onBeforeUnmount(() => {
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
+}
+
+.content-area.drop-active-content {
+	outline: 2px dashed var(--accent);
+	outline-offset: -4px;
 }
 
 .empty-state {
