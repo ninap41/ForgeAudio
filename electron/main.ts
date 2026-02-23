@@ -34,6 +34,11 @@ function createWindow() {
 		minWidth: 800,
 		minHeight: 500,
 		titleBarStyle: "default",
+		titleBarOverlay: {
+			color: "rgba(0, 0, 0, 0)", // Fully transparent background for buttons
+			symbolColor: "#ffffff", // Color of the X, _, and [] symbols
+			height: 30,
+		},
 		backgroundColor: "#1e1e1e",
 		webPreferences: {
 			preload: join(__dirname, "preload.js"),
@@ -138,7 +143,7 @@ ipcMain.handle("dialog:selectDirectory", async () => {
 })
 
 ipcMain.on("fs:scanDirectory", async (event, dirPath: string, batchSize?: number) => {
-	const BATCH_SIZE = (typeof batchSize === 'number' && batchSize >= 10 && batchSize <= 200) ? batchSize : 50
+	const BATCH_SIZE = typeof batchSize === "number" && batchSize >= 10 && batchSize <= 200 ? batchSize : 50
 	let buffer: AudioFile[] = []
 
 	function flush() {

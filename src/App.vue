@@ -4,6 +4,7 @@
 		<header class="app-header">
 			<div class="header-top">
 				<img class="app-logo" src="/ForgeIconLogo.png" alt="ForgeAudioIcon" />
+				<!-- <h1 class="heading">ForgeAudio</h1> -->
 				<img class="app-title" src="/ForgeTextLogo.png" alt="ForgeAudioText" />
 
 				<div class="header-actions">
@@ -174,6 +175,8 @@ function toggleDevTools() {
 
 img.app-title {
 	height: 50px;
+	filter: drop-shadow(0 0 8px rgba(0, 255, 180, 0.4)) drop-shadow(0 0 20px rgba(0, 255, 180, 0.2))
+		drop-shadow(0 0 40px rgba(0, 255, 180, 0.1));
 }
 .nav-tab {
 	padding: 8px 16px;

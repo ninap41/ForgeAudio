@@ -36,23 +36,23 @@
 			<div class="color-rows">
 				<label class="color-row">
 					<span class="color-label">Accent</span>
-					<input type="color" v-model="accent" />
+					<input type="color" @input="debouncedApply" v-model="accent" />
 				</label>
 				<label class="color-row">
 					<span class="color-label">Background</span>
-					<input type="color" v-model="bgBase" />
+					<input type="color" @input="debouncedApply" v-model="bgBase" />
 				</label>
 				<label class="color-row">
 					<span class="color-label">Text</span>
-					<input type="color" v-model="textBase" />
+					<input type="color" @input="debouncedApply" v-model="textBase" />
 				</label>
 				<label class="color-row">
 					<span class="color-label">Danger</span>
-					<input type="color" v-model="danger" />
+					<input type="color" @input="debouncedApply" v-model="danger" />
 				</label>
 				<label class="color-row">
 					<span class="color-label">Success</span>
-					<input type="color" v-model="success" />
+					<input type="color" @input="debouncedApply" v-model="success" />
 				</label>
 			</div>
 
