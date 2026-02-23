@@ -216,6 +216,8 @@ defineExpose({ scrollToPath })
 
 <style scoped>
 .audio-list {
+	position: relative;
+	z-index: 1;
 	display: flex;
 	flex-direction: column;
 	height: 100%;
@@ -225,8 +227,8 @@ defineExpose({ scrollToPath })
 	display: flex;
 	align-items: center;
 	padding: 6px 16px;
-	border-bottom: 1px solid var(--border);
-	background: var(--bg-secondary);
+	border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+	background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
 	font-size: 11px;
 	font-weight: 600;
 	color: var(--text-secondary);
@@ -249,8 +251,8 @@ defineExpose({ scrollToPath })
 .list-footer {
 	flex-shrink: 0;
 	padding: 6px 16px;
-	border-top: 1px solid var(--border);
-	background: var(--bg-secondary);
+	border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+	background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
 	font-size: 11px;
 	color: var(--text-muted);
 }

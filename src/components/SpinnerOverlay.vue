@@ -27,6 +27,8 @@ onUnmounted(() => {
 
 <style scoped>
 .spinner-overlay {
+  position: relative;
+  z-index: 1;
   flex: 1;
   display: flex;
   flex-direction: column;

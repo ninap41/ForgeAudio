@@ -309,8 +309,8 @@ onBeforeUnmount(() => {
 	align-items: center;
 	gap: 8px;
 	padding: 10px 16px;
-	border-bottom: 1px solid var(--border);
-	background: var(--bg-secondary);
+	border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+	background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
 }
 
 .toolbar-actions {
@@ -385,6 +385,8 @@ onBeforeUnmount(() => {
 }
 
 .empty-state {
+	position: relative;
+	z-index: 1;
 	flex: 1;
 	display: flex;
 	flex-direction: column;

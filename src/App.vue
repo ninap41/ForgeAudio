@@ -1,6 +1,8 @@
 <template>
 	<BootSplash v-if="showBootSplash" @done="showBootSplash = false" />
 	<div id="app-shell">
+		<AuroraBackground />
+
 		<header class="app-header">
 			<div class="header-top">
 				<img class="app-logo" src="/ForgeIconLogo.png" alt="ForgeAudioIcon" />
@@ -62,6 +64,7 @@
 		<main class="app-main">
 			<router-view />
 		</main>
+
 		<Player />
 		<TagStoreDebugModal v-if="showDebugModal" @close="showDebugModal = false" />
 	</div>
@@ -74,6 +77,7 @@ import BootSplash from "./components/BootSplash.vue"
 import Player from "./components/Player.vue"
 import ThemeGenerator from "./components/ThemeGenerator.vue"
 import TagStoreDebugModal from "./components/TagStoreDebugModal.vue"
+import AuroraBackground from "./components/AuroraBackground.vue"
 import { useThemeStore } from "./stores/themeStore"
 import { useLibraryStore } from "./stores/libraryStore"
 
@@ -117,6 +121,7 @@ function toggleDevTools() {
 
 <style scoped>
 #app-shell {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	height: 100vh;
@@ -124,9 +129,11 @@ function toggleDevTools() {
 }
 
 .app-header {
+	position: relative;
+	z-index: 1;
 	flex-shrink: 0;
-	border-bottom: 1px solid var(--border);
-	background: var(--bg-secondary);
+	border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+	background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
 	padding: 0 16px;
 }
 
