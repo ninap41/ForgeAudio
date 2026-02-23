@@ -79,12 +79,14 @@ describe('settingsStore', () => {
   it('purgeOldBackups deletes entries beyond maxBackups', async () => {
     const store = useSettingsStore()
     store.maxBackups = 2
-    store.backups = [
+    const threeBackups = [
       { filename: 'backup1.json', timestamp: '2026-02-21T10:00:00Z', size: 512 },
       { filename: 'backup2.json', timestamp: '2026-02-21T11:00:00Z', size: 512 },
       { filename: 'backup3.json', timestamp: '2026-02-21T12:00:00Z', size: 512 },
     ]
 
+    // purgeOldBackups now refreshes from disk first
+    mockElectronAPI.backupList.mockResolvedValue(threeBackups)
     mockElectronAPI.backupDelete.mockResolvedValue(undefined)
     await store.purgeOldBackups()
 
@@ -95,11 +97,13 @@ describe('settingsStore', () => {
   it('purgeOldBackups does nothing if under limit', async () => {
     const store = useSettingsStore()
     store.maxBackups = 5
-    store.backups = [
+    const twoBackups = [
       { filename: 'backup1.json', timestamp: '2026-02-21T10:00:00Z', size: 512 },
       { filename: 'backup2.json', timestamp: '2026-02-21T11:00:00Z', size: 512 },
     ]
 
+    // purgeOldBackups now refreshes from disk first
+    mockElectronAPI.backupList.mockResolvedValue(twoBackups)
     await store.purgeOldBackups()
 
     expect(mockElectronAPI.backupDelete).not.toHaveBeenCalled()

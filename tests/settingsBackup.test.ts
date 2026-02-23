@@ -170,12 +170,14 @@ describe('BackupPanel', () => {
     it('purges old backups beyond maxBackups threshold', async () => {
       const settings = useSettingsStore()
       settings.maxBackups = 2
-      settings.backups = [
+      const threeBackups = [
         { filename: 'backup1.json', timestamp: '2026-02-21T10:00:00Z', size: 1024 },
         { filename: 'backup2.json', timestamp: '2026-02-21T11:00:00Z', size: 1024 },
         { filename: 'backup3.json', timestamp: '2026-02-21T12:00:00Z', size: 1024 },
       ]
 
+      // purgeOldBackups now refreshes from disk first
+      mockElectronAPI.backupList.mockResolvedValue(threeBackups)
       mockElectronAPI.backupDelete.mockResolvedValue(undefined)
       await settings.purgeOldBackups()
 

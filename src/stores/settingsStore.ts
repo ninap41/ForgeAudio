@@ -48,13 +48,16 @@ export function useSettingsStore() {
   }
 
   async function purgeOldBackups() {
+    // Refresh from disk so we don't operate on a stale list
+    // (auto-backup bypasses createBackup, so backups.value may be outdated)
+    await loadBackups()
     if (backups.value.length > maxBackups.value) {
       const toDelete = backups.value.slice(maxBackups.value)
       for (const backup of toDelete) {
         try {
           await deleteBackup(backup.filename)
         } catch {
-          // Silently continue
+          // Silently continue — file may already be deleted by a concurrent purge
         }
       }
     }

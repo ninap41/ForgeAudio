@@ -317,7 +317,12 @@ ipcMain.handle("backup:restore", async (_event, filename: string) => {
 ipcMain.handle("backup:delete", async (_event, filename: string) => {
 	const backupsDir = getBackupsDir()
 	const filePath = join(backupsDir, filename)
-	return unlink(filePath)
+	try {
+		await unlink(filePath)
+	} catch (err: unknown) {
+		// Treat already-deleted files as a no-op (concurrent purge race)
+		if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
+	}
 })
 
 // Drag-and-drop import: resolve dropped paths
