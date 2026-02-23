@@ -17,7 +17,7 @@
         ref="inputRef"
         v-model="library.searchQuery"
         type="text"
-        placeholder="Search… Enter = description filter, # = include tag, !# = exclude tag"
+        placeholder="Search… Enter = filter, ! = exclude, # = tag, !# = exclude tag"
         class="search-input"
         @keydown.enter.prevent="onEnter"
         @keydown.escape="onEscape"
@@ -64,6 +64,10 @@
         {{ desc }}
         <button class="chip-remove" @click="library.removeDescriptionFilter(desc)">&times;</button>
       </span>
+      <span v-for="desc in library.excludedDescriptionFilters" :key="'exdesc:' + desc" class="filter-chip chip-exclude-desc">
+        !{{ desc }}
+        <button class="chip-remove" @click="library.removeExcludeDescriptionFilter(desc)">&times;</button>
+      </span>
     </div>
   </div>
 </template>
@@ -84,7 +88,8 @@ const highlightedIndex = ref(-1)
 const hasFilters = computed(() =>
   library.selectedTags.length > 0 ||
   library.excludedTags.length > 0 ||
-  library.descriptionFilters.length > 0
+  library.descriptionFilters.length > 0 ||
+  library.excludedDescriptionFilters.length > 0
 )
 
 // True when the user has typed # at the start of the query
@@ -92,6 +97,12 @@ const isTagMode = computed(() => library.searchQuery.trimStart().startsWith('#')
 
 // True when the user has typed !# at the start of the query
 const isExcludeTagMode = computed(() => library.searchQuery.trimStart().startsWith('!#'))
+
+// True when the user has typed ! (but not !#) at the start — exclude description mode
+const isExcludeDescMode = computed(() => {
+  const q = library.searchQuery.trimStart()
+  return q.startsWith('!') && !q.startsWith('!#')
+})
 
 // Tags that match the text after the # or !# prefix
 const tagSuggestions = computed(() => {
@@ -154,6 +165,14 @@ function onEnter() {
       tagSuggestions.value.find(t => t.toLowerCase() === tagQuery) ??
       tagSuggestions.value[0]
     if (match) selectTag(match)
+  } else if (isExcludeDescMode.value) {
+    // !text mode: create an exclude description filter chip
+    const desc = text.slice(text.indexOf('!') + 1).trim()
+    if (desc) {
+      library.addExcludeDescriptionFilter(desc)
+      library.searchQuery = ''
+      showDropdown.value = false
+    }
   } else {
     // Plain text mode: create a description filter chip
     library.addDescriptionFilter(text)
@@ -340,6 +359,12 @@ function onClearAll() {
   background: color-mix(in srgb, var(--danger) 15%, transparent);
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.chip-exclude-desc {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 25%, transparent);
 }
 
 .chip-desc {

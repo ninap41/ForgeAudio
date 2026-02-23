@@ -73,6 +73,7 @@ const sortDirection = ref<"asc" | "desc">("asc")
 const selectedTags = ref<string[]>([])
 const excludedTags = ref<string[]>([])
 const descriptionFilters = ref<string[]>([])
+const excludedDescriptionFilters = ref<string[]>([])
 
 // Last metadata read from disk — used as a base when saving to avoid erasing
 // tags for files that haven't arrived in the scan yet (partial-scan data loss).
@@ -118,6 +119,17 @@ const filteredFiles = computed(() => {
 				const lq = q.toLowerCase()
 				return f.name.toLowerCase().includes(lq) || f.description.toLowerCase().includes(lq)
 			}),
+		)
+	}
+
+	// Excluded description filters — file must NOT match ANY excluded description
+	if (excludedDescriptionFilters.value.length > 0) {
+		result = result.filter(
+			(f) =>
+				!excludedDescriptionFilters.value.some((q) => {
+					const lq = q.toLowerCase()
+					return f.name.toLowerCase().includes(lq) || f.description.toLowerCase().includes(lq)
+				}),
 		)
 	}
 
@@ -421,10 +433,24 @@ export function useLibraryStore() {
 		descriptionFilters.value = descriptionFilters.value.filter((t) => t !== text)
 	}
 
+	function addExcludeDescriptionFilter(text: string) {
+		const trimmed = text.trim()
+		if (trimmed && !excludedDescriptionFilters.value.includes(trimmed)) {
+			excludedDescriptionFilters.value = [...excludedDescriptionFilters.value, trimmed]
+		}
+		// Remove from include list if present
+		descriptionFilters.value = descriptionFilters.value.filter((t) => t !== trimmed)
+	}
+
+	function removeExcludeDescriptionFilter(text: string) {
+		excludedDescriptionFilters.value = excludedDescriptionFilters.value.filter((t) => t !== text)
+	}
+
 	function clearAllFilters() {
 		selectedTags.value = []
 		excludedTags.value = []
 		descriptionFilters.value = []
+		excludedDescriptionFilters.value = []
 	}
 
 	async function editTag(oldName: string, newName: string, newColor: string): Promise<{ error?: string }> {
@@ -711,6 +737,7 @@ export function useLibraryStore() {
 		selectedTags,
 		excludedTags,
 		descriptionFilters,
+		excludedDescriptionFilters,
 		currentFile,
 		isPlaying,
 		filteredFiles,
@@ -732,6 +759,8 @@ export function useLibraryStore() {
 		removeExcludeTagFilter,
 		addDescriptionFilter,
 		removeDescriptionFilter,
+		addExcludeDescriptionFilter,
+		removeExcludeDescriptionFilter,
 		clearAllFilters,
 		editTag,
 		mergeTag,
@@ -763,6 +792,7 @@ export function _resetLibraryStore() {
 	selectedTags.value = []
 	excludedTags.value = []
 	descriptionFilters.value = []
+	excludedDescriptionFilters.value = []
 	lastReadMeta = null
 	currentFile.value = null
 	isPlaying.value = false
