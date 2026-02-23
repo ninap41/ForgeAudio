@@ -217,7 +217,7 @@ defineExpose({ scrollToPath })
 <style scoped>
 .audio-list {
 	position: relative;
-	z-index: 1;
+	z-index: 0;
 	display: flex;
 	flex-direction: column;
 	height: 100%;
