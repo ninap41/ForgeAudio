@@ -71,6 +71,7 @@ const sortDirection = ref<"asc" | "desc">("asc")
 
 // Chip-based active filters
 const selectedTags = ref<string[]>([])
+const excludedTags = ref<string[]>([])
 const descriptionFilters = ref<string[]>([])
 
 // Last metadata read from disk — used as a base when saving to avoid erasing
@@ -103,6 +104,11 @@ const filteredFiles = computed(() => {
 	// Tag chip filters — file must have ALL selected tags
 	if (selectedTags.value.length > 0) {
 		result = result.filter((f) => selectedTags.value.every((tag) => f.tags.includes(tag)))
+	}
+
+	// Excluded tag filters — file must NOT have ANY excluded tag
+	if (excludedTags.value.length > 0) {
+		result = result.filter((f) => !excludedTags.value.some((tag) => f.tags.includes(tag)))
 	}
 
 	// Description chip filters — each chip must match name or description (AND across chips)
@@ -384,10 +390,24 @@ export function useLibraryStore() {
 		if (!selectedTags.value.includes(tag)) {
 			selectedTags.value = [...selectedTags.value, tag]
 		}
+		// Remove from exclude list if present
+		excludedTags.value = excludedTags.value.filter((t) => t !== tag)
 	}
 
 	function removeTagFilter(tag: string) {
 		selectedTags.value = selectedTags.value.filter((t) => t !== tag)
+	}
+
+	function addExcludeTagFilter(tag: string) {
+		if (!excludedTags.value.includes(tag)) {
+			excludedTags.value = [...excludedTags.value, tag]
+		}
+		// Remove from include list if present (can't both include and exclude)
+		selectedTags.value = selectedTags.value.filter((t) => t !== tag)
+	}
+
+	function removeExcludeTagFilter(tag: string) {
+		excludedTags.value = excludedTags.value.filter((t) => t !== tag)
 	}
 
 	function addDescriptionFilter(text: string) {
@@ -403,6 +423,7 @@ export function useLibraryStore() {
 
 	function clearAllFilters() {
 		selectedTags.value = []
+		excludedTags.value = []
 		descriptionFilters.value = []
 	}
 
@@ -688,6 +709,7 @@ export function useLibraryStore() {
 		sortColumn,
 		sortDirection,
 		selectedTags,
+		excludedTags,
 		descriptionFilters,
 		currentFile,
 		isPlaying,
@@ -706,6 +728,8 @@ export function useLibraryStore() {
 		stopPlayback,
 		addTagFilter,
 		removeTagFilter,
+		addExcludeTagFilter,
+		removeExcludeTagFilter,
 		addDescriptionFilter,
 		removeDescriptionFilter,
 		clearAllFilters,
@@ -737,6 +761,7 @@ export function _resetLibraryStore() {
 	sortColumn.value = "name"
 	sortDirection.value = "asc"
 	selectedTags.value = []
+	excludedTags.value = []
 	descriptionFilters.value = []
 	lastReadMeta = null
 	currentFile.value = null

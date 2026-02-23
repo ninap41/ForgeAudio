@@ -17,7 +17,7 @@
         ref="inputRef"
         v-model="library.searchQuery"
         type="text"
-        placeholder="Search and press Enter to filter description or search tags with # and press Enter"
+        placeholder="Search… Enter = description filter, # = include tag, !# = exclude tag"
         class="search-input"
         @keydown.enter.prevent="onEnter"
         @keydown.escape="onEscape"
@@ -32,15 +32,16 @@
       <button v-if="hasFilters" class="clear-all-btn" @click="onClearAll">Clear all</button>
     </div>
 
-    <!-- Tag autocomplete dropdown — shown when input starts with # -->
-    <div v-if="showDropdown && isTagMode && tagSuggestions.length > 0" class="tag-dropdown">
+    <!-- Tag autocomplete dropdown — shown when input starts with # or !# -->
+    <div v-if="showDropdown && (isTagMode || isExcludeTagMode) && tagSuggestions.length > 0"
+         class="tag-dropdown" :class="{ 'exclude-mode': isExcludeTagMode }">
       <button
         v-for="(tag, i) in tagSuggestions"
         :key="tag"
         class="tag-option"
         :class="{ highlighted: i === highlightedIndex }"
         :style="{ color: tagStore.getColor(tag) }"
-        @mousedown.prevent="selectTag(tag)"
+        @mousedown.prevent="isExcludeTagMode ? selectExcludeTag(tag) : selectTag(tag)"
       >
         <span
           class="tag-swatch"
@@ -54,6 +55,10 @@
       <span v-for="tag in library.selectedTags" :key="'tag:' + tag" class="filter-chip chip-tag">
         #{{ tag }}
         <button class="chip-remove" @click="library.removeTagFilter(tag)">&times;</button>
+      </span>
+      <span v-for="tag in library.excludedTags" :key="'extag:' + tag" class="filter-chip chip-exclude-tag">
+        !#{{ tag }}
+        <button class="chip-remove" @click="library.removeExcludeTagFilter(tag)">&times;</button>
       </span>
       <span v-for="desc in library.descriptionFilters" :key="'desc:' + desc" class="filter-chip chip-desc">
         {{ desc }}
@@ -77,16 +82,24 @@ const showDropdown = ref(false)
 const highlightedIndex = ref(-1)
 
 const hasFilters = computed(() =>
-  library.selectedTags.length > 0 || library.descriptionFilters.length > 0
+  library.selectedTags.length > 0 ||
+  library.excludedTags.length > 0 ||
+  library.descriptionFilters.length > 0
 )
 
 // True when the user has typed # at the start of the query
 const isTagMode = computed(() => library.searchQuery.trimStart().startsWith('#'))
 
-// Tags that match the text after the # character
+// True when the user has typed !# at the start of the query
+const isExcludeTagMode = computed(() => library.searchQuery.trimStart().startsWith('!#'))
+
+// Tags that match the text after the # or !# prefix
 const tagSuggestions = computed(() => {
-  if (!isTagMode.value) return []
-  const query = library.searchQuery.trimStart().slice(1).toLowerCase()
+  if (!isTagMode.value && !isExcludeTagMode.value) return []
+  const raw = library.searchQuery.trimStart()
+  const query = isExcludeTagMode.value
+    ? raw.slice(2).toLowerCase()   // strip "!#"
+    : raw.slice(1).toLowerCase()   // strip "#"
   const allTags = Object.keys(tagStore.tagDefinitions)
   if (!query) return allTags
   return allTags.filter(t => t.toLowerCase().includes(query))
@@ -103,8 +116,22 @@ function selectTag(tag: string) {
   inputRef.value?.focus()
 }
 
+function selectExcludeTag(tag: string) {
+  library.addExcludeTagFilter(tag)
+  library.searchQuery = ''
+  showDropdown.value = false
+  highlightedIndex.value = -1
+  inputRef.value?.focus()
+}
+
 function onEnter() {
-  // If a dropdown item is highlighted, select it
+  // If a dropdown item is highlighted in exclude mode, select it
+  if (isExcludeTagMode.value && highlightedIndex.value >= 0 && tagSuggestions.value[highlightedIndex.value]) {
+    selectExcludeTag(tagSuggestions.value[highlightedIndex.value])
+    return
+  }
+
+  // If a dropdown item is highlighted in include mode, select it
   if (isTagMode.value && highlightedIndex.value >= 0 && tagSuggestions.value[highlightedIndex.value]) {
     selectTag(tagSuggestions.value[highlightedIndex.value])
     return
@@ -113,7 +140,14 @@ function onEnter() {
   const text = library.searchQuery.trim()
   if (!text) return
 
-  if (isTagMode.value) {
+  if (isExcludeTagMode.value) {
+    // !#tag mode: try exact match first, then first partial match
+    const tagQuery = text.slice(text.indexOf('#') + 1).toLowerCase()
+    const match =
+      tagSuggestions.value.find(t => t.toLowerCase() === tagQuery) ??
+      tagSuggestions.value[0]
+    if (match) selectExcludeTag(match)
+  } else if (isTagMode.value) {
     // #tag mode: try exact match first, then first partial match
     const tagQuery = text.slice(1).toLowerCase()
     const match =
@@ -129,18 +163,18 @@ function onEnter() {
 }
 
 function onArrowDown() {
-  if (!isTagMode.value || tagSuggestions.value.length === 0) return
+  if ((!isTagMode.value && !isExcludeTagMode.value) || tagSuggestions.value.length === 0) return
   showDropdown.value = true
   highlightedIndex.value = Math.min(highlightedIndex.value + 1, tagSuggestions.value.length - 1)
 }
 
 function onArrowUp() {
-  if (!isTagMode.value) return
+  if (!isTagMode.value && !isExcludeTagMode.value) return
   highlightedIndex.value = Math.max(highlightedIndex.value - 1, -1)
 }
 
 function onEscape() {
-  if (showDropdown.value && isTagMode.value) {
+  if (showDropdown.value && (isTagMode.value || isExcludeTagMode.value)) {
     showDropdown.value = false
   } else {
     library.searchQuery = ''
@@ -247,6 +281,10 @@ function onClearAll() {
   padding: 4px;
 }
 
+.tag-dropdown.exclude-mode {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
 .tag-option {
   display: flex;
   align-items: center;
@@ -296,6 +334,12 @@ function onClearAll() {
   background: color-mix(in srgb, var(--accent) 15%, transparent);
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.chip-exclude-tag {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 
 .chip-desc {

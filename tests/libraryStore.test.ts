@@ -223,6 +223,97 @@ describe('libraryStore', () => {
       expect(store.filteredFiles).toHaveLength(1)
       expect(store.filteredFiles[0].name).toBe('a.wav')
     })
+
+    it('excludes files that have an excluded tag', () => {
+      const store = useLibraryStore()
+      store.files = [
+        makeFile({ name: 'a.wav', tags: ['impact'] }),
+        makeFile({ path: '/b.wav', name: 'b.wav', tags: ['ambient'] }),
+      ]
+      store.addExcludeTagFilter('impact')
+
+      expect(store.filteredFiles).toHaveLength(1)
+      expect(store.filteredFiles[0].name).toBe('b.wav')
+    })
+
+    it('multiple excluded tags use OR logic (excludes file with ANY)', () => {
+      const store = useLibraryStore()
+      store.files = [
+        makeFile({ name: 'a.wav', tags: ['impact'] }),
+        makeFile({ path: '/b.wav', name: 'b.wav', tags: ['ambient'] }),
+        makeFile({ path: '/c.wav', name: 'c.wav', tags: ['foley'] }),
+      ]
+      store.addExcludeTagFilter('impact')
+      store.addExcludeTagFilter('ambient')
+
+      expect(store.filteredFiles).toHaveLength(1)
+      expect(store.filteredFiles[0].name).toBe('c.wav')
+    })
+
+    it('excluded tag + included tag combined', () => {
+      const store = useLibraryStore()
+      store.files = [
+        makeFile({ name: 'a.wav', tags: ['impact', 'metal'] }),
+        makeFile({ path: '/b.wav', name: 'b.wav', tags: ['impact'] }),
+        makeFile({ path: '/c.wav', name: 'c.wav', tags: ['ambient'] }),
+      ]
+      store.addTagFilter('impact')
+      store.addExcludeTagFilter('metal')
+
+      // a.wav has impact (included) but also metal (excluded) → excluded
+      // b.wav has impact (included) and no metal → shown
+      // c.wav doesn't have impact → excluded by include filter
+      expect(store.filteredFiles).toHaveLength(1)
+      expect(store.filteredFiles[0].name).toBe('b.wav')
+    })
+
+    it('excluded tag + description chip combined', () => {
+      const store = useLibraryStore()
+      store.files = [
+        makeFile({ name: 'kick_hard.wav', tags: ['impact'] }),
+        makeFile({ path: '/b.wav', name: 'kick_soft.wav', tags: ['ambient'] }),
+        makeFile({ path: '/c.wav', name: 'snare.wav', tags: ['impact'] }),
+      ]
+      store.addDescriptionFilter('kick')
+      store.addExcludeTagFilter('impact')
+
+      // kick_hard.wav matches 'kick' but has 'impact' → excluded
+      // kick_soft.wav matches 'kick' and has 'ambient' (not excluded) → shown
+      // snare.wav doesn't match 'kick' → excluded by description
+      expect(store.filteredFiles).toHaveLength(1)
+      expect(store.filteredFiles[0].name).toBe('kick_soft.wav')
+    })
+
+    it('excluded tag does not affect files without that tag', () => {
+      const store = useLibraryStore()
+      store.files = [
+        makeFile({ name: 'a.wav', tags: ['foley'] }),
+        makeFile({ path: '/b.wav', name: 'b.wav', tags: [] }),
+      ]
+      store.addExcludeTagFilter('impact')
+
+      expect(store.filteredFiles).toHaveLength(2)
+    })
+
+    it('all three filter types together (include + exclude + description)', () => {
+      const store = useLibraryStore()
+      store.files = [
+        makeFile({ name: 'kick_01.wav', path: '/a.wav', tags: ['percussion', 'impact'] }),
+        makeFile({ name: 'kick_02.wav', path: '/b.wav', tags: ['percussion'] }),
+        makeFile({ name: 'snare_01.wav', path: '/c.wav', tags: ['percussion'] }),
+        makeFile({ name: 'pad_01.wav', path: '/d.wav', tags: ['ambient'] }),
+      ]
+      store.addTagFilter('percussion')
+      store.addExcludeTagFilter('impact')
+      store.addDescriptionFilter('kick')
+
+      // kick_01 has percussion (pass include) but has impact (fail exclude)
+      // kick_02 has percussion (pass include), no impact (pass exclude), matches 'kick' (pass desc) → shown
+      // snare_01 has percussion (pass include), no impact (pass exclude), doesn't match 'kick' (fail desc)
+      // pad_01 doesn't have percussion (fail include)
+      expect(store.filteredFiles).toHaveLength(1)
+      expect(store.filteredFiles[0].name).toBe('kick_02.wav')
+    })
   })
 
   describe('chip filter functions', () => {
@@ -281,12 +372,61 @@ describe('libraryStore', () => {
       expect(store.descriptionFilters).toEqual(['bass'])
     })
 
-    it('clearAllFilters resets both selectedTags and descriptionFilters', () => {
+    it('addExcludeTagFilter adds tag to excludedTags', () => {
+      const store = useLibraryStore()
+      store.addExcludeTagFilter('impact')
+      expect(store.excludedTags).toContain('impact')
+    })
+
+    it('addExcludeTagFilter ignores duplicates', () => {
+      const store = useLibraryStore()
+      store.addExcludeTagFilter('impact')
+      store.addExcludeTagFilter('impact')
+      expect(store.excludedTags).toHaveLength(1)
+    })
+
+    it('addExcludeTagFilter removes tag from selectedTags if present', () => {
       const store = useLibraryStore()
       store.addTagFilter('impact')
+      expect(store.selectedTags).toContain('impact')
+
+      store.addExcludeTagFilter('impact')
+      expect(store.excludedTags).toContain('impact')
+      expect(store.selectedTags).not.toContain('impact')
+    })
+
+    it('removeExcludeTagFilter removes tag', () => {
+      const store = useLibraryStore()
+      store.addExcludeTagFilter('impact')
+      store.addExcludeTagFilter('metal')
+      store.removeExcludeTagFilter('impact')
+      expect(store.excludedTags).toEqual(['metal'])
+    })
+
+    it('removeExcludeTagFilter is a no-op when tag is absent', () => {
+      const store = useLibraryStore()
+      store.removeExcludeTagFilter('nope')
+      expect(store.excludedTags).toHaveLength(0)
+    })
+
+    it('addTagFilter removes tag from excludedTags if present', () => {
+      const store = useLibraryStore()
+      store.addExcludeTagFilter('impact')
+      expect(store.excludedTags).toContain('impact')
+
+      store.addTagFilter('impact')
+      expect(store.selectedTags).toContain('impact')
+      expect(store.excludedTags).not.toContain('impact')
+    })
+
+    it('clearAllFilters resets selectedTags, excludedTags, and descriptionFilters', () => {
+      const store = useLibraryStore()
+      store.addTagFilter('impact')
+      store.addExcludeTagFilter('ambient')
       store.addDescriptionFilter('kick')
       store.clearAllFilters()
       expect(store.selectedTags).toHaveLength(0)
+      expect(store.excludedTags).toHaveLength(0)
       expect(store.descriptionFilters).toHaveLength(0)
     })
 
