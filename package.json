@@ -1,62 +1,70 @@
 {
-  "name": "fuck-the-finder",
-  "productName": "ForgeAudio",
-  "version": "0.1.0",
-  "description": "Audio Library Manager — fast search, tagging, and playback for local audio files",
-  "main": "dist-electron/main.js",
-  "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "electron:dev": "vite --mode electron",
-    "electron:build": "vite build && electron-builder",
-    "electron:build:win": "vite build && electron-builder --win",
-    "electron:build:mac": "vite build && electron-builder --mac",
-    "electron:build:all": "vite build && electron-builder --mac --win",
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
-  "dependencies": {
-    "@vueuse/core": "^14.2.1",
-    "chroma-js": "^3.2.0",
-    "music-metadata": "^7.14.0",
-    "vue": "^3.4.0",
-    "vue-router": "^4.3.0"
-  },
-  "devDependencies": {
-    "@types/chroma-js": "^3.1.2",
-    "@types/node": "^20.10.0",
-    "@vitejs/plugin-vue": "^5.0.0",
-    "@vue/test-utils": "^2.4.6",
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.0",
-    "happy-dom": "^20.7.0",
-    "typescript": "^5.3.0",
-    "vite": "^5.0.0",
-    "vite-plugin-electron": "^0.28.0",
-    "vite-plugin-electron-renderer": "^0.14.0",
-    "vitest": "^4.0.18",
-    "vue-tsc": "^1.8.0"
-  },
-  "build": {
-    "appId": "com.forgeaudio.app",
-    "productName": "ForgeAudio",
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*"
-    ],
-    "directories": {
-      "buildResources": "build"
-    },
-    "mac": {
-      "icon": "build/icon.icns"
-    },
-    "win": {
-      "icon": "build/icon.png",
-      "target": ["nsis"]
-    },
-    "linux": {
-      "icon": "build/icon.png"
-    }
-  }
+	"name": "fuck-the-finder",
+	"productName": "ForgeAudio",
+	"version": "0.1.0",
+	"description": "Audio Library Manager — fast search, tagging, and playback for local audio files",
+	"main": "dist-electron/main.js",
+	"scripts": {
+		"dev": "vite",
+		"build": "vue-tsc --noEmit && vite build",
+		"preview": "vite preview",
+		"electron:dev": "vite --mode electron",
+		"electron:build": "vite build && electron-builder",
+		"electron:build:win": "vite build && electron-builder --win",
+		"electron:build:mac": "vite build && electron-builder --mac",
+		"electron:build:all": "vite build && electron-builder --mac --win",
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"dependencies": {
+		"@vueuse/core": "^14.2.1",
+		"chroma-js": "^3.2.0",
+		"music-metadata": "^7.14.0",
+		"vue": "^3.4.0",
+		"vue-router": "^4.3.0"
+	},
+	"devDependencies": {
+		"@types/chroma-js": "^3.1.2",
+		"@types/node": "^20.10.0",
+		"@vitejs/plugin-vue": "^5.0.0",
+		"@vue/test-utils": "^2.4.6",
+		"electron": "^28.0.0",
+		"electron-builder": "^24.9.0",
+		"happy-dom": "^20.7.0",
+		"typescript": "^5.3.0",
+		"vite": "^5.0.0",
+		"vite-plugin-electron": "^0.28.0",
+		"vite-plugin-electron-renderer": "^0.14.0",
+		"vitest": "^4.0.18",
+		"vue-tsc": "^1.8.0"
+	},
+	"build": {
+		"appId": "com.forgeaudio.app",
+		"productName": "ForgeAudio",
+		"files": [
+			"dist/**/*",
+			"dist-electron/**/*"
+		],
+		"directories": {
+			"buildResources": "build"
+		},
+		"mac": {
+			"icon": "build/icon.icns"
+		},
+		"win": {
+			"icon": "build/icon.png",
+			"target": [
+				{
+					"target": "nsis",
+					"arch": [
+						"x64",
+						"arm64"
+					]
+				}
+			]
+		},
+		"linux": {
+			"icon": "build/icon.png"
+		}
+	}
 }
