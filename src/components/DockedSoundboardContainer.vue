@@ -20,8 +20,18 @@
 					title="List"
 					@click.stop="setLayout(sb.id, 'LIST')"
 				>
-					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-						<line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" />
+					<svg
+						width="12"
+						height="12"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+					>
+						<line x1="4" y1="6" x2="20" y2="6" />
+						<line x1="4" y1="12" x2="20" y2="12" />
+						<line x1="4" y1="18" x2="20" y2="18" />
 					</svg>
 				</button>
 				<button
@@ -30,8 +40,19 @@
 					title="Grid"
 					@click.stop="setLayout(sb.id, 'GRID')"
 				>
-					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-						<rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+					<svg
+						width="12"
+						height="12"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+					>
+						<rect x="3" y="3" width="7" height="7" />
+						<rect x="14" y="3" width="7" height="7" />
+						<rect x="3" y="14" width="7" height="7" />
+						<rect x="14" y="14" width="7" height="7" />
 					</svg>
 				</button>
 				<button
@@ -40,8 +61,19 @@
 					title="Table"
 					@click.stop="setLayout(sb.id, 'TABLE')"
 				>
-					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-						<rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="9" y1="3" x2="9" y2="21" />
+					<svg
+						width="12"
+						height="12"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+					>
+						<rect x="3" y="3" width="18" height="18" rx="2" />
+						<line x1="3" y1="9" x2="21" y2="9" />
+						<line x1="3" y1="15" x2="21" y2="15" />
+						<line x1="9" y1="3" x2="9" y2="21" />
 					</svg>
 				</button>
 				<template v-if="sb.layoutType === 'GRID'">
@@ -60,7 +92,8 @@
 						class="agg-tag"
 						:style="{ background: getTagColor(tag), color: '#000' }"
 						@click.stop="library.addTagFilter(tag)"
-					>{{ tag }}</span>
+						>{{ tag }}</span
+					>
 				</div>
 			</template>
 
@@ -74,7 +107,12 @@
 		v-if="editingSbId && editingItemId"
 		:soundboard-id="editingSbId"
 		:item-id="editingItemId"
-		@close="editingSbId = null; editingItemId = null"
+		@close="
+			() => {
+				editingSbId = null
+				editingItemId = null
+			}
+		"
 	/>
 </template>
 
@@ -149,18 +187,21 @@ onMounted(() => {
 					if (item.offset != null && item.offset > 0) options.offset = item.offset
 					if (item.range) options.range = item.range
 				}
-				library.playFile({
-					path: item.filePath,
-					name: item.name,
-					extension: item.filePath.split(".").pop() || "",
-					size: 0,
-					duration: item.duration,
-					tags: [],
-					description: "",
-					lastPlayed: null,
-					createdAt: null,
-					modifiedAt: null,
-				}, options)
+				library.playFile(
+					{
+						path: item.filePath,
+						name: item.name,
+						extension: item.filePath.split(".").pop() || "",
+						size: 0,
+						duration: item.duration,
+						tags: [],
+						description: "",
+						lastPlayed: null,
+						createdAt: null,
+						modifiedAt: null,
+					},
+					options,
+				)
 			}
 		})
 		window.electronAPI.onSbItemEdit((data) => {
@@ -177,7 +218,7 @@ onMounted(() => {
 <style scoped>
 .docked-container {
 	position: fixed;
-	bottom: 0;
+	bottom: 50px;
 	right: 0px;
 	z-index: 50;
 	display: flex;
@@ -198,7 +239,9 @@ onMounted(() => {
 	border: none;
 	cursor: pointer;
 	padding: 0;
-	transition: color 0.15s, background 0.15s;
+	transition:
+		color 0.15s,
+		background 0.15s;
 }
 
 .view-toggle-btn:hover {
@@ -233,7 +276,9 @@ onMounted(() => {
 	border: none;
 	cursor: pointer;
 	padding: 0;
-	transition: color 0.15s, background 0.15s;
+	transition:
+		color 0.15s,
+		background 0.15s;
 }
 
 .grid-cols-btn:hover {

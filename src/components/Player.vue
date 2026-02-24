@@ -3,6 +3,7 @@
 		<audio
 			ref="audioEl"
 			:src="audioSrc"
+			@canplay="onCanPlay"
 		/>
 
 		<div class="player-info">
@@ -113,18 +114,19 @@ watch(audioSrc, () => {
 	playing.value = false
 })
 
-watch(duration, (d) => {
-	if (d > 0 && awaitingPlayback) {
-		awaitingPlayback = false
-		// Seek to partial playback start position before resuming
-		if (library.playbackRange) {
-			currentTime.value = library.playbackRange[0]
-		} else if (library.playbackOffset != null && library.playbackOffset > 0) {
-			currentTime.value = library.playbackOffset
-		}
-		playing.value = true
+// canplay event fires when the browser can actually start playing the media.
+// This is more reliable than watch(duration) which fires at loadedmetadata —
+// before the media is ready, causing .play() to fail on rapid track switches.
+function onCanPlay() {
+	if (!awaitingPlayback) return
+	awaitingPlayback = false
+	if (library.playbackRange) {
+		currentTime.value = library.playbackRange[0]
+	} else if (library.playbackOffset != null && library.playbackOffset > 0) {
+		currentTime.value = library.playbackOffset
 	}
-})
+	playing.value = true
+}
 
 // ─── Bidirectional playing sync ─────────────────────────────────────────────
 
@@ -185,6 +187,21 @@ watch(ended, (isEnded) => {
 		playing.value = true
 	} else {
 		library.stopPlayback()
+	}
+})
+
+// ─── Restart playback (from soundboard restart button) ──────────────────────
+
+watch(() => library.playbackRestartCounter, () => {
+	if (library.playbackRange) {
+		currentTime.value = library.playbackRange[0]
+	} else if (library.playbackOffset != null && library.playbackOffset > 0) {
+		currentTime.value = library.playbackOffset
+	} else {
+		currentTime.value = 0
+	}
+	if (!playing.value) {
+		playing.value = true
 	}
 })
 

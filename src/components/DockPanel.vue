@@ -1,9 +1,5 @@
 <template>
-	<div
-		class="dock-panel"
-		:class="{ 'dock-panel--collapsed': collapsed }"
-		:style="panelStyle"
-	>
+	<div class="dock-panel" :class="{ 'dock-panel--collapsed': collapsed }" :style="panelStyle">
 		<!-- Resize handles (only when expanded) -->
 		<template v-if="!collapsed">
 			<div class="resize-handle resize-handle--left" @pointerdown.stop="onResizeStart($event, 'left')" />
@@ -15,11 +11,7 @@
 			<span class="dock-panel-title" :title="description">{{ title }}</span>
 			<div class="dock-panel-controls">
 				<slot name="header-actions" />
-				<button
-					class="dock-panel-btn"
-					@click.stop="$emit('toggle-collapse')"
-					:title="collapsed ? 'Expand' : 'Collapse'"
-				>
+				<button class="dock-panel-btn" @click.stop="$emit('toggle-collapse')" :title="collapsed ? 'Expand' : 'Collapse'">
 					<svg
 						width="14"
 						height="14"
@@ -34,11 +26,7 @@
 						<polyline v-else points="6 9 12 15 18 9" />
 					</svg>
 				</button>
-				<button
-					class="dock-panel-btn"
-					@click.stop="$emit('close')"
-					title="Close"
-				>
+				<button class="dock-panel-btn" @click.stop="$emit('close')" title="Close">
 					<svg
 						width="14"
 						height="14"
@@ -65,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount } from 'vue'
+import { computed, onBeforeUnmount } from "vue"
 
 interface Props {
 	panelId: string
@@ -82,14 +70,14 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-	'toggle-collapse': []
+	"toggle-collapse": []
 	close: []
 	resize: [width: number, height: number]
 }>()
 
 const panelStyle = computed(() => ({
 	width: `${props.width}px`,
-	height: props.collapsed ? 'auto' : `${props.height}px`,
+	height: props.collapsed ? "auto" : `${props.height}px`,
 }))
 
 const MIN_W = 200
@@ -97,21 +85,21 @@ const MAX_W = 600
 const MIN_H = 200
 const MAX_H = 800
 
-let resizeEdge: 'left' | 'top' | 'corner' | null = null
+let resizeEdge: "left" | "top" | "corner" | null = null
 let startX = 0
 let startY = 0
 let startW = 0
 let startH = 0
 
-function onResizeStart(e: PointerEvent, edge: 'left' | 'top' | 'corner') {
+function onResizeStart(e: PointerEvent, edge: "left" | "top" | "corner") {
 	e.preventDefault()
 	resizeEdge = edge
 	startX = e.clientX
 	startY = e.clientY
 	startW = props.width
 	startH = props.height
-	document.addEventListener('pointermove', onResizeMove)
-	document.addEventListener('pointerup', onResizeEnd)
+	document.addEventListener("pointermove", onResizeMove)
+	document.addEventListener("pointerup", onResizeEnd)
 }
 
 function onResizeMove(e: PointerEvent) {
@@ -122,25 +110,25 @@ function onResizeMove(e: PointerEvent) {
 	let w = startW
 	let h = startH
 
-	if (resizeEdge === 'left' || resizeEdge === 'corner') {
+	if (resizeEdge === "left" || resizeEdge === "corner") {
 		w = Math.min(MAX_W, Math.max(MIN_W, startW - dx))
 	}
-	if (resizeEdge === 'top' || resizeEdge === 'corner') {
+	if (resizeEdge === "top" || resizeEdge === "corner") {
 		h = Math.min(MAX_H, Math.max(MIN_H, startH - dy))
 	}
 
-	emit('resize', w, h)
+	emit("resize", w, h)
 }
 
 function onResizeEnd() {
 	resizeEdge = null
-	document.removeEventListener('pointermove', onResizeMove)
-	document.removeEventListener('pointerup', onResizeEnd)
+	document.removeEventListener("pointermove", onResizeMove)
+	document.removeEventListener("pointerup", onResizeEnd)
 }
 
 onBeforeUnmount(() => {
-	document.removeEventListener('pointermove', onResizeMove)
-	document.removeEventListener('pointerup', onResizeEnd)
+	document.removeEventListener("pointermove", onResizeMove)
+	document.removeEventListener("pointerup", onResizeEnd)
 })
 </script>
 
@@ -149,7 +137,7 @@ onBeforeUnmount(() => {
 	position: relative;
 	background: var(--bg-secondary);
 	border: 1px solid var(--border);
-	border-radius: 8px;
+	/* border-radius: 8px; */
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 	display: flex;
 	flex-direction: column;
@@ -226,7 +214,9 @@ onBeforeUnmount(() => {
 	border: none;
 	cursor: pointer;
 	padding: 0;
-	transition: color 0.15s, background 0.15s;
+	transition:
+		color 0.15s,
+		background 0.15s;
 }
 
 .dock-panel-btn:hover {

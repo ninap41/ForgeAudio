@@ -98,6 +98,7 @@ const isPlaying = ref(false)
 // Partial playback constraints (set by soundboard items with partial === true)
 const playbackOffset = ref<number | null>(null)
 const playbackRange = ref<[number, number] | null>(null)
+const playbackRestartCounter = ref(0)
 
 const filteredFiles = computed(() => {
 	let result = files.value
@@ -590,6 +591,11 @@ export function useLibraryStore() {
 		isPlaying.value = false
 	}
 
+	function restartPlayback() {
+		playbackRestartCounter.value++
+		isPlaying.value = true
+	}
+
 	function getProfileSnapshot(): ProfileSnapshot {
 		const snapshotFiles: ProfileSnapshot["files"] = {}
 
@@ -828,6 +834,7 @@ export function useLibraryStore() {
 		isPlaying,
 		playbackOffset,
 		playbackRange,
+		playbackRestartCounter,
 		filteredFiles,
 		initFromPersistedDirectory,
 		selectAndScanDirectory,
@@ -841,6 +848,7 @@ export function useLibraryStore() {
 		renameFile,
 		playFile,
 		stopPlayback,
+		restartPlayback,
 		addTagFilter,
 		removeTagFilter,
 		addExcludeTagFilter,

@@ -24,6 +24,12 @@
 				@click="playItem(item)"
 				@contextmenu.prevent="onItemContextMenu(item)"
 			>
+				<button class="sb-restart-btn" title="Restart" @click.stop="restartItem(item)">
+					<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="1 4 1 10 7 10" />
+						<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+					</svg>
+				</button>
 				<span class="sb-td sb-td-name" :class="{ 'sb-td--active': isItemPlaying(item) }">{{ item.name }}</span>
 				<span v-if="isColumnVisible('duration')" class="sb-td sb-td-duration">{{ formatDuration(item.duration) }}</span>
 				<span v-if="isColumnVisible('offset')" class="sb-td sb-td-offset" :class="{ 'sb-td--partial-glow': item.partial && item.offset != null && item.offset > 0 }">{{ item.offset != null ? item.offset + 's' : '—' }}</span>
@@ -136,6 +142,21 @@ function onDrop(e: DragEvent) {
 	library.addSoundboardItem(props.soundboard.id, item)
 }
 
+function restartItem(item: SoundboardItem) {
+	if (library.currentFile?.path !== item.filePath) {
+		playItem(item)
+	} else {
+		const options: { offset?: number; range?: [number, number] } = {}
+		if (item.partial) {
+			if (item.offset != null && item.offset > 0) options.offset = item.offset
+			if (item.range) options.range = item.range
+		}
+		library.playbackOffset = options.offset ?? null
+		library.playbackRange = options.range ?? null
+		library.restartPlayback()
+	}
+}
+
 function isItemPlaying(item: SoundboardItem): boolean {
 	return library.isPlaying && library.currentFile?.path === item.filePath
 }
@@ -231,6 +252,33 @@ function onItemContextMenu(item: SoundboardItem) {
 
 .sb-table-row:hover {
 	background: var(--bg-hover);
+}
+
+.sb-restart-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	border-radius: 3px;
+	color: var(--text-muted);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 0;
+	flex-shrink: 0;
+	opacity: 0;
+	transition:
+		color 0.15s,
+		opacity 0.15s;
+}
+
+.sb-table-row:hover .sb-restart-btn {
+	opacity: 1;
+}
+
+.sb-restart-btn:hover {
+	color: var(--accent);
 }
 
 .sb-td {

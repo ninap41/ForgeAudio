@@ -31,6 +31,12 @@
 				<span class="sb-pad-duration">{{ formatDuration(item.duration) }}</span>
 				<span v-if="item.partial && item.offset != null && item.offset > 0" class="sb-pad-partial sb-partial-glow">@{{ item.offset }}s</span>
 				<span v-else-if="item.partial && item.range" class="sb-pad-partial sb-partial-glow">{{ item.range[0] }}–{{ item.range[1] }}s</span>
+				<button class="sb-pad-restart" title="Restart" @click.stop="restartItem(item)">
+					<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="1 4 1 10 7 10" />
+						<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+					</svg>
+				</button>
 				<button class="sb-pad-remove" title="Remove" @click.stop="handleRemove(item.id)">
 					<svg
 						width="10"
@@ -142,6 +148,21 @@ function onReorderDrop(e: DragEvent, index: number) {
 function onReorderEnd() {
 	reorderSource.value = null
 	reorderTarget.value = null
+}
+
+function restartItem(item: SoundboardItem) {
+	if (library.currentFile?.path !== item.filePath) {
+		playItem(item)
+	} else {
+		const options: { offset?: number; range?: [number, number] } = {}
+		if (item.partial) {
+			if (item.offset != null && item.offset > 0) options.offset = item.offset
+			if (item.range) options.range = item.range
+		}
+		library.playbackOffset = options.offset ?? null
+		library.playbackRange = options.range ?? null
+		library.restartPlayback()
+	}
 }
 
 function isItemPlaying(item: SoundboardItem): boolean {
@@ -283,6 +304,35 @@ function onItemContextMenu(item: SoundboardItem) {
 .sb-partial-glow {
 	text-shadow: 0 0 6px var(--accent);
 	box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.sb-pad-restart {
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 14px;
+	border-radius: 3px;
+	color: var(--text-muted);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 0;
+	opacity: 0;
+	transition:
+		color 0.15s,
+		opacity 0.15s;
+}
+
+.sb-pad:hover .sb-pad-restart {
+	opacity: 1;
+}
+
+.sb-pad-restart:hover {
+	color: var(--accent);
 }
 
 .sb-pad-remove {
