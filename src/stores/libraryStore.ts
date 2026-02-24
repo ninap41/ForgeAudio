@@ -2,6 +2,8 @@ import { ref, computed, reactive } from "vue"
 import { useTagStore } from "./tagStore"
 import { useThemeStore } from "./themeStore"
 import { useSettingsStore } from "./settingsStore"
+import { useSoundboardStore } from "./soundboardStore"
+import type { Soundboard, SoundboardItem } from "./soundboardStore"
 
 export type SortColumn = "name" | "tags" | "duration" | "type" | "createdAt" | "modifiedAt"
 
@@ -38,6 +40,7 @@ export interface LibraryMetadata {
 	}
 	activeProfile?: string
 	profiles?: Record<string, ProfileEntry>
+	soundboards?: Record<string, Soundboard>
 }
 
 export interface ProfileSnapshot {
@@ -51,6 +54,7 @@ export interface ProfileSnapshot {
 		autoBackup?: boolean
 	}
 	rootDirectory?: string | null
+	soundboards?: Record<string, Soundboard>
 }
 
 export interface ProfileEntry {
@@ -171,6 +175,7 @@ export function useLibraryStore() {
 	const tagStore = useTagStore()
 	const themeStore = useThemeStore()
 	const settingsStore = useSettingsStore()
+	const soundboardStore = useSoundboardStore()
 
 	async function loadMetadata() {
 		try {
@@ -181,6 +186,7 @@ export function useLibraryStore() {
 			tagStore.loadTags(meta.tags)
 			themeStore.loadTheme(meta.theme)
 			settingsStore.loadSettings(meta.settings)
+			soundboardStore.loadSoundboards(meta.soundboards || {})
 
 			if (meta.activeProfile) {
 				activeProfileName.value = meta.activeProfile
@@ -326,6 +332,12 @@ export function useLibraryStore() {
 		// Persist rootDirectory from the live ref (single source of truth)
 		if (rootDirectory.value) {
 			;(meta as any).rootDirectory = rootDirectory.value
+		}
+
+		// Persist soundboards
+		const sbs = soundboardStore.getSoundboardSnapshot()
+		if (Object.keys(sbs).length > 0) {
+			meta.soundboards = sbs
 		}
 
 		// Persist profile state
@@ -592,6 +604,7 @@ export function useLibraryStore() {
 			theme: Object.keys(themeStore.currentTheme).length > 0 ? { ...themeStore.currentTheme } : undefined,
 			settings: settingsStore.getSettingsSnapshot(),
 			rootDirectory: rootDirectory.value,
+			soundboards: soundboardStore.getSoundboardSnapshot(),
 		}
 	}
 
@@ -619,7 +632,10 @@ export function useLibraryStore() {
 			}
 		}
 
-		// 5. Update lastReadMeta so saveMetadata() merges correctly
+		// 5. Replace soundboards
+		soundboardStore.replaceSoundboards(snapshot.soundboards || {})
+
+		// 6. Update lastReadMeta so saveMetadata() merges correctly
 		lastReadMeta = {
 			version: 1,
 			files: snapshot.files,
@@ -725,6 +741,46 @@ export function useLibraryStore() {
 		return {}
 	}
 
+	// Soundboard wrapper methods (thin — delegate to soundboardStore + persist)
+	async function createSoundboardWrapper(name: string, description: string, layoutType: "LIST" | "GRID") {
+		const id = soundboardStore.createSoundboard(name, description, layoutType, activeProfileName.value)
+		await saveMetadata()
+		return id
+	}
+
+	async function deleteSoundboardWrapper(id: string) {
+		soundboardStore.deleteSoundboard(id)
+		await saveMetadata()
+	}
+
+	async function updateSoundboardWrapper(
+		id: string,
+		updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType">>,
+	) {
+		soundboardStore.updateSoundboard(id, updates)
+		await saveMetadata()
+	}
+
+	async function toggleSoundboardEnabled(id: string) {
+		soundboardStore.toggleEnabled(id)
+		await saveMetadata()
+	}
+
+	async function toggleSoundboardState(id: string) {
+		soundboardStore.toggleState(id)
+		await saveMetadata()
+	}
+
+	async function addSoundboardItem(soundboardId: string, item: SoundboardItem) {
+		soundboardStore.addItem(soundboardId, item)
+		await saveMetadata()
+	}
+
+	async function removeSoundboardItem(soundboardId: string, itemId: string) {
+		soundboardStore.removeItem(soundboardId, itemId)
+		await saveMetadata()
+	}
+
 	return reactive({
 		files,
 		rootDirectory,
@@ -777,6 +833,13 @@ export function useLibraryStore() {
 		switchProfile,
 		deleteProfile,
 		renameProfile,
+		createSoundboard: createSoundboardWrapper,
+		deleteSoundboard: deleteSoundboardWrapper,
+		updateSoundboard: updateSoundboardWrapper,
+		toggleSoundboardEnabled,
+		toggleSoundboardState,
+		addSoundboardItem,
+		removeSoundboardItem,
 	})
 }
 

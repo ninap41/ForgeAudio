@@ -9,6 +9,28 @@
 				</div>
 
 				<div class="header-actions">
+					<button
+						class="icon-btn"
+						:class="{ 'icon-btn--active': showSoundboardDrawer }"
+						@click.stop="showSoundboardDrawer = !showSoundboardDrawer"
+						title="Soundboard"
+					>
+						<svg
+							width="15"
+							height="15"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<rect x="3" y="3" width="7" height="7" />
+							<rect x="14" y="3" width="7" height="7" />
+							<rect x="3" y="14" width="7" height="7" />
+							<rect x="14" y="14" width="7" height="7" />
+						</svg>
+					</button>
 					<button class="icon-btn" @click="showDebugModal = true" title="Tag Store Debug">
 						<svg
 							width="15"
@@ -69,6 +91,8 @@
 		</main>
 
 		<Player />
+		<DockedSoundboardContainer />
+		<SoundboardDrawer v-if="showSoundboardDrawer" @close="showSoundboardDrawer = false" />
 		<TagStoreDebugModal v-if="showDebugModal" @close="showDebugModal = false" />
 	</div>
 </template>
@@ -80,6 +104,8 @@ import BootSplash from "./components/BootSplash.vue"
 import Player from "./components/Player.vue"
 import ThemeGenerator from "./components/ThemeGenerator.vue"
 import TagStoreDebugModal from "./components/TagStoreDebugModal.vue"
+import DockedSoundboardContainer from "./components/DockedSoundboardContainer.vue"
+import SoundboardDrawer from "./components/SoundboardDrawer.vue"
 import { useThemeStore } from "./stores/themeStore"
 import { useLibraryStore } from "./stores/libraryStore"
 
@@ -88,6 +114,7 @@ const library = useLibraryStore()
 const router = useRouter()
 const showBootSplash = ref(true)
 const showDebugModal = ref(false)
+const showSoundboardDrawer = ref(false)
 
 const emberColor = computed(() => {
 	// Recompute when the theme changes
@@ -196,6 +223,11 @@ function toggleDevTools() {
 
 .icon-btn:hover {
 	color: var(--text-primary);
+	background: var(--bg-hover);
+}
+
+.icon-btn--active {
+	color: var(--accent);
 	background: var(--bg-hover);
 }
 
