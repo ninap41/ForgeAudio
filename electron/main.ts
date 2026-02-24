@@ -450,6 +450,7 @@ ipcMain.on("context-menu:show", (event, params: {
 	soundboards?: Array<{ id: string; name: string }>
 	recentSoundboardId?: string | null
 	recentSoundboardName?: string | null
+	lastUsedTag?: string | null
 }) => {
 	const template: Electron.MenuItemConstructorOptions[] = [
 		{
@@ -460,6 +461,19 @@ ipcMain.on("context-menu:show", (event, params: {
 			label: "Add Tag",
 			click: () => event.sender.send("context-menu:addTag", params.filePath),
 		},
+	]
+
+	if (params.lastUsedTag) {
+		template.push({
+			label: `Add Tag '${params.lastUsedTag}'`,
+			click: () => event.sender.send("context-menu:quickTag", {
+				filePath: params.filePath,
+				tag: params.lastUsedTag,
+			}),
+		})
+	}
+
+	template.push(
 		{
 			label: "Edit Description",
 			click: () => event.sender.send("context-menu:editDescription", params.filePath),
@@ -468,7 +482,7 @@ ipcMain.on("context-menu:show", (event, params: {
 			label: "Rename…",
 			click: () => event.sender.send("context-menu:rename", params.filePath),
 		},
-	]
+	)
 
 	// Soundboard items (dynamic)
 	if (params.soundboards && params.soundboards.length > 0) {
@@ -506,6 +520,40 @@ ipcMain.on("context-menu:show", (event, params: {
 		click: () => event.sender.send("context-menu:delete", params.filePath),
 	})
 
+	const menu = Menu.buildFromTemplate(template)
+	menu.popup()
+})
+
+// Soundboard item context menu
+ipcMain.on("context-menu:showSoundboardItem", (event, params: {
+	soundboardId: string
+	itemId: string
+	itemName: string
+}) => {
+	const template: Electron.MenuItemConstructorOptions[] = [
+		{
+			label: "Play",
+			click: () => event.sender.send("context-menu:sbItemPlay", {
+				soundboardId: params.soundboardId,
+				itemId: params.itemId,
+			}),
+		},
+		{
+			label: "Edit…",
+			click: () => event.sender.send("context-menu:sbItemEdit", {
+				soundboardId: params.soundboardId,
+				itemId: params.itemId,
+			}),
+		},
+		{ type: "separator" },
+		{
+			label: "Remove",
+			click: () => event.sender.send("context-menu:sbItemRemove", {
+				soundboardId: params.soundboardId,
+				itemId: params.itemId,
+			}),
+		},
+	]
 	const menu = Menu.buildFromTemplate(template)
 	menu.popup()
 })

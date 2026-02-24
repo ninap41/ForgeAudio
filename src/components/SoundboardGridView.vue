@@ -17,6 +17,7 @@
 				class="sb-pad"
 				:class="{ 'sb-pad--active': isItemPlaying(item) }"
 				@click="playItem(item)"
+				@contextmenu.prevent="onItemContextMenu(item)"
 			>
 				<span class="sb-pad-name">{{ item.name }}</span>
 				<span class="sb-pad-duration">{{ formatDuration(item.duration) }}</span>
@@ -120,6 +121,14 @@ function formatDuration(seconds: number): string {
 
 async function handleRemove(itemId: string) {
 	await library.removeSoundboardItem(props.soundboard.id, itemId)
+}
+
+function onItemContextMenu(item: SoundboardItem) {
+	window.electronAPI.showSoundboardItemMenu({
+		soundboardId: props.soundboard.id,
+		itemId: item.id,
+		itemName: item.name,
+	})
 }
 </script>
 

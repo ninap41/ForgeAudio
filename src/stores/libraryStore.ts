@@ -38,6 +38,7 @@ export interface LibraryMetadata {
 		autoLoadDurations?: boolean
 		autoBackup?: boolean
 	}
+	lastUsedTag?: string | null
 	activeProfile?: string
 	profiles?: Record<string, ProfileEntry>
 	soundboards?: Record<string, Soundboard>
@@ -86,6 +87,9 @@ let lastReadMeta: LibraryMetadata | null = null
 // Profile state
 const activeProfileName = ref<string>("Default")
 const profiles = ref<Record<string, ProfileEntry>>({})
+
+// Last used tag for quick-tag context menu
+const lastUsedTag = ref<string | null>(null)
 
 // Current playback
 const currentFile = ref<AudioFile | null>(null)
@@ -188,6 +192,9 @@ export function useLibraryStore() {
 			settingsStore.loadSettings(meta.settings)
 			soundboardStore.loadSoundboards(meta.soundboards || {})
 
+			if (meta.lastUsedTag) {
+				lastUsedTag.value = meta.lastUsedTag
+			}
 			if (meta.activeProfile) {
 				activeProfileName.value = meta.activeProfile
 			}
@@ -340,6 +347,11 @@ export function useLibraryStore() {
 			meta.soundboards = sbs
 		}
 
+		// Persist last used tag
+		if (lastUsedTag.value) {
+			;(meta as any).lastUsedTag = lastUsedTag.value
+		}
+
 		// Persist profile state
 		meta.activeProfile = activeProfileName.value
 		if (Object.keys(profiles.value).length > 0) {
@@ -361,6 +373,7 @@ export function useLibraryStore() {
 		const file = files.value.find((f) => f.path === filePath)
 		if (file && !file.tags.includes(tag)) {
 			file.tags.push(tag)
+			lastUsedTag.value = tag
 			saveMetadata()
 		}
 	}
@@ -742,7 +755,7 @@ export function useLibraryStore() {
 	}
 
 	// Soundboard wrapper methods (thin — delegate to soundboardStore + persist)
-	async function createSoundboardWrapper(name: string, description: string, layoutType: "LIST" | "GRID") {
+	async function createSoundboardWrapper(name: string, description: string, layoutType: "LIST" | "GRID" | "TABLE") {
 		const id = soundboardStore.createSoundboard(name, description, layoutType, activeProfileName.value)
 		await saveMetadata()
 		return id
@@ -755,7 +768,7 @@ export function useLibraryStore() {
 
 	async function updateSoundboardWrapper(
 		id: string,
-		updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType" | "width" | "height">>,
+		updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType" | "width" | "height" | "visibleColumns">>,
 	) {
 		soundboardStore.updateSoundboard(id, updates)
 		await saveMetadata()
@@ -781,6 +794,11 @@ export function useLibraryStore() {
 		await saveMetadata()
 	}
 
+	async function updateSoundboardItem(soundboardId: string, itemId: string, updates: Partial<Pick<import("./soundboardStore").SoundboardItem, "name" | "offset" | "range">>) {
+		soundboardStore.updateItem(soundboardId, itemId, updates)
+		await saveMetadata()
+	}
+
 	return reactive({
 		files,
 		rootDirectory,
@@ -794,6 +812,7 @@ export function useLibraryStore() {
 		excludedTags,
 		descriptionFilters,
 		excludedDescriptionFilters,
+		lastUsedTag,
 		currentFile,
 		isPlaying,
 		filteredFiles,
@@ -840,6 +859,7 @@ export function useLibraryStore() {
 		toggleSoundboardState,
 		addSoundboardItem,
 		removeSoundboardItem,
+		updateSoundboardItem,
 	})
 }
 
@@ -857,6 +877,7 @@ export function _resetLibraryStore() {
 	descriptionFilters.value = []
 	excludedDescriptionFilters.value = []
 	lastReadMeta = null
+	lastUsedTag.value = null
 	currentFile.value = null
 	isPlaying.value = false
 	activeProfileName.value = "Default"

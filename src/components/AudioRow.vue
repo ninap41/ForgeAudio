@@ -103,6 +103,7 @@ function onContextMenu() {
 		soundboards,
 		recentSoundboardId,
 		recentSoundboardName,
+		lastUsedTag: library.lastUsedTag,
 	})
 }
 

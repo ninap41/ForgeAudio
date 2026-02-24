@@ -290,6 +290,87 @@ describe('soundboardStore', () => {
     })
   })
 
+  describe('updateItem', () => {
+    it('updates name on an existing item', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'old.wav', filePath: '/old.wav', duration: 1 })
+      store.updateItem(id, 'i1', { name: 'new.wav' })
+      expect(store.allSoundboards[0].items[0].name).toBe('new.wav')
+    })
+
+    it('updates offset and range', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 5 })
+      store.updateItem(id, 'i1', { offset: 1.5, range: [0, 3] })
+      expect(store.allSoundboards[0].items[0].offset).toBe(1.5)
+      expect(store.allSoundboards[0].items[0].range).toEqual([0, 3])
+    })
+
+    it('sets updatedAt on soundboard', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 1 })
+      // Clear updatedAt from addItem
+      const sb = store.allSoundboards[0]
+      const prevUpdatedAt = sb.updatedAt
+      store.updateItem(id, 'i1', { name: 'b.wav' })
+      expect(sb.updatedAt).toBeTruthy()
+    })
+
+    it('is a no-op for nonexistent soundboard id', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 1 })
+      store.updateItem('nonexistent', 'i1', { name: 'changed' })
+      expect(store.allSoundboards[0].items[0].name).toBe('a.wav')
+    })
+
+    it('is a no-op for nonexistent item id', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 1 })
+      store.updateItem(id, 'nonexistent', { name: 'changed' })
+      expect(store.allSoundboards[0].items[0].name).toBe('a.wav')
+    })
+  })
+
+  describe('auto-expand on enable', () => {
+    it('toggleEnabled sets state to expanded when enabling a minimized board', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.toggleState(id) // → minimized
+      expect(store.allSoundboards[0].state).toBe('minimized')
+      store.toggleEnabled(id) // enable → should auto-expand
+      expect(store.allSoundboards[0].state).toBe('expanded')
+    })
+
+    it('setEnabled(true) sets state to expanded when board is minimized', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.toggleState(id) // → minimized
+      store.setEnabled(id, true)
+      expect(store.allSoundboards[0].state).toBe('expanded')
+    })
+
+    it('toggleEnabled does not change state when disabling', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.toggleEnabled(id) // enable
+      store.toggleState(id) // → minimized
+      store.toggleEnabled(id) // disable — state should remain minimized
+      expect(store.allSoundboards[0].state).toBe('minimized')
+    })
+  })
+
+  describe('visibleColumns', () => {
+    it('updates visibleColumns via updateSoundboard', () => {
+      const id = store.createSoundboard('X', '', 'TABLE', 'Default')
+      store.updateSoundboard(id, { visibleColumns: ['duration', 'range'] })
+      expect(store.allSoundboards[0].visibleColumns).toEqual(['duration', 'range'])
+    })
+
+    it('preserves visibleColumns when updating other fields', () => {
+      const id = store.createSoundboard('X', '', 'TABLE', 'Default')
+      store.updateSoundboard(id, { visibleColumns: ['duration'] })
+      store.updateSoundboard(id, { name: 'Renamed' })
+      expect(store.allSoundboards[0].visibleColumns).toEqual(['duration'])
+    })
+  })
+
   describe('_resetSoundboardStore', () => {
     it('clears all state', () => {
       store.createSoundboard('A', '', 'LIST', 'Default')

@@ -10,7 +10,7 @@
 		<div v-if="soundboard.items.length === 0" class="sb-empty">
 			<p class="sb-empty-text">Drag files here or use the right-click menu</p>
 		</div>
-		<div v-for="item in soundboard.items" :key="item.id" class="sb-list-item">
+		<div v-for="item in soundboard.items" :key="item.id" class="sb-list-item" @contextmenu.prevent="onItemContextMenu(item)">
 			<button class="sb-play-btn" :title="isItemPlaying(item) ? 'Stop' : 'Play'" @click="playItem(item)">
 				<svg
 					v-if="!isItemPlaying(item)"
@@ -128,6 +128,14 @@ function formatDuration(seconds: number): string {
 
 async function handleRemove(itemId: string) {
 	await library.removeSoundboardItem(props.soundboard.id, itemId)
+}
+
+function onItemContextMenu(item: SoundboardItem) {
+	window.electronAPI.showSoundboardItemMenu({
+		soundboardId: props.soundboard.id,
+		itemId: item.id,
+		itemName: item.name,
+	})
 }
 </script>
 

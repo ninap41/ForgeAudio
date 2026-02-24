@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     soundboards?: Array<{ id: string; name: string }>
     recentSoundboardId?: string | null
     recentSoundboardName?: string | null
+    lastUsedTag?: string | null
   }) =>
     ipcRenderer.send('context-menu:show', params),
 
@@ -84,4 +85,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('context-menu:addToSoundboard', (_event, filePath) => callback(filePath)),
   onContextMenuQuickAddToSoundboard: (callback: (data: { filePath: string; soundboardId: string }) => void) =>
     ipcRenderer.on('context-menu:quickAddToSoundboard', (_event, data) => callback(data)),
+  onContextMenuQuickTag: (callback: (data: { filePath: string; tag: string }) => void) =>
+    ipcRenderer.on('context-menu:quickTag', (_event, data) => callback(data)),
+
+  // Soundboard item context menu
+  showSoundboardItemMenu: (params: { soundboardId: string; itemId: string; itemName: string }) =>
+    ipcRenderer.send('context-menu:showSoundboardItem', params),
+  onSbItemPlay: (callback: (data: { soundboardId: string; itemId: string }) => void) =>
+    ipcRenderer.on('context-menu:sbItemPlay', (_event, data) => callback(data)),
+  onSbItemEdit: (callback: (data: { soundboardId: string; itemId: string }) => void) =>
+    ipcRenderer.on('context-menu:sbItemEdit', (_event, data) => callback(data)),
+  onSbItemRemove: (callback: (data: { soundboardId: string; itemId: string }) => void) =>
+    ipcRenderer.on('context-menu:sbItemRemove', (_event, data) => callback(data)),
 })

@@ -45,6 +45,11 @@ const mockElectronAPI = {
   copyFileToLibrary: vi.fn(),
   onContextMenuAddToSoundboard: vi.fn(),
   onContextMenuQuickAddToSoundboard: vi.fn(),
+  onContextMenuQuickTag: vi.fn(),
+  showSoundboardItemMenu: vi.fn(),
+  onSbItemPlay: vi.fn(),
+  onSbItemEdit: vi.fn(),
+  onSbItemRemove: vi.fn(),
 }
 
 ;(window as any).electronAPI = mockElectronAPI
@@ -172,5 +177,33 @@ describe('DockedSoundboardContainer', () => {
     const wrapper = createWrapper()
     expect(wrapper.find('.dock-panel--collapsed').exists()).toBe(true)
     expect(wrapper.find('.dock-panel-body').exists()).toBe(false)
+  })
+
+  it('shows SoundboardTableView for TABLE layout', () => {
+    const store = useSoundboardStore()
+    const id = store.createSoundboard('X', '', 'TABLE', 'Default')
+    store.toggleEnabled(id)
+    const wrapper = createWrapper()
+    expect(wrapper.find('.sb-table-view').exists()).toBe(true)
+    expect(wrapper.find('.sb-list-view').exists()).toBe(false)
+    expect(wrapper.find('.sb-grid-view').exists()).toBe(false)
+  })
+
+  it('renders view toggle buttons in panel header', () => {
+    const store = useSoundboardStore()
+    const id = store.createSoundboard('X', '', 'LIST', 'Default')
+    store.toggleEnabled(id)
+    const wrapper = createWrapper()
+    const toggleBtns = wrapper.findAll('.view-toggle-btn')
+    expect(toggleBtns).toHaveLength(3)
+  })
+
+  it('highlights active layout toggle button', () => {
+    const store = useSoundboardStore()
+    const id = store.createSoundboard('X', '', 'GRID', 'Default')
+    store.toggleEnabled(id)
+    const wrapper = createWrapper()
+    const activeBtns = wrapper.findAll('.view-toggle-btn--active')
+    expect(activeBtns).toHaveLength(1)
   })
 })

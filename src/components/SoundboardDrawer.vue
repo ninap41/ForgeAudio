@@ -43,6 +43,7 @@
 				<select v-model="newLayout" class="drawer-select">
 					<option value="LIST">List</option>
 					<option value="GRID">Grid</option>
+					<option value="TABLE">Table</option>
 				</select>
 				<button class="btn btn-accent" :disabled="!newName.trim()" @click="handleCreate">Create</button>
 			</div>
@@ -96,7 +97,7 @@
 				</div>
 				<div v-if="sb.description" class="sb-description">{{ sb.description }}</div>
 				<div class="sb-meta">
-					<button class="sb-layout-toggle" :title="`Switch to ${sb.layoutType === 'LIST' ? 'Grid' : 'List'}`" @click="toggleLayout(sb.id, sb.layoutType)">{{ sb.layoutType }}</button>
+					<button class="sb-layout-toggle" :title="`Switch layout`" @click="toggleLayout(sb.id, sb.layoutType)">{{ sb.layoutType }}</button>
 					<span class="sb-item-count">{{ sb.items.length }} item{{ sb.items.length !== 1 ? "s" : "" }}</span>
 				</div>
 			</div>
@@ -122,7 +123,7 @@ const soundboardStore = useSoundboardStore()
 
 const newName = ref("")
 const newDescription = ref("")
-const newLayout = ref<"LIST" | "GRID">("LIST")
+const newLayout = ref<"LIST" | "GRID" | "TABLE">("LIST")
 
 const profileSoundboards = computed(() => soundboardStore.getSoundboardsForProfile(library.activeProfileName))
 
@@ -135,8 +136,9 @@ async function handleCreate() {
 	newLayout.value = "LIST"
 }
 
-async function toggleLayout(id: string, current: "LIST" | "GRID") {
-	await library.updateSoundboard(id, { layoutType: current === "LIST" ? "GRID" : "LIST" })
+async function toggleLayout(id: string, current: "LIST" | "GRID" | "TABLE") {
+	const next = current === "LIST" ? "GRID" : current === "GRID" ? "TABLE" : "LIST"
+	await library.updateSoundboard(id, { layoutType: next })
 }
 
 async function confirmDelete(id: string) {

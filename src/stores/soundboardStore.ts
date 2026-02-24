@@ -14,13 +14,14 @@ export interface Soundboard {
 	profileId: string
 	name: string
 	description: string
-	layoutType: "LIST" | "GRID"
+	layoutType: "LIST" | "GRID" | "TABLE"
 	enabled: boolean
 	state: "minimized" | "expanded"
 	items: SoundboardItem[]
 	width?: number
 	height?: number
 	updatedAt?: string
+	visibleColumns?: string[]
 }
 
 const soundboards = ref<Record<string, Soundboard>>({})
@@ -43,7 +44,7 @@ export function useSoundboardStore() {
 	function createSoundboard(
 		name: string,
 		description: string,
-		layoutType: "LIST" | "GRID",
+		layoutType: "LIST" | "GRID" | "TABLE",
 		profileId: string,
 	): string {
 		const id = generateId()
@@ -64,7 +65,7 @@ export function useSoundboardStore() {
 		delete soundboards.value[id]
 	}
 
-	function updateSoundboard(id: string, updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType" | "width" | "height">>) {
+	function updateSoundboard(id: string, updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType" | "width" | "height" | "visibleColumns">>) {
 		const sb = soundboards.value[id]
 		if (!sb) return
 		if (updates.name !== undefined) sb.name = updates.name
@@ -72,17 +73,35 @@ export function useSoundboardStore() {
 		if (updates.layoutType !== undefined) sb.layoutType = updates.layoutType
 		if (updates.width !== undefined) sb.width = updates.width
 		if (updates.height !== undefined) sb.height = updates.height
+		if (updates.visibleColumns !== undefined) sb.visibleColumns = updates.visibleColumns
+		sb.updatedAt = new Date().toISOString()
+	}
+
+	function updateItem(soundboardId: string, itemId: string, updates: Partial<Pick<SoundboardItem, "name" | "offset" | "range">>) {
+		const sb = soundboards.value[soundboardId]
+		if (!sb) return
+		const item = sb.items.find((i) => i.id === itemId)
+		if (!item) return
+		if (updates.name !== undefined) item.name = updates.name
+		if (updates.offset !== undefined) item.offset = updates.offset
+		if (updates.range !== undefined) item.range = updates.range
 		sb.updatedAt = new Date().toISOString()
 	}
 
 	function toggleEnabled(id: string) {
 		const sb = soundboards.value[id]
-		if (sb) sb.enabled = !sb.enabled
+		if (sb) {
+			sb.enabled = !sb.enabled
+			if (sb.enabled) sb.state = "expanded"
+		}
 	}
 
 	function setEnabled(id: string, enabled: boolean) {
 		const sb = soundboards.value[id]
-		if (sb) sb.enabled = enabled
+		if (sb) {
+			sb.enabled = enabled
+			if (enabled) sb.state = "expanded"
+		}
 	}
 
 	function toggleState(id: string) {
@@ -125,6 +144,7 @@ export function useSoundboardStore() {
 		createSoundboard,
 		deleteSoundboard,
 		updateSoundboard,
+		updateItem,
 		toggleEnabled,
 		setEnabled,
 		toggleState,

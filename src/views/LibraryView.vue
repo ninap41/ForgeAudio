@@ -298,6 +298,9 @@ onMounted(() => {
 		window.electronAPI.onContextMenuAddToSoundboard((filePath: string) => {
 			addToSoundboardFilePath.value = filePath
 		})
+		window.electronAPI.onContextMenuQuickTag(async (data: { filePath: string; tag: string }) => {
+			library.addTagToFile(data.filePath, data.tag)
+		})
 		window.electronAPI.onContextMenuQuickAddToSoundboard(async (data: { filePath: string; soundboardId: string }) => {
 			const file = library.files.find((f) => f.path === data.filePath)
 			const duration = file?.duration ?? (await window.electronAPI.getAudioDuration(data.filePath)) ?? 0

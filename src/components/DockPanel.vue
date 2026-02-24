@@ -12,8 +12,9 @@
 		</template>
 
 		<div class="dock-panel-titlebar" @click="$emit('toggle-collapse')">
-			<span class="dock-panel-title">{{ title }}</span>
+			<span class="dock-panel-title" :title="description">{{ title }}</span>
 			<div class="dock-panel-controls">
+				<slot name="header-actions" />
 				<button
 					class="dock-panel-btn"
 					@click.stop="$emit('toggle-collapse')"
@@ -54,6 +55,9 @@
 				</button>
 			</div>
 		</div>
+		<div v-if="!collapsed && $slots.subtitle" class="dock-panel-subtitle">
+			<slot name="subtitle" />
+		</div>
 		<div v-if="!collapsed" class="dock-panel-body">
 			<slot />
 		</div>
@@ -67,6 +71,7 @@ interface Props {
 	panelId: string
 	title: string
 	collapsed: boolean
+	description?: string
 	width?: number
 	height?: number
 }
@@ -227,6 +232,12 @@ onBeforeUnmount(() => {
 .dock-panel-btn:hover {
 	color: var(--text-primary);
 	background: var(--bg-hover);
+}
+
+.dock-panel-subtitle {
+	padding: 4px 8px;
+	border-bottom: 1px solid var(--border);
+	flex-shrink: 0;
 }
 
 .dock-panel-body {

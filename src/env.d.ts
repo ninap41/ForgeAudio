@@ -28,6 +28,7 @@ interface ElectronAPI {
     soundboards?: Array<{ id: string; name: string }>
     recentSoundboardId?: string | null
     recentSoundboardName?: string | null
+    lastUsedTag?: string | null
   }) => void
   deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>
   renameFile: (oldPath: string, newName: string) => Promise<{ success: boolean; error?: string; newPath?: string }>
@@ -47,6 +48,11 @@ interface ElectronAPI {
   onContextMenuRename: (callback: (filePath: string) => void) => void
   onContextMenuAddToSoundboard: (callback: (filePath: string) => void) => void
   onContextMenuQuickAddToSoundboard: (callback: (data: { filePath: string; soundboardId: string }) => void) => void
+  onContextMenuQuickTag: (callback: (data: { filePath: string; tag: string }) => void) => void
+  showSoundboardItemMenu: (params: { soundboardId: string; itemId: string; itemName: string }) => void
+  onSbItemPlay: (callback: (data: { soundboardId: string; itemId: string }) => void) => void
+  onSbItemEdit: (callback: (data: { soundboardId: string; itemId: string }) => void) => void
+  onSbItemRemove: (callback: (data: { soundboardId: string; itemId: string }) => void) => void
   getRootDirectory: () => Promise<string | null>
   setRootDirectory: (dir: string | null) => Promise<void>
   getStorePath: () => Promise<string>

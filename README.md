@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Electron-Desktop-blue" />
   <img src="https://img.shields.io/badge/Vue-3-brightgreen" />
   <img src="https://img.shields.io/badge/TypeScript-Strict-blue" />
-  <img src="https://img.shields.io/badge/Tests-627-success" />
+  <img src="https://img.shields.io/badge/Tests-641-success" />
   <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
 </p>
 
@@ -100,6 +100,7 @@ The scrubber uses **display isolation** — a `displayCurrentTime` computed ref 
 - Right-click context menu:
   - Play
   - Add Tag
+  - Add Tag '${lastUsedTag}' (quick-tag with most recently used tag)
   - Edit Description
   - Rename (on disk)
   - Add to Soundboard... (opens modal with soundboard picker)
@@ -152,13 +153,18 @@ Metadata stored in portable JSON format — no database required.
 ## 🎛 Soundboards
 
 - **Left-side drawer** — create, manage, and delete soundboards per profile
-- **Dockable panels** — pin soundboards as bottom-right floating panels with list or grid layout
+- **Dockable panels** — pin soundboards as bottom-right floating panels with list, grid, or table layout
 - **Resizable panels** — drag left edge, top edge, or corner to resize; dimensions persist across sessions
-- **Layout toggle** — click the LIST/GRID badge in the drawer to switch views
+- **Three layouts** — LIST (compact rows), GRID (clickable pads), TABLE (columns with Name, Duration, Offset, Range)
+- **View switcher** — LIST/GRID/TABLE toggle buttons in each panel header; also click layout badge in drawer to cycle
+- **Table view** — right-click column headers to show/hide Duration, Offset, Range columns; visibility persists
+- **Aggregated tags** — panel subtitle shows color-coded tag pills collected from referenced files; click to filter library
+- **Auto-expand** — enabling a soundboard automatically expands it (won't stay minimized)
 - **Add items** via:
   - Right-click any file > "Add to Soundboard..." (modal with soundboard picker, custom name, offset, range)
   - Right-click > quick-add to most recently used soundboard
   - Drag rows from the library directly onto a docked soundboard panel
+- **Item context menu** — right-click any sound in a panel > Play, Edit (name/offset/range modal), Remove
 - **Playback** — items play through the main Player
 - **Footer count** — drawer shows total soundboard count for the active profile
 
@@ -229,7 +235,7 @@ Renderer (Vue 3)
 | **music-metadata** | Audio duration extraction              |
 | **chroma-js**      | Color math for theme generation        |
 | **TypeScript**     | Strict typing throughout               |
-| **Vitest**         | 627 unit tests across 34 files         |
+| **Vitest**         | 641 unit tests across 34 files         |
 
 ---
 
@@ -237,12 +243,12 @@ Renderer (Vue 3)
 
 ForgeAudio includes:
 
-- 627 unit tests across 34 files
+- 641 unit tests across 34 files
 - Store-level logic testing (library, tag, theme, settings, soundboard)
 - Filtering edge-case validation
 - Metadata persistence coverage
 - Profile system coverage (create, switch, delete, export/import)
-- Soundboard CRUD, drawer UI, docked panel rendering
+- Soundboard CRUD (including updateItem, auto-expand, visibleColumns), drawer UI, docked panel rendering
 - Drag-and-drop import + conflict resolution
 - Modal rendering and ARIA compliance
 - IPC boundary mocking
@@ -313,7 +319,7 @@ src/
 ├── stores/            — libraryStore, tagStore, themeStore, settingsStore, soundboardStore
 └── styles/            — Global CSS variables and resets
 
-tests/                 — 627 tests across 34 files
+tests/                 — 641 tests across 34 files
 ```
 
 ---
@@ -349,6 +355,7 @@ All tags, descriptions, playback history, and theme settings are stored in:
 			"profileId": "Default",
 			"name": "Quick Pads",
 			"layoutType": "GRID",
+		"visibleColumns": ["duration", "offset", "range"],
 			"enabled": true,
 			"state": "expanded",
 			"items": [{ "id": "sbi_...", "name": "kick.wav", "filePath": "/sounds/kick.wav", "duration": 0.5 }],

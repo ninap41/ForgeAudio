@@ -45,6 +45,11 @@ const mockElectronAPI = {
   copyFileToLibrary: vi.fn(),
   onContextMenuAddToSoundboard: vi.fn(),
   onContextMenuQuickAddToSoundboard: vi.fn(),
+  onContextMenuQuickTag: vi.fn(),
+  showSoundboardItemMenu: vi.fn(),
+  onSbItemPlay: vi.fn(),
+  onSbItemEdit: vi.fn(),
+  onSbItemRemove: vi.fn(),
 }
 
 ;(window as any).electronAPI = mockElectronAPI
@@ -76,12 +81,12 @@ describe('SoundboardDrawer', () => {
       expect(inputs[1].attributes('placeholder')).toBe('Description (optional)')
     })
 
-    it('renders layout select with LIST and GRID options', () => {
+    it('renders layout select with LIST, GRID, and TABLE options', () => {
       const wrapper = createWrapper()
       const select = wrapper.find('.drawer-select')
       expect(select.exists()).toBe(true)
       const options = select.findAll('option')
-      expect(options.map(o => o.text())).toEqual(['List', 'Grid'])
+      expect(options.map(o => o.text())).toEqual(['List', 'Grid', 'Table'])
     })
 
     it('renders Create button', () => {
@@ -238,12 +243,23 @@ describe('SoundboardDrawer', () => {
       expect(store.allSoundboards[0].layoutType).toBe('GRID')
     })
 
-    it('toggles GRID to LIST on click', async () => {
+    it('toggles GRID to TABLE on click', async () => {
       const store = useSoundboardStore()
       const id = store.createSoundboard('X', '', 'GRID', 'Default')
       const wrapper = createWrapper()
       const toggleBtn = wrapper.find('.sb-layout-toggle')
       expect(toggleBtn.text()).toBe('GRID')
+      await toggleBtn.trigger('click')
+      await vi.dynamicImportSettled()
+      expect(store.allSoundboards[0].layoutType).toBe('TABLE')
+    })
+
+    it('toggles TABLE to LIST on click', async () => {
+      const store = useSoundboardStore()
+      const id = store.createSoundboard('X', '', 'TABLE', 'Default')
+      const wrapper = createWrapper()
+      const toggleBtn = wrapper.find('.sb-layout-toggle')
+      expect(toggleBtn.text()).toBe('TABLE')
       await toggleBtn.trigger('click')
       await vi.dynamicImportSettled()
       expect(store.allSoundboards[0].layoutType).toBe('LIST')
