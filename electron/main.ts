@@ -445,8 +445,13 @@ ipcMain.handle(
 )
 
 // Context menu triggered from renderer
-ipcMain.on("context-menu:show", (event, params: { filePath: string }) => {
-	const menu = Menu.buildFromTemplate([
+ipcMain.on("context-menu:show", (event, params: {
+	filePath: string
+	soundboards?: Array<{ id: string; name: string }>
+	recentSoundboardId?: string | null
+	recentSoundboardName?: string | null
+}) => {
+	const template: Electron.MenuItemConstructorOptions[] = [
 		{
 			label: "Play",
 			click: () => event.sender.send("context-menu:play", params.filePath),
@@ -463,23 +468,44 @@ ipcMain.on("context-menu:show", (event, params: { filePath: string }) => {
 			label: "Rename…",
 			click: () => event.sender.send("context-menu:rename", params.filePath),
 		},
-		{ type: "separator" },
-		{
-			label: process.platform === "darwin" ? "Reveal in Finder" : "Show in Explorer",
-			click: () => shell.showItemInFolder(params.filePath),
+	]
+
+	// Soundboard items (dynamic)
+	if (params.soundboards && params.soundboards.length > 0) {
+		template.push({ type: "separator" })
+		template.push({
+			label: "Add to Soundboard…",
+			click: () => event.sender.send("context-menu:addToSoundboard", params.filePath),
+		})
+		if (params.recentSoundboardId && params.recentSoundboardName) {
+			template.push({
+				label: `Add to '${params.recentSoundboardName}'`,
+				click: () => event.sender.send("context-menu:quickAddToSoundboard", {
+					filePath: params.filePath,
+					soundboardId: params.recentSoundboardId,
+				}),
+			})
+		}
+	}
+
+	template.push({ type: "separator" })
+	template.push({
+		label: process.platform === "darwin" ? "Reveal in Finder" : "Show in Explorer",
+		click: () => shell.showItemInFolder(params.filePath),
+	})
+	template.push({
+		label: "Copy File Path",
+		click: () => {
+			const { clipboard } = require("electron")
+			clipboard.writeText(params.filePath)
 		},
-		{
-			label: "Copy File Path",
-			click: () => {
-				const { clipboard } = require("electron")
-				clipboard.writeText(params.filePath)
-			},
-		},
-		{ type: "separator" },
-		{
-			label: "Delete File…",
-			click: () => event.sender.send("context-menu:delete", params.filePath),
-		},
-	])
+	})
+	template.push({ type: "separator" })
+	template.push({
+		label: "Delete File…",
+		click: () => event.sender.send("context-menu:delete", params.filePath),
+	})
+
+	const menu = Menu.buildFromTemplate(template)
 	menu.popup()
 })

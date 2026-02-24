@@ -43,6 +43,8 @@ const mockElectronAPI = {
   createDirectory: vi.fn(),
   resolveDroppedPaths: vi.fn(),
   copyFileToLibrary: vi.fn(),
+  onContextMenuAddToSoundboard: vi.fn(),
+  onContextMenuQuickAddToSoundboard: vi.fn(),
 }
 
 ;(window as any).electronAPI = mockElectronAPI
@@ -118,7 +120,7 @@ describe('DockedSoundboardContainer', () => {
     const id = store.createSoundboard('X', '', 'LIST', 'Default')
     store.toggleEnabled(id)
     const wrapper = createWrapper()
-    expect(wrapper.find('.sb-empty-text').text()).toContain('No items')
+    expect(wrapper.find('.sb-empty-text').text()).toContain('Drag files here')
   })
 
   it('shows empty state text in grid view when no items', () => {
@@ -126,7 +128,7 @@ describe('DockedSoundboardContainer', () => {
     const id = store.createSoundboard('X', '', 'GRID', 'Default')
     store.toggleEnabled(id)
     const wrapper = createWrapper()
-    expect(wrapper.find('.sb-empty-text').text()).toContain('No items')
+    expect(wrapper.find('.sb-empty-text').text()).toContain('Drag files here')
   })
 
   it('renders items in list view', () => {

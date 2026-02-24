@@ -1,7 +1,14 @@
 <template>
-	<div class="sb-list-view">
+	<div
+		class="sb-list-view"
+		:class="{ 'sb-drop-active': isDragOver }"
+		@dragover.prevent="onDragOver"
+		@dragenter.prevent="onDragEnter"
+		@dragleave="onDragLeave"
+		@drop.prevent="onDrop"
+	>
 		<div v-if="soundboard.items.length === 0" class="sb-empty">
-			<p class="sb-empty-text">No items — click + to add</p>
+			<p class="sb-empty-text">Drag files here or use the right-click menu</p>
 		</div>
 		<div v-for="item in soundboard.items" :key="item.id" class="sb-list-item">
 			<button class="sb-play-btn" :title="isItemPlaying(item) ? 'Stop' : 'Play'" @click="playItem(item)">
@@ -38,11 +45,11 @@
 				</svg>
 			</button>
 		</div>
-		<button class="sb-add-btn" title="Add item" @click="handleAddItem">+ Add Item</button>
 	</div>
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue"
 import { useLibraryStore } from "../stores/libraryStore"
 import type { Soundboard, SoundboardItem } from "../stores/soundboardStore"
 
@@ -52,6 +59,43 @@ interface Props {
 
 const props = defineProps<Props>()
 const library = useLibraryStore()
+
+const isDragOver = ref(false)
+let dragCounter = 0
+
+function onDragOver(e: DragEvent) {
+	if (!e.dataTransfer?.types.includes("application/x-forgeaudio-file")) return
+	e.dataTransfer.dropEffect = "copy"
+}
+
+function onDragEnter(e: DragEvent) {
+	if (!e.dataTransfer?.types.includes("application/x-forgeaudio-file")) return
+	dragCounter++
+	isDragOver.value = true
+}
+
+function onDragLeave() {
+	dragCounter--
+	if (dragCounter <= 0) {
+		dragCounter = 0
+		isDragOver.value = false
+	}
+}
+
+function onDrop(e: DragEvent) {
+	dragCounter = 0
+	isDragOver.value = false
+	const json = e.dataTransfer?.getData("application/x-forgeaudio-file")
+	if (!json) return
+	const data = JSON.parse(json)
+	const item: SoundboardItem = {
+		id: `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+		name: data.name,
+		filePath: data.path,
+		duration: data.duration ?? 0,
+	}
+	library.addSoundboardItem(props.soundboard.id, item)
+}
 
 function isItemPlaying(item: SoundboardItem): boolean {
 	return library.isPlaying && library.currentFile?.path === item.filePath
@@ -80,20 +124,6 @@ function formatDuration(seconds: number): string {
 	const m = Math.floor(seconds / 60)
 	const s = Math.floor(seconds % 60)
 	return `${m}:${s.toString().padStart(2, "0")}`
-}
-
-async function handleAddItem() {
-	const filePath = await window.electronAPI.selectFile()
-	if (!filePath) return
-	const duration = (await window.electronAPI.getAudioDuration(filePath)) || 0
-	const fileName = filePath.split("/").pop() || filePath
-	const item: SoundboardItem = {
-		id: `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-		name: fileName,
-		filePath,
-		duration,
-	}
-	await library.addSoundboardItem(props.soundboard.id, item)
 }
 
 async function handleRemove(itemId: string) {
@@ -199,25 +229,9 @@ async function handleRemove(itemId: string) {
 	color: var(--danger);
 }
 
-.sb-add-btn {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 6px;
-	font-size: 11px;
-	color: var(--text-muted);
-	background: none;
-	border: 1px dashed var(--border);
-	border-radius: 4px;
-	cursor: pointer;
-	margin-top: 4px;
-	transition:
-		color 0.15s,
-		border-color 0.15s;
-}
-
-.sb-add-btn:hover {
-	color: var(--text-primary);
-	border-color: var(--text-secondary);
+.sb-drop-active {
+	outline: 2px dashed var(--accent);
+	outline-offset: -2px;
+	background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 </style>

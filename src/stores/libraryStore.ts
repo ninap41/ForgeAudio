@@ -755,7 +755,7 @@ export function useLibraryStore() {
 
 	async function updateSoundboardWrapper(
 		id: string,
-		updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType">>,
+		updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType" | "width" | "height">>,
 	) {
 		soundboardStore.updateSoundboard(id, updates)
 		await saveMetadata()

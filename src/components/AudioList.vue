@@ -118,10 +118,12 @@ const isDragOver = ref(false)
 let dragCounter = 0
 
 function onDragOver(e: DragEvent) {
+	if (e.dataTransfer?.types?.includes("application/x-forgeaudio-file")) return
 	if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"
 }
 
-function onDragEnter() {
+function onDragEnter(e: DragEvent) {
+	if (e.dataTransfer?.types?.includes("application/x-forgeaudio-file")) return
 	dragCounter++
 	isDragOver.value = true
 }
@@ -137,6 +139,7 @@ function onDragLeave() {
 function onDrop(e: DragEvent) {
 	dragCounter = 0
 	isDragOver.value = false
+	if (e.dataTransfer?.types?.includes("application/x-forgeaudio-file")) return
 	if (!e.dataTransfer?.files.length) return
 	const paths: string[] = []
 	for (const file of Array.from(e.dataTransfer.files)) {

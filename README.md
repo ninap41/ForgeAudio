@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Electron-Desktop-blue" />
   <img src="https://img.shields.io/badge/Vue-3-brightgreen" />
   <img src="https://img.shields.io/badge/TypeScript-Strict-blue" />
-  <img src="https://img.shields.io/badge/Tests-412-success" />
+  <img src="https://img.shields.io/badge/Tests-627-success" />
   <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
 </p>
 
@@ -102,6 +102,8 @@ The scrubber uses **display isolation** — a `displayCurrentTime` computed ref 
   - Add Tag
   - Edit Description
   - Rename (on disk)
+  - Add to Soundboard... (opens modal with soundboard picker)
+  - Quick-add to most recently used soundboard
   - Delete (with confirmation)
   - Reveal in Finder
   - Copy Path
@@ -137,6 +139,39 @@ Metadata stored in portable JSON format — no database required.
 
 ---
 
+## 👤 Profiles
+
+- **Named profiles** — save/switch/delete/rename full library snapshots (files, tags, theme, settings, root directory, soundboards)
+- **Instant switching** — same directory = in-place swap; different directory = automatic rescan
+- **Export / Import** — share profiles as `.forgerc` files
+- **Default profile** — auto-saved on first custom profile creation
+- Active profile shown in header
+
+---
+
+## 🎛 Soundboards
+
+- **Left-side drawer** — create, manage, and delete soundboards per profile
+- **Dockable panels** — pin soundboards as bottom-right floating panels with list or grid layout
+- **Resizable panels** — drag left edge, top edge, or corner to resize; dimensions persist across sessions
+- **Layout toggle** — click the LIST/GRID badge in the drawer to switch views
+- **Add items** via:
+  - Right-click any file > "Add to Soundboard..." (modal with soundboard picker, custom name, offset, range)
+  - Right-click > quick-add to most recently used soundboard
+  - Drag rows from the library directly onto a docked soundboard panel
+- **Playback** — items play through the main Player
+- **Footer count** — drawer shows total soundboard count for the active profile
+
+---
+
+## 📥 Drag-and-Drop
+
+- **File import** — drag files/folders from Finder onto the file list or empty state; audio files copied to library root, duplicates resolved via conflict modal (overwrite / keep both / apply-to-all)
+- **Soundboard drag** — drag library rows onto docked soundboard panels to add items; visual drop zone feedback with dashed accent outline
+- Internal drags are isolated from file-import drops
+
+---
+
 # 🚀 Performance Characteristics
 
 - Parallel file system traversal
@@ -154,18 +189,22 @@ Main Process (Electron)
 │
 ├── Scanner (parallel FS traversal)
 ├── Metadata (library.json I/O)
-└── Audio Info (music-metadata)
+├── Audio Info (music-metadata)
+└── Context Menu (dynamic soundboard items)
 │
 Renderer (Vue 3)
 │
 ├── Composable Stores (singleton pattern)
-│   ├── libraryStore
+│   ├── libraryStore (files, filters, profiles, soundboard wrappers)
 │   ├── tagStore
-│   └── themeStore
+│   ├── themeStore
+│   ├── settingsStore
+│   └── soundboardStore (CRUD, no persistence)
 │
 ├── Filter System (pure computed logic)
 ├── Playback Engine
-└── Theme Engine
+├── Theme Engine
+└── Soundboard System (drawer, docked panels, drag-and-drop)
 ```
 
 **Principles:**
@@ -190,7 +229,7 @@ Renderer (Vue 3)
 | **music-metadata** | Audio duration extraction              |
 | **chroma-js**      | Color math for theme generation        |
 | **TypeScript**     | Strict typing throughout               |
-| **Vitest**         | 412 unit tests across 24 files         |
+| **Vitest**         | 627 unit tests across 34 files         |
 
 ---
 
@@ -198,10 +237,14 @@ Renderer (Vue 3)
 
 ForgeAudio includes:
 
-- 412 unit tests across 24 files
-- Store-level logic testing
+- 627 unit tests across 34 files
+- Store-level logic testing (library, tag, theme, settings, soundboard)
 - Filtering edge-case validation
 - Metadata persistence coverage
+- Profile system coverage (create, switch, delete, export/import)
+- Soundboard CRUD, drawer UI, docked panel rendering
+- Drag-and-drop import + conflict resolution
+- Modal rendering and ARIA compliance
 - IPC boundary mocking
 
 Performance-critical logic is protected by tests.
@@ -255,22 +298,22 @@ npm test
 
 ```
 electron/
-├── main.ts
-├── preload.ts
+├── main.ts            — Window, IPC handlers, atom:// protocol, context menu
+├── preload.ts         — contextBridge (exposes electronAPI)
 └── ipc/
-    ├── scanner.ts
-    ├── metadata.ts
-    └── audioInfo.ts
+    ├── scanner.ts     — Parallel recursive audio file scanner
+    ├── metadata.ts    — library.json read/write
+    └── audioInfo.ts   — Audio duration extraction
 
 src/
-├── App.vue
-├── router.ts
-├── components/
-├── views/
-├── stores/
-└── styles/
+├── App.vue            — Shell layout (header, nav, player, soundboard drawer/panels)
+├── router.ts          — Routes: / → LibraryView, /settings → SettingsView
+├── components/        — 20+ components (modals, player, search, soundboard, etc.)
+├── views/             — LibraryView, SettingsView (with 9 settings sub-panels)
+├── stores/            — libraryStore, tagStore, themeStore, settingsStore, soundboardStore
+└── styles/            — Global CSS variables and resets
 
-tests/
+tests/                 — 627 tests across 34 files
 ```
 
 ---
@@ -284,6 +327,7 @@ All tags, descriptions, playback history, and theme settings are stored in:
 ```json
 {
 	"version": 1,
+	"rootDirectory": "/Users/me/sounds",
 	"files": {
 		"kick_01.wav": {
 			"tags": ["percussion", "impact"],
@@ -296,6 +340,22 @@ All tags, descriptions, playback history, and theme settings are stored in:
 	},
 	"theme": {
 		"--accent": "#4da6ff"
+	},
+	"activeProfile": "Default",
+	"profiles": { ... },
+	"soundboards": {
+		"sb_123_1": {
+			"id": "sb_123_1",
+			"profileId": "Default",
+			"name": "Quick Pads",
+			"layoutType": "GRID",
+			"enabled": true,
+			"state": "expanded",
+			"items": [{ "id": "sbi_...", "name": "kick.wav", "filePath": "/sounds/kick.wav", "duration": 0.5 }],
+			"width": 320,
+			"height": 400,
+			"updatedAt": "2026-02-23T..."
+		}
 	}
 }
 ```
@@ -304,12 +364,14 @@ Metadata is keyed by **filename**, not full path — ensuring portability when m
 
 ---
 
-# 🗺 Roadmap (Optional Future Ideas)
+# 🗺 Roadmap (Future Ideas)
 
 - Waveform preview rendering
 - Saved filter presets
 - Virtualized list for extremely large libraries
 - Indexed search engine
+- Soundboard offset/range playback support
+- MIDI controller mapping for soundboard pads
 
 ---
 

@@ -43,6 +43,8 @@ const mockElectronAPI = {
   createDirectory: vi.fn(),
   resolveDroppedPaths: vi.fn(),
   copyFileToLibrary: vi.fn(),
+  onContextMenuAddToSoundboard: vi.fn(),
+  onContextMenuQuickAddToSoundboard: vi.fn(),
 }
 
 ;(window as any).electronAPI = mockElectronAPI
@@ -170,7 +172,7 @@ describe('SoundboardDrawer', () => {
       const store = useSoundboardStore()
       store.createSoundboard('X', '', 'GRID', 'Default')
       const wrapper = createWrapper()
-      expect(wrapper.find('.sb-layout-badge').text()).toBe('GRID')
+      expect(wrapper.find('.sb-layout-toggle').text()).toBe('GRID')
     })
 
     it('shows item count', () => {
@@ -221,6 +223,52 @@ describe('SoundboardDrawer', () => {
       await deleteBtn.trigger('click')
       await vi.dynamicImportSettled()
       expect(store.allSoundboards).toHaveLength(0)
+    })
+  })
+
+  describe('layout toggle', () => {
+    it('toggles LIST to GRID on click', async () => {
+      const store = useSoundboardStore()
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      const wrapper = createWrapper()
+      const toggleBtn = wrapper.find('.sb-layout-toggle')
+      expect(toggleBtn.text()).toBe('LIST')
+      await toggleBtn.trigger('click')
+      await vi.dynamicImportSettled()
+      expect(store.allSoundboards[0].layoutType).toBe('GRID')
+    })
+
+    it('toggles GRID to LIST on click', async () => {
+      const store = useSoundboardStore()
+      const id = store.createSoundboard('X', '', 'GRID', 'Default')
+      const wrapper = createWrapper()
+      const toggleBtn = wrapper.find('.sb-layout-toggle')
+      expect(toggleBtn.text()).toBe('GRID')
+      await toggleBtn.trigger('click')
+      await vi.dynamicImportSettled()
+      expect(store.allSoundboards[0].layoutType).toBe('LIST')
+    })
+  })
+
+  describe('footer count', () => {
+    it('shows "0 soundboards" when empty', () => {
+      const wrapper = createWrapper()
+      expect(wrapper.find('.drawer-footer').text()).toBe('0 soundboards')
+    })
+
+    it('shows "1 soundboard" for single board', () => {
+      const store = useSoundboardStore()
+      store.createSoundboard('A', '', 'LIST', 'Default')
+      const wrapper = createWrapper()
+      expect(wrapper.find('.drawer-footer').text()).toBe('1 soundboard')
+    })
+
+    it('shows "2 soundboards" for multiple boards', () => {
+      const store = useSoundboardStore()
+      store.createSoundboard('A', '', 'LIST', 'Default')
+      store.createSoundboard('B', '', 'GRID', 'Default')
+      const wrapper = createWrapper()
+      expect(wrapper.find('.drawer-footer').text()).toBe('2 soundboards')
     })
   })
 

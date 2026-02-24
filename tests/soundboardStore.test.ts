@@ -248,6 +248,48 @@ describe('soundboardStore', () => {
     })
   })
 
+  describe('width and height', () => {
+    it('updates width and height via updateSoundboard', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.updateSoundboard(id, { width: 400, height: 500 })
+      expect(store.allSoundboards[0].width).toBe(400)
+      expect(store.allSoundboards[0].height).toBe(500)
+    })
+
+    it('preserves width/height when updating other fields', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.updateSoundboard(id, { width: 400, height: 500 })
+      store.updateSoundboard(id, { name: 'Renamed' })
+      expect(store.allSoundboards[0].width).toBe(400)
+      expect(store.allSoundboards[0].height).toBe(500)
+      expect(store.allSoundboards[0].name).toBe('Renamed')
+    })
+  })
+
+  describe('updatedAt timestamp', () => {
+    it('sets updatedAt on updateSoundboard', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      expect(store.allSoundboards[0].updatedAt).toBeUndefined()
+      store.updateSoundboard(id, { name: 'New' })
+      expect(store.allSoundboards[0].updatedAt).toBeTruthy()
+    })
+
+    it('sets updatedAt on addItem', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 1 })
+      expect(store.allSoundboards[0].updatedAt).toBeTruthy()
+    })
+
+    it('sets updatedAt on removeItem', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 1 })
+      const before = store.allSoundboards[0].updatedAt
+      // Small delay to ensure different timestamp
+      store.removeItem(id, 'i1')
+      expect(store.allSoundboards[0].updatedAt).toBeTruthy()
+    })
+  })
+
   describe('_resetSoundboardStore', () => {
     it('clears all state', () => {
       store.createSoundboard('A', '', 'LIST', 'Default')

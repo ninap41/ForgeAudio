@@ -25,7 +25,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   copyPath: (filePath: string) => ipcRenderer.invoke('clipboard:copyPath', filePath),
 
   // Context menu
-  showContextMenu: (params: { filePath: string }) =>
+  showContextMenu: (params: {
+    filePath: string
+    soundboards?: Array<{ id: string; name: string }>
+    recentSoundboardId?: string | null
+    recentSoundboardName?: string | null
+  }) =>
     ipcRenderer.send('context-menu:show', params),
 
   // File operations
@@ -75,4 +80,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('context-menu:delete', (_event, filePath) => callback(filePath)),
   onContextMenuRename: (callback: (filePath: string) => void) =>
     ipcRenderer.on('context-menu:rename', (_event, filePath) => callback(filePath)),
+  onContextMenuAddToSoundboard: (callback: (filePath: string) => void) =>
+    ipcRenderer.on('context-menu:addToSoundboard', (_event, filePath) => callback(filePath)),
+  onContextMenuQuickAddToSoundboard: (callback: (data: { filePath: string; soundboardId: string }) => void) =>
+    ipcRenderer.on('context-menu:quickAddToSoundboard', (_event, data) => callback(data)),
 })

@@ -3,8 +3,10 @@
 		class="audio-row"
 		:class="{ active: isActive, playing: isActive && library.isPlaying }"
 		:data-path="file.path"
+		draggable="true"
 		@click="library.playFile(file)"
 		@contextmenu.prevent="onContextMenu"
+		@dragstart="onDragStart"
 	>
 		<div class="col col-play" :style="{ width: widths.play + 'px' }">
 			<button class="play-btn" @click.stop="togglePlay">
@@ -56,6 +58,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import { useLibraryStore, type AudioFile } from "@/stores/libraryStore"
+import { useSoundboardStore } from "@/stores/soundboardStore"
 import TagChip from "./TagChip.vue"
 
 type ColKey = "play" | "name" | "tags" | "duration" | "type" | "createdAt" | "modifiedAt"
@@ -66,6 +69,7 @@ const props = defineProps<{
 }>()
 
 const library = useLibraryStore()
+const soundboardStore = useSoundboardStore()
 
 const isActive = computed(() => library.currentFile?.path === props.file.path)
 
@@ -78,7 +82,42 @@ function togglePlay() {
 }
 
 function onContextMenu() {
-	window.electronAPI.showContextMenu({ filePath: props.file.path })
+	const profileSoundboards = soundboardStore.getSoundboardsForProfile(library.activeProfileName)
+	const soundboards = profileSoundboards.map((sb) => ({ id: sb.id, name: sb.name }))
+
+	// Find the most recently updated soundboard
+	let recentSoundboardId: string | null = null
+	let recentSoundboardName: string | null = null
+	if (profileSoundboards.length > 0) {
+		const sorted = [...profileSoundboards]
+			.filter((sb) => sb.updatedAt)
+			.sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))
+		if (sorted.length > 0) {
+			recentSoundboardId = sorted[0].id
+			recentSoundboardName = sorted[0].name
+		}
+	}
+
+	window.electronAPI.showContextMenu({
+		filePath: props.file.path,
+		soundboards,
+		recentSoundboardId,
+		recentSoundboardName,
+	})
+}
+
+function onDragStart(e: DragEvent) {
+	if (!e.dataTransfer) return
+	e.dataTransfer.effectAllowed = "copy"
+	e.dataTransfer.setData(
+		"application/x-forgeaudio-file",
+		JSON.stringify({
+			path: props.file.path,
+			name: props.file.name,
+			extension: props.file.extension,
+			duration: props.file.duration ?? 0,
+		}),
+	)
 }
 
 function formatDuration(seconds: number | null): string {

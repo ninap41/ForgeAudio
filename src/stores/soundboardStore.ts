@@ -18,6 +18,9 @@ export interface Soundboard {
 	enabled: boolean
 	state: "minimized" | "expanded"
 	items: SoundboardItem[]
+	width?: number
+	height?: number
+	updatedAt?: string
 }
 
 const soundboards = ref<Record<string, Soundboard>>({})
@@ -61,12 +64,15 @@ export function useSoundboardStore() {
 		delete soundboards.value[id]
 	}
 
-	function updateSoundboard(id: string, updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType">>) {
+	function updateSoundboard(id: string, updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType" | "width" | "height">>) {
 		const sb = soundboards.value[id]
 		if (!sb) return
 		if (updates.name !== undefined) sb.name = updates.name
 		if (updates.description !== undefined) sb.description = updates.description
 		if (updates.layoutType !== undefined) sb.layoutType = updates.layoutType
+		if (updates.width !== undefined) sb.width = updates.width
+		if (updates.height !== undefined) sb.height = updates.height
+		sb.updatedAt = new Date().toISOString()
 	}
 
 	function toggleEnabled(id: string) {
@@ -86,12 +92,18 @@ export function useSoundboardStore() {
 
 	function addItem(soundboardId: string, item: SoundboardItem) {
 		const sb = soundboards.value[soundboardId]
-		if (sb) sb.items.push(item)
+		if (sb) {
+			sb.items.push(item)
+			sb.updatedAt = new Date().toISOString()
+		}
 	}
 
 	function removeItem(soundboardId: string, itemId: string) {
 		const sb = soundboards.value[soundboardId]
-		if (sb) sb.items = sb.items.filter((i) => i.id !== itemId)
+		if (sb) {
+			sb.items = sb.items.filter((i) => i.id !== itemId)
+			sb.updatedAt = new Date().toISOString()
+		}
 	}
 
 	function loadSoundboards(data: Record<string, Soundboard>) {

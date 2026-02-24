@@ -4,6 +4,13 @@
 		:class="{ 'dock-panel--collapsed': collapsed }"
 		:style="panelStyle"
 	>
+		<!-- Resize handles (only when expanded) -->
+		<template v-if="!collapsed">
+			<div class="resize-handle resize-handle--left" @pointerdown.stop="onResizeStart($event, 'left')" />
+			<div class="resize-handle resize-handle--top" @pointerdown.stop="onResizeStart($event, 'top')" />
+			<div class="resize-handle resize-handle--corner" @pointerdown.stop="onResizeStart($event, 'corner')" />
+		</template>
+
 		<div class="dock-panel-titlebar" @click="$emit('toggle-collapse')">
 			<span class="dock-panel-title">{{ title }}</span>
 			<div class="dock-panel-controls">
@@ -54,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount } from 'vue'
 
 interface Props {
 	panelId: string
@@ -69,19 +76,72 @@ const props = withDefaults(defineProps<Props>(), {
 	height: 350,
 })
 
-defineEmits<{
+const emit = defineEmits<{
 	'toggle-collapse': []
 	close: []
+	resize: [width: number, height: number]
 }>()
 
 const panelStyle = computed(() => ({
 	width: `${props.width}px`,
 	height: props.collapsed ? 'auto' : `${props.height}px`,
 }))
+
+const MIN_W = 200
+const MAX_W = 600
+const MIN_H = 200
+const MAX_H = 800
+
+let resizeEdge: 'left' | 'top' | 'corner' | null = null
+let startX = 0
+let startY = 0
+let startW = 0
+let startH = 0
+
+function onResizeStart(e: PointerEvent, edge: 'left' | 'top' | 'corner') {
+	e.preventDefault()
+	resizeEdge = edge
+	startX = e.clientX
+	startY = e.clientY
+	startW = props.width
+	startH = props.height
+	document.addEventListener('pointermove', onResizeMove)
+	document.addEventListener('pointerup', onResizeEnd)
+}
+
+function onResizeMove(e: PointerEvent) {
+	if (!resizeEdge) return
+	const dx = e.clientX - startX
+	const dy = e.clientY - startY
+
+	let w = startW
+	let h = startH
+
+	if (resizeEdge === 'left' || resizeEdge === 'corner') {
+		w = Math.min(MAX_W, Math.max(MIN_W, startW - dx))
+	}
+	if (resizeEdge === 'top' || resizeEdge === 'corner') {
+		h = Math.min(MAX_H, Math.max(MIN_H, startH - dy))
+	}
+
+	emit('resize', w, h)
+}
+
+function onResizeEnd() {
+	resizeEdge = null
+	document.removeEventListener('pointermove', onResizeMove)
+	document.removeEventListener('pointerup', onResizeEnd)
+}
+
+onBeforeUnmount(() => {
+	document.removeEventListener('pointermove', onResizeMove)
+	document.removeEventListener('pointerup', onResizeEnd)
+})
 </script>
 
 <style scoped>
 .dock-panel {
+	position: relative;
 	background: var(--bg-secondary);
 	border: 1px solid var(--border);
 	border-radius: 8px;
@@ -90,6 +150,35 @@ const panelStyle = computed(() => ({
 	flex-direction: column;
 	pointer-events: auto;
 	overflow: hidden;
+}
+
+.resize-handle {
+	position: absolute;
+	z-index: 5;
+}
+
+.resize-handle--left {
+	left: -3px;
+	top: 0;
+	width: 6px;
+	height: 100%;
+	cursor: ew-resize;
+}
+
+.resize-handle--top {
+	top: -3px;
+	left: 0;
+	width: 100%;
+	height: 6px;
+	cursor: ns-resize;
+}
+
+.resize-handle--corner {
+	top: -4px;
+	left: -4px;
+	width: 12px;
+	height: 12px;
+	cursor: nwse-resize;
 }
 
 .dock-panel-titlebar {

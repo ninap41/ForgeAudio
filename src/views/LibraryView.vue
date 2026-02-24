@@ -82,6 +82,7 @@
 		<RenameModal v-if="renameFilePath" :filePath="renameFilePath" @close="renameFilePath = null" @renamed="onRenamed" />
 		<CreateDirectoryModal v-if="showCreateDirectoryModal" @close="showCreateDirectoryModal = false" />
 		<ImportConflictModal v-if="importConflicts" :conflicts="importConflicts" @resolved="onConflictsResolved" @cancelled="onConflictsCancelled" />
+		<AddToSoundboardModal v-if="addToSoundboardFilePath" :filePath="addToSoundboardFilePath" @close="addToSoundboardFilePath = null" />
 	</div>
 </template>
 
@@ -98,16 +99,21 @@ import RenameModal from "@/components/RenameModal.vue"
 import AlertBanner from "@/components/AlertBanner.vue"
 import CreateDirectoryModal from "@/components/CreateDirectoryModal.vue"
 import ImportConflictModal from "@/components/ImportConflictModal.vue"
+import AddToSoundboardModal from "@/components/AddToSoundboardModal.vue"
+import { useSoundboardStore } from "@/stores/soundboardStore"
+import type { SoundboardItem } from "@/stores/soundboardStore"
 
 const EXTENSIONS = [".wav", ".mp3", ".aiff", ".flac", ".ogg", ".m4a"]
 
 const library = useLibraryStore()
+const soundboardStore = useSoundboardStore()
 const audioListRef = ref<InstanceType<typeof AudioList>>()
 const addTagFilePath = ref<string | null>(null)
 const editDescFilePath = ref<string | null>(null)
 const deleteFilePath = ref<string | null>(null)
 const renameFilePath = ref<string | null>(null)
 const showCreateDirectoryModal = ref(false)
+const addToSoundboardFilePath = ref<string | null>(null)
 const formatDropdownOpen = ref(false)
 const formatDropdownRef = ref<HTMLElement | null>(null)
 const scanStartTime = ref<number | null>(null)
@@ -288,6 +294,21 @@ onMounted(() => {
 		})
 		window.electronAPI.onContextMenuRename((filePath: string) => {
 			renameFilePath.value = filePath
+		})
+		window.electronAPI.onContextMenuAddToSoundboard((filePath: string) => {
+			addToSoundboardFilePath.value = filePath
+		})
+		window.electronAPI.onContextMenuQuickAddToSoundboard(async (data: { filePath: string; soundboardId: string }) => {
+			const file = library.files.find((f) => f.path === data.filePath)
+			const duration = file?.duration ?? (await window.electronAPI.getAudioDuration(data.filePath)) ?? 0
+			const fileName = data.filePath.split("/").pop() || data.filePath
+			const item: SoundboardItem = {
+				id: `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+				name: fileName,
+				filePath: data.filePath,
+				duration,
+			}
+			await library.addSoundboardItem(data.soundboardId, item)
 		})
 	}
 })

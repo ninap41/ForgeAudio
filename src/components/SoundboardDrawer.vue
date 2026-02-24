@@ -21,6 +21,7 @@
 			</button>
 		</div>
 
+		<div class="drawer-scroll">
 		<!-- Create Soundboard Section -->
 		<div class="drawer-section">
 			<div class="section-label">CREATE SOUNDBOARD</div>
@@ -95,10 +96,15 @@
 				</div>
 				<div v-if="sb.description" class="sb-description">{{ sb.description }}</div>
 				<div class="sb-meta">
-					<span class="sb-layout-badge">{{ sb.layoutType }}</span>
+					<button class="sb-layout-toggle" :title="`Switch to ${sb.layoutType === 'LIST' ? 'Grid' : 'List'}`" @click="toggleLayout(sb.id, sb.layoutType)">{{ sb.layoutType }}</button>
 					<span class="sb-item-count">{{ sb.items.length }} item{{ sb.items.length !== 1 ? "s" : "" }}</span>
 				</div>
 			</div>
+		</div>
+		</div>
+
+		<div class="drawer-footer">
+			{{ profileSoundboards.length }} soundboard{{ profileSoundboards.length !== 1 ? "s" : "" }}
 		</div>
 		</div>
 	</div>
@@ -129,6 +135,10 @@ async function handleCreate() {
 	newLayout.value = "LIST"
 }
 
+async function toggleLayout(id: string, current: "LIST" | "GRID") {
+	await library.updateSoundboard(id, { layoutType: current === "LIST" ? "GRID" : "LIST" })
+}
+
 async function confirmDelete(id: string) {
 	await library.deleteSoundboard(id)
 }
@@ -151,17 +161,31 @@ async function confirmDelete(id: string) {
 .soundboard-drawer {
 	position: fixed;
 	top: 0;
-	right: 0;
+	left: 0;
 	bottom: 0;
 	width: 380px;
 	z-index: 90;
 	background: var(--bg-secondary);
-	border-left: 1px solid var(--border);
+	border-right: 1px solid var(--border);
 	display: flex;
 	flex-direction: column;
-	overflow-y: auto;
+	overflow: hidden;
 	transform: translateX(0);
 	transition: transform 0.2s ease;
+}
+
+.drawer-scroll {
+	flex: 1;
+	overflow-y: auto;
+}
+
+.drawer-footer {
+	flex-shrink: 0;
+	padding: 8px 16px;
+	border-top: 1px solid var(--border);
+	font-size: 11px;
+	color: var(--text-muted);
+	text-align: center;
 }
 
 .drawer-header {
@@ -372,7 +396,7 @@ async function confirmDelete(id: string) {
 	margin-top: 4px;
 }
 
-.sb-layout-badge {
+.sb-layout-toggle {
 	font-size: 10px;
 	font-weight: 600;
 	text-transform: uppercase;
@@ -381,6 +405,14 @@ async function confirmDelete(id: string) {
 	background: var(--bg-primary);
 	padding: 1px 5px;
 	border-radius: 3px;
+	border: 1px solid transparent;
+	cursor: pointer;
+	transition: color 0.15s, border-color 0.15s;
+}
+
+.sb-layout-toggle:hover {
+	color: var(--accent);
+	border-color: var(--accent);
 }
 
 .sb-item-count {
