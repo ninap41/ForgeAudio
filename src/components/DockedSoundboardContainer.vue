@@ -44,6 +44,12 @@
 						<rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="9" y1="3" x2="9" y2="21" />
 					</svg>
 				</button>
+				<template v-if="sb.layoutType === 'GRID'">
+					<span class="grid-cols-separator" />
+					<button class="grid-cols-btn" title="Fewer columns" @click.stop="changeGridCols(sb.id, -1)">−</button>
+					<span class="grid-cols-label">{{ sb.gridColumns ?? 3 }}</span>
+					<button class="grid-cols-btn" title="More columns" @click.stop="changeGridCols(sb.id, 1)">+</button>
+				</template>
 			</template>
 
 			<template v-if="getAggregatedTags(sb).length > 0" #subtitle>
@@ -105,6 +111,16 @@ function setLayout(id: string, layoutType: "LIST" | "GRID" | "TABLE") {
 	library.updateSoundboard(id, { layoutType })
 }
 
+function changeGridCols(id: string, delta: number) {
+	const sb = soundboardStore.allSoundboards.find((s) => s.id === id)
+	if (!sb) return
+	const current = sb.gridColumns ?? 3
+	const next = Math.max(1, Math.min(8, current + delta))
+	if (next !== current) {
+		library.updateSoundboard(id, { gridColumns: next })
+	}
+}
+
 function getAggregatedTags(sb: Soundboard): string[] {
 	const tagSet = new Set<string>()
 	for (const item of sb.items) {
@@ -128,6 +144,11 @@ onMounted(() => {
 			const sb = soundboardStore.allSoundboards.find((s) => s.id === data.soundboardId)
 			const item = sb?.items.find((i) => i.id === data.itemId)
 			if (item) {
+				const options: { offset?: number; range?: [number, number] } = {}
+				if (item.partial) {
+					if (item.offset != null && item.offset > 0) options.offset = item.offset
+					if (item.range) options.range = item.range
+				}
 				library.playFile({
 					path: item.filePath,
 					name: item.name,
@@ -139,7 +160,7 @@ onMounted(() => {
 					lastPlayed: null,
 					createdAt: null,
 					modifiedAt: null,
-				})
+				}, options)
 			}
 		})
 		window.electronAPI.onSbItemEdit((data) => {
@@ -187,6 +208,45 @@ onMounted(() => {
 
 .view-toggle-btn--active {
 	color: var(--accent);
+}
+
+.grid-cols-separator {
+	width: 1px;
+	height: 14px;
+	background: var(--border);
+	margin: 0 2px;
+	align-self: center;
+}
+
+.grid-cols-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1;
+	color: var(--text-muted);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 0;
+	transition: color 0.15s, background 0.15s;
+}
+
+.grid-cols-btn:hover {
+	color: var(--text-primary);
+	background: var(--bg-hover);
+}
+
+.grid-cols-label {
+	font-size: 10px;
+	font-weight: 600;
+	color: var(--text-secondary);
+	min-width: 10px;
+	text-align: center;
 }
 
 .aggregated-tags {

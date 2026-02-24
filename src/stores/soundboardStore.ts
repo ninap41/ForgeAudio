@@ -5,6 +5,7 @@ export interface SoundboardItem {
 	name: string
 	filePath: string
 	duration: number
+	partial?: boolean
 	offset?: number
 	range?: [number, number]
 }
@@ -22,6 +23,7 @@ export interface Soundboard {
 	height?: number
 	updatedAt?: string
 	visibleColumns?: string[]
+	gridColumns?: number
 }
 
 const soundboards = ref<Record<string, Soundboard>>({})
@@ -65,7 +67,7 @@ export function useSoundboardStore() {
 		delete soundboards.value[id]
 	}
 
-	function updateSoundboard(id: string, updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType" | "width" | "height" | "visibleColumns">>) {
+	function updateSoundboard(id: string, updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType" | "width" | "height" | "visibleColumns" | "gridColumns">>) {
 		const sb = soundboards.value[id]
 		if (!sb) return
 		if (updates.name !== undefined) sb.name = updates.name
@@ -74,17 +76,19 @@ export function useSoundboardStore() {
 		if (updates.width !== undefined) sb.width = updates.width
 		if (updates.height !== undefined) sb.height = updates.height
 		if (updates.visibleColumns !== undefined) sb.visibleColumns = updates.visibleColumns
+		if (updates.gridColumns !== undefined) sb.gridColumns = updates.gridColumns
 		sb.updatedAt = new Date().toISOString()
 	}
 
-	function updateItem(soundboardId: string, itemId: string, updates: Partial<Pick<SoundboardItem, "name" | "offset" | "range">>) {
+	function updateItem(soundboardId: string, itemId: string, updates: { name?: string; partial?: boolean; offset?: number; range?: [number, number] }) {
 		const sb = soundboards.value[soundboardId]
 		if (!sb) return
 		const item = sb.items.find((i) => i.id === itemId)
 		if (!item) return
-		if (updates.name !== undefined) item.name = updates.name
-		if (updates.offset !== undefined) item.offset = updates.offset
-		if (updates.range !== undefined) item.range = updates.range
+		if ("name" in updates) item.name = updates.name!
+		if ("partial" in updates) item.partial = updates.partial
+		if ("offset" in updates) item.offset = updates.offset
+		if ("range" in updates) item.range = updates.range
 		sb.updatedAt = new Date().toISOString()
 	}
 
@@ -125,6 +129,17 @@ export function useSoundboardStore() {
 		}
 	}
 
+	function reorderItems(soundboardId: string, fromIndex: number, toIndex: number) {
+		const sb = soundboards.value[soundboardId]
+		if (!sb) return
+		if (fromIndex < 0 || fromIndex >= sb.items.length) return
+		if (toIndex < 0 || toIndex >= sb.items.length) return
+		if (fromIndex === toIndex) return
+		const [item] = sb.items.splice(fromIndex, 1)
+		sb.items.splice(toIndex, 0, item)
+		sb.updatedAt = new Date().toISOString()
+	}
+
 	function loadSoundboards(data: Record<string, Soundboard>) {
 		soundboards.value = data
 	}
@@ -150,6 +165,7 @@ export function useSoundboardStore() {
 		toggleState,
 		addItem,
 		removeItem,
+		reorderItems,
 		loadSoundboards,
 		replaceSoundboards,
 		getSoundboardSnapshot,

@@ -26,8 +26,8 @@
 			>
 				<span class="sb-td sb-td-name" :class="{ 'sb-td--active': isItemPlaying(item) }">{{ item.name }}</span>
 				<span v-if="isColumnVisible('duration')" class="sb-td sb-td-duration">{{ formatDuration(item.duration) }}</span>
-				<span v-if="isColumnVisible('offset')" class="sb-td sb-td-offset">{{ item.offset != null ? item.offset + 's' : '—' }}</span>
-				<span v-if="isColumnVisible('range')" class="sb-td sb-td-range">{{ item.range ? item.range[0] + '–' + item.range[1] + 's' : '—' }}</span>
+				<span v-if="isColumnVisible('offset')" class="sb-td sb-td-offset" :class="{ 'sb-td--partial-glow': item.partial && item.offset != null && item.offset > 0 }">{{ item.offset != null ? item.offset + 's' : '—' }}</span>
+				<span v-if="isColumnVisible('range')" class="sb-td sb-td-range" :class="{ 'sb-td--partial-glow': item.partial && item.range }">{{ item.range ? item.range[0] + '–' + item.range[1] + 's' : '—' }}</span>
 			</div>
 		</template>
 
@@ -145,6 +145,11 @@ function playItem(item: SoundboardItem) {
 		library.stopPlayback()
 		return
 	}
+	const options: { offset?: number; range?: [number, number] } = {}
+	if (item.partial) {
+		if (item.offset != null && item.offset > 0) options.offset = item.offset
+		if (item.range) options.range = item.range
+	}
 	library.playFile({
 		path: item.filePath,
 		name: item.name,
@@ -156,7 +161,7 @@ function playItem(item: SoundboardItem) {
 		lastPlayed: null,
 		createdAt: null,
 		modifiedAt: null,
-	})
+	}, options)
 }
 
 function formatDuration(seconds: number): string {
@@ -244,6 +249,11 @@ function onItemContextMenu(item: SoundboardItem) {
 
 .sb-td--active {
 	color: var(--accent);
+}
+
+.sb-td--partial-glow {
+	color: var(--accent);
+	text-shadow: 0 0 6px var(--accent);
 }
 
 .sb-td-duration { width: 50px; text-align: right; flex-shrink: 0; }

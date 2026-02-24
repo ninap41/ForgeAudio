@@ -95,6 +95,10 @@ const lastUsedTag = ref<string | null>(null)
 const currentFile = ref<AudioFile | null>(null)
 const isPlaying = ref(false)
 
+// Partial playback constraints (set by soundboard items with partial === true)
+const playbackOffset = ref<number | null>(null)
+const playbackRange = ref<[number, number] | null>(null)
+
 const filteredFiles = computed(() => {
 	let result = files.value
 
@@ -573,7 +577,9 @@ export function useLibraryStore() {
 		}
 	}
 
-	function playFile(file: AudioFile) {
+	function playFile(file: AudioFile, options?: { offset?: number; range?: [number, number] }) {
+		playbackOffset.value = options?.offset ?? null
+		playbackRange.value = options?.range ?? null
 		currentFile.value = file
 		isPlaying.value = true
 		file.lastPlayed = new Date().toISOString()
@@ -768,7 +774,7 @@ export function useLibraryStore() {
 
 	async function updateSoundboardWrapper(
 		id: string,
-		updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType" | "width" | "height" | "visibleColumns">>,
+		updates: Partial<Pick<Soundboard, "name" | "description" | "layoutType" | "width" | "height" | "visibleColumns" | "gridColumns">>,
 	) {
 		soundboardStore.updateSoundboard(id, updates)
 		await saveMetadata()
@@ -794,7 +800,12 @@ export function useLibraryStore() {
 		await saveMetadata()
 	}
 
-	async function updateSoundboardItem(soundboardId: string, itemId: string, updates: Partial<Pick<import("./soundboardStore").SoundboardItem, "name" | "offset" | "range">>) {
+	async function reorderSoundboardItems(soundboardId: string, fromIndex: number, toIndex: number) {
+		soundboardStore.reorderItems(soundboardId, fromIndex, toIndex)
+		await saveMetadata()
+	}
+
+	async function updateSoundboardItem(soundboardId: string, itemId: string, updates: { name?: string; partial?: boolean; offset?: number; range?: [number, number] }) {
 		soundboardStore.updateItem(soundboardId, itemId, updates)
 		await saveMetadata()
 	}
@@ -815,6 +826,8 @@ export function useLibraryStore() {
 		lastUsedTag,
 		currentFile,
 		isPlaying,
+		playbackOffset,
+		playbackRange,
 		filteredFiles,
 		initFromPersistedDirectory,
 		selectAndScanDirectory,
@@ -859,6 +872,7 @@ export function useLibraryStore() {
 		toggleSoundboardState,
 		addSoundboardItem,
 		removeSoundboardItem,
+		reorderSoundboardItems,
 		updateSoundboardItem,
 	})
 }
@@ -880,6 +894,8 @@ export function _resetLibraryStore() {
 	lastUsedTag.value = null
 	currentFile.value = null
 	isPlaying.value = false
+	playbackOffset.value = null
+	playbackRange.value = null
 	activeProfileName.value = "Default"
 	profiles.value = {}
 }

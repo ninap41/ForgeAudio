@@ -157,15 +157,18 @@ Metadata stored in portable JSON format — no database required.
 - **Resizable panels** — drag left edge, top edge, or corner to resize; dimensions persist across sessions
 - **Three layouts** — LIST (compact rows), GRID (clickable pads), TABLE (columns with Name, Duration, Offset, Range)
 - **View switcher** — LIST/GRID/TABLE toggle buttons in each panel header; also click layout badge in drawer to cycle
-- **Table view** — right-click column headers to show/hide Duration, Offset, Range columns; visibility persists
+- **Configurable grid columns** — +/− control in panel header (1–8 columns); persisted per soundboard
+- **Drag-to-reorder** — drag items within list or grid view to rearrange order; persisted
+- **Partial playback** — toggle per item: choose offset (start at X seconds) or range (play only [start, end]); offset and range are mutually exclusive; accent glow indicators on active partial values
+- **Table view** — right-click column headers to show/hide Duration, Offset, Range columns; visibility persists; partial glow on active offset/range cells
 - **Aggregated tags** — panel subtitle shows color-coded tag pills collected from referenced files; click to filter library
 - **Auto-expand** — enabling a soundboard automatically expands it (won't stay minimized)
 - **Add items** via:
-  - Right-click any file > "Add to Soundboard..." (modal with soundboard picker, custom name, offset, range)
+  - Right-click any file > "Add to Soundboard..." (modal with soundboard picker, custom name, partial toggle)
   - Right-click > quick-add to most recently used soundboard
   - Drag rows from the library directly onto a docked soundboard panel
-- **Item context menu** — right-click any sound in a panel > Play, Edit (name/offset/range modal), Remove
-- **Playback** — items play through the main Player
+- **Item context menu** — right-click any sound in a panel > Play, Edit (name/partial/offset/range modal), Remove
+- **Playback** — items play through the main Player; partial playback respects offset/range constraints
 - **Footer count** — drawer shows total soundboard count for the active profile
 
 ---
@@ -174,6 +177,7 @@ Metadata stored in portable JSON format — no database required.
 
 - **File import** — drag files/folders from Finder onto the file list or empty state; audio files copied to library root, duplicates resolved via conflict modal (overwrite / keep both / apply-to-all)
 - **Soundboard drag** — drag library rows onto docked soundboard panels to add items; visual drop zone feedback with dashed accent outline
+- **Soundboard reorder** — drag items within list or grid views to rearrange order
 - Internal drags are isolated from file-import drops
 
 ---

@@ -116,6 +116,12 @@ watch(audioSrc, () => {
 watch(duration, (d) => {
 	if (d > 0 && awaitingPlayback) {
 		awaitingPlayback = false
+		// Seek to partial playback start position before resuming
+		if (library.playbackRange) {
+			currentTime.value = library.playbackRange[0]
+		} else if (library.playbackOffset != null && library.playbackOffset > 0) {
+			currentTime.value = library.playbackOffset
+		}
 		playing.value = true
 	}
 })
@@ -146,12 +152,36 @@ watch(playing, (val) => {
 	}
 })
 
+// ─── Partial playback range enforcement ─────────────────────────────────────
+
+watch(currentTime, (t) => {
+	if (!library.playbackRange) return
+	if (awaitingPlayback || isScrubbing.value) return
+	const rangeEnd = library.playbackRange[1]
+	if (t >= rangeEnd) {
+		if (loop.value) {
+			currentTime.value = library.playbackRange[0]
+		} else {
+			playing.value = false
+			currentTime.value = rangeEnd
+			library.stopPlayback()
+		}
+	}
+})
+
 // ─── Loop / ended ───────────────────────────────────────────────────────────
 
 watch(ended, (isEnded) => {
 	if (!isEnded) return
 	if (loop.value) {
-		currentTime.value = 0
+		// Seek to appropriate start position for loop
+		if (library.playbackRange) {
+			currentTime.value = library.playbackRange[0]
+		} else if (library.playbackOffset != null && library.playbackOffset > 0) {
+			currentTime.value = library.playbackOffset
+		} else {
+			currentTime.value = 0
+		}
 		playing.value = true
 	} else {
 		library.stopPlayback()
