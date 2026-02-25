@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, shell, protocol } from "electron"
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell, protocol, nativeImage } from "electron"
 import { join, extname, dirname } from "path"
 import { open as fsOpen, unlink, rename, readFile as fsReadFile, writeFile, mkdir, readdir, stat, copyFile } from "fs/promises"
 
@@ -444,6 +444,18 @@ ipcMain.handle(
 	},
 )
 
+// Native file drag to external apps
+ipcMain.on('drag:startFile', (event, filePath: string) => {
+	let icon: Electron.NativeImage
+	try {
+		icon = nativeImage.createFromPath(join(__dirname, '../public/drag-icon.png'))
+		if (icon.isEmpty()) throw new Error('empty')
+	} catch {
+		icon = nativeImage.createEmpty()
+	}
+	event.sender.startDrag({ file: filePath, icon })
+})
+
 // Context menu triggered from renderer
 ipcMain.on("context-menu:show", (event, params: {
 	filePath: string
@@ -534,6 +546,13 @@ ipcMain.on("context-menu:showSoundboardItem", (event, params: {
 		{
 			label: "Play",
 			click: () => event.sender.send("context-menu:sbItemPlay", {
+				soundboardId: params.soundboardId,
+				itemId: params.itemId,
+			}),
+		},
+		{
+			label: "View Data",
+			click: () => event.sender.send("context-menu:sbItemViewData", {
 				soundboardId: params.soundboardId,
 				itemId: params.itemId,
 			}),

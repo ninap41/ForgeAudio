@@ -53,6 +53,8 @@ interface ElectronAPI {
   onSbItemPlay: (callback: (data: { soundboardId: string; itemId: string }) => void) => void
   onSbItemEdit: (callback: (data: { soundboardId: string; itemId: string }) => void) => void
   onSbItemRemove: (callback: (data: { soundboardId: string; itemId: string }) => void) => void
+  onSbItemViewData: (callback: (data: { soundboardId: string; itemId: string }) => void) => void
+  startDrag: (filePath: string) => void
   getRootDirectory: () => Promise<string | null>
   setRootDirectory: (dir: string | null) => Promise<void>
   getStorePath: () => Promise<string>

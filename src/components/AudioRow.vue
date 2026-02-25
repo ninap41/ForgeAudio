@@ -119,6 +119,8 @@ function onDragStart(e: DragEvent) {
 			duration: props.file.duration ?? 0,
 		}),
 	)
+	// Native OS drag for external apps (Finder, DAW, etc.)
+	window.electronAPI.startDrag(props.file.path)
 }
 
 function formatDuration(seconds: number | null): string {

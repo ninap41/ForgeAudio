@@ -114,6 +114,18 @@
 			}
 		"
 	/>
+
+	<SoundboardItemDataModal
+		v-if="viewDataSbId && viewDataItemId"
+		:soundboard-id="viewDataSbId"
+		:item-id="viewDataItemId"
+		@close="
+			() => {
+				viewDataSbId = null
+				viewDataItemId = null
+			}
+		"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -123,6 +135,7 @@ import SoundboardListView from "./SoundboardListView.vue"
 import SoundboardGridView from "./SoundboardGridView.vue"
 import SoundboardTableView from "./SoundboardTableView.vue"
 import EditSoundboardItemModal from "./EditSoundboardItemModal.vue"
+import SoundboardItemDataModal from "./SoundboardItemDataModal.vue"
 import { useLibraryStore } from "../stores/libraryStore"
 import { useSoundboardStore } from "../stores/soundboardStore"
 import { useTagStore } from "../stores/tagStore"
@@ -134,6 +147,8 @@ const tagStore = useTagStore()
 
 const editingSbId = ref<string | null>(null)
 const editingItemId = ref<string | null>(null)
+const viewDataSbId = ref<string | null>(null)
+const viewDataItemId = ref<string | null>(null)
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -210,6 +225,10 @@ onMounted(() => {
 		})
 		window.electronAPI.onSbItemRemove((data) => {
 			library.removeSoundboardItem(data.soundboardId, data.itemId)
+		})
+		window.electronAPI.onSbItemViewData((data) => {
+			viewDataSbId.value = data.soundboardId
+			viewDataItemId.value = data.itemId
 		})
 	}
 })

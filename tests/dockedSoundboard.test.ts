@@ -50,6 +50,8 @@ const mockElectronAPI = {
   onSbItemPlay: vi.fn(),
   onSbItemEdit: vi.fn(),
   onSbItemRemove: vi.fn(),
+  onSbItemViewData: vi.fn(),
+  startDrag: vi.fn(),
 }
 
 ;(window as any).electronAPI = mockElectronAPI
@@ -205,5 +207,14 @@ describe('DockedSoundboardContainer', () => {
     const wrapper = createWrapper()
     const activeBtns = wrapper.findAll('.view-toggle-btn--active')
     expect(activeBtns).toHaveLength(1)
+  })
+
+  it('registers onSbItemViewData IPC listener on mount', () => {
+    const store = useSoundboardStore()
+    const id = store.createSoundboard('X', '', 'LIST', 'Default')
+    store.toggleEnabled(id)
+    createWrapper()
+    expect(mockElectronAPI.onSbItemViewData).toHaveBeenCalledTimes(1)
+    expect(typeof mockElectronAPI.onSbItemViewData.mock.calls[0][0]).toBe('function')
   })
 })

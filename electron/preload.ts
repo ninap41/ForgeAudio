@@ -44,6 +44,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   copyFileToLibrary: (sourcePath: string, destDir: string, fileName: string, resolution: 'direct' | 'overwrite' | 'rename') =>
     ipcRenderer.invoke('fs:copyFileToLibrary', sourcePath, destDir, fileName, resolution),
 
+  // Native drag
+  startDrag: (filePath: string) => ipcRenderer.send('drag:startFile', filePath),
+
   // Config persistence
   getRootDirectory: () => ipcRenderer.invoke('config:getRootDirectory'),
   setRootDirectory: (dir: string | null) => ipcRenderer.invoke('config:setRootDirectory', dir),
@@ -97,4 +100,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('context-menu:sbItemEdit', (_event, data) => callback(data)),
   onSbItemRemove: (callback: (data: { soundboardId: string; itemId: string }) => void) =>
     ipcRenderer.on('context-menu:sbItemRemove', (_event, data) => callback(data)),
+  onSbItemViewData: (callback: (data: { soundboardId: string; itemId: string }) => void) =>
+    ipcRenderer.on('context-menu:sbItemViewData', (_event, data) => callback(data)),
 })
