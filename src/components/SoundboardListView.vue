@@ -26,14 +26,7 @@
 			@contextmenu.prevent="onItemContextMenu(item)"
 		>
 			<button class="sb-play-btn" :title="isItemPlaying(item) ? 'Stop' : 'Play'" @click="playItem(item)">
-				<svg
-					v-if="!isItemPlaying(item)"
-					width="12"
-					height="12"
-					viewBox="0 0 24 24"
-					fill="currentColor"
-					stroke="none"
-				>
+				<svg v-if="!isItemPlaying(item)" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
 					<polygon points="5 3 19 12 5 21" />
 				</svg>
 				<svg v-else width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -42,14 +35,27 @@
 				</svg>
 			</button>
 			<button class="sb-restart-btn" title="Restart" @click.stop="restartItem(item)">
-				<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+				<svg
+					width="11"
+					height="11"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
 					<polyline points="1 4 1 10 7 10" />
 					<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
 				</svg>
 			</button>
 			<span class="sb-item-name">{{ item.name }}</span>
-			<span v-if="item.partial && item.offset != null && item.offset > 0" class="sb-partial-badge sb-partial-glow">@{{ item.offset }}s</span>
-			<span v-else-if="item.partial && item.range" class="sb-partial-badge sb-partial-glow">{{ item.range[0] }}–{{ item.range[1] }}s</span>
+			<span v-if="item.partial && item.offset != null && item.offset > 0" class="sb-partial-badge sb-partial-glow"
+				>@{{ item.offset }}s</span
+			>
+			<span v-else-if="item.partial && item.range" class="sb-partial-badge sb-partial-glow"
+				>{{ item.range[0] }}–{{ item.range[1] }}s</span
+			>
 			<span class="sb-item-duration">{{ formatDuration(item.duration) }}</span>
 			<button class="sb-remove-btn" title="Remove" @click="handleRemove(item.id)">
 				<svg
@@ -185,27 +191,31 @@ function isItemPlaying(item: SoundboardItem): boolean {
 }
 
 function playItem(item: SoundboardItem) {
-	if (isItemPlaying(item)) {
-		library.stopPlayback()
-		return
-	}
+	// if (isItemPlaying(item)) {
+	// 	library.stopPlayback()
+	// 	return
+	// }
+	library.stopPlayback()
 	const options: { offset?: number; range?: [number, number] } = {}
 	if (item.partial) {
 		if (item.offset != null && item.offset > 0) options.offset = item.offset
 		if (item.range) options.range = item.range
 	}
-	library.playFile({
-		path: item.filePath,
-		name: item.name,
-		extension: item.filePath.split(".").pop() || "",
-		size: 0,
-		duration: item.duration,
-		tags: [],
-		description: "",
-		lastPlayed: null,
-		createdAt: null,
-		modifiedAt: null,
-	}, options)
+	library.playFile(
+		{
+			path: item.filePath,
+			name: item.name,
+			extension: item.filePath.split(".").pop() || "",
+			size: 0,
+			duration: item.duration,
+			tags: [],
+			description: "",
+			lastPlayed: null,
+			createdAt: null,
+			modifiedAt: null,
+		},
+		options,
+	)
 }
 
 function formatDuration(seconds: number): string {
