@@ -1,5 +1,5 @@
 <template>
-	<BaseModal title="Add to Soundboard" :max-width="modalMaxWidth" @close="$emit('close')">
+	<BaseModal title="Add to Soundboard" max-width="80vw" @close="$emit('close')">
 		<template #subtitle>
 			<div class="modal-subtitle">{{ fileName }}</div>
 		</template>
@@ -121,7 +121,6 @@ const fileDuration = ref(0)
 
 const fileName = computed(() => props.filePath.split("/").pop() || props.filePath)
 const profileSoundboards = computed(() => soundboardStore.getSoundboardsForProfile(library.activeProfileName))
-const modalMaxWidth = computed(() => (partial.value ? "80vw" : "400px"))
 
 onMounted(async () => {
 	nextTick(() => selectRef.value?.focus())
@@ -132,9 +131,11 @@ onMounted(async () => {
 })
 
 function previewPlayback() {
+	library.stopPlayback()
+	library.restartPlayback()
+
 	const file = library.files.find((f) => f.path === props.filePath)
 	if (!file) return
-	library.stopPlayback()
 
 	if (partialMode.value === "offset") {
 		library.playFile(file, { offset: offset.value ?? 0 })
@@ -170,10 +171,6 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-:deep(.modal) {
-	transition: max-width 0.2s ease;
-}
-
 .form-fields {
 	max-width: 400px;
 }

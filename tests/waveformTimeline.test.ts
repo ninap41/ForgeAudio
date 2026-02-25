@@ -237,7 +237,7 @@ describe('WaveformTimeline', () => {
   it('calls getWaveformPeaks IPC with correct path and width', async () => {
     const wrapper = createWrapper({ filePath: '/Users/test/sounds/kick.wav' })
     await flushPromises()
-    expect(mockGetWaveformPeaks).toHaveBeenCalledWith('/Users/test/sounds/kick.wav', 800)
+    expect(mockGetWaveformPeaks).toHaveBeenCalledWith('/Users/test/sounds/kick.wav', expect.any(Number))
     wrapper.unmount()
   })
 

@@ -1,5 +1,5 @@
 <template>
-	<BootSplash v-if="showBootSplash" @done="showBootSplash = false" />
+	<!-- <BootSplash v-if="showBootSplash" @done="showBootSplash = false" /> -->
 	<div id="app-shell">
 		<header class="app-header ember-wrap" :style="{ '--ember-color': emberColor }">
 			<div class="header-top" :style="{ '--ember-color': emberColor }">

@@ -1,5 +1,5 @@
 <template>
-	<BaseModal title="Edit Sound" :max-width="modalMaxWidth" @close="$emit('close')">
+	<BaseModal title="Edit Sound" max-width="80vw" @close="$emit('close')">
 		<template #subtitle>
 			<div class="modal-subtitle">{{ originalName }}</div>
 		</template>
@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from "vue"
+import { ref, onMounted, nextTick } from "vue"
 import BaseModal from "./BaseModal.vue"
 import WaveformTimeline from "./WaveformTimeline.vue"
 import { useLibraryStore } from "../stores/libraryStore"
@@ -106,8 +106,6 @@ const originalName = ref("")
 const itemFilePath = ref("")
 const fileDuration = ref(0)
 
-const modalMaxWidth = computed(() => (partial.value ? "80vw" : "400px"))
-
 onMounted(async () => {
 	// Find the item and pre-fill
 	const sb = soundboardStore.allSoundboards.find((s) => s.id === props.soundboardId)
@@ -126,14 +124,19 @@ onMounted(async () => {
 			partialMode.value = "offset"
 			offset.value = item.offset
 		}
-
 	}
 	nextTick(() => nameRef.value?.focus())
 })
 
 function previewPlayback() {
-	const file = library.files.find((f) => f.path === itemFilePath.value)
+	library.stopPlayback()
+	library.restartPlayback()
+	let file = null
+	file = library.files.find((f) => f.path === itemFilePath.value)
+	console.log("preview", file)
+
 	if (!file) return
+
 	if (partialMode.value === "offset") {
 		library.playFile(file, { offset: offset.value ?? 0 })
 	} else {
@@ -154,9 +157,8 @@ async function handleSubmit() {
 		updates.range = undefined
 	} else if (partial.value && partialMode.value === "range") {
 		updates.offset = undefined
-		updates.range = rangeStart.value !== undefined && rangeEnd.value !== undefined
-			? [rangeStart.value, rangeEnd.value]
-			: undefined
+		updates.range =
+			rangeStart.value !== undefined && rangeEnd.value !== undefined ? [rangeStart.value, rangeEnd.value] : undefined
 	} else {
 		updates.offset = undefined
 		updates.range = undefined
@@ -168,10 +170,6 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-:deep(.modal) {
-	transition: max-width 0.2s ease;
-}
-
 .form-fields {
 	max-width: 400px;
 }

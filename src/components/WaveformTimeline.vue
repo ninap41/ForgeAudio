@@ -185,8 +185,13 @@ onMounted(async () => {
 	}
 
 	try {
+		// Measure the container so we request exactly as many peaks as we have pixels
+		// Each bar = barWidth(2) + barGap(1) = 3px, so peaks = containerWidth / 3
+		const containerWidth = containerRef.value.clientWidth || 600
+		const peakCount = Math.max(100, Math.floor(containerWidth / 3))
+
 		// Compute peaks in the main process — no AudioContext.decodeAudioData()
-		const peaks = await window.electronAPI.getWaveformPeaks(props.filePath, 800)
+		const peaks = await window.electronAPI.getWaveformPeaks(props.filePath, peakCount)
 
 		// If component was unmounted while awaiting, bail out
 		if (!containerRef.value) return
