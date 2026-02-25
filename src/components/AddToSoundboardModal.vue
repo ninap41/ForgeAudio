@@ -1,5 +1,5 @@
 <template>
-	<BaseModal title="Add to Soundboard" @close="$emit('close')">
+	<BaseModal title="Add to Soundboard" :max-width="modalMaxWidth" @close="$emit('close')">
 		<template #subtitle>
 			<div class="modal-subtitle">{{ fileName }}</div>
 		</template>
@@ -8,51 +8,77 @@
 			No soundboards for this profile. Create one from the drawer first.
 		</div>
 		<template v-else>
-			<label class="field-label">Soundboard *</label>
-			<select ref="selectRef" v-model="selectedId" class="modal-input">
-				<option value="" disabled>Select a soundboard…</option>
-				<option v-for="sb in profileSoundboards" :key="sb.id" :value="sb.id">{{ sb.name }}</option>
-			</select>
+			<div :class="{ 'form-fields': partial }">
+				<label class="field-label">Soundboard *</label>
+				<select ref="selectRef" v-model="selectedId" class="modal-input">
+					<option value="" disabled>Select a soundboard…</option>
+					<option v-for="sb in profileSoundboards" :key="sb.id" :value="sb.id">{{ sb.name }}</option>
+				</select>
 
-			<label class="field-label">Custom Name (optional)</label>
-			<input v-model="customName" class="modal-input" type="text" :placeholder="fileName" />
+				<label class="field-label">Custom Name (optional)</label>
+				<input v-model="customName" class="modal-input" type="text" :placeholder="fileName" />
 
-			<div class="partial-toggle">
-				<label class="toggle-label">
-					<input type="checkbox" v-model="partial" />
-					Partial playback
-				</label>
+				<div class="partial-toggle">
+					<label class="toggle-label">
+						<input type="checkbox" v-model="partial" />
+						Partial playback
+					</label>
+				</div>
 			</div>
 
 			<template v-if="partial">
-				<div class="partial-mode">
-					<label class="radio-label">
-						<input type="radio" v-model="partialMode" value="offset" />
-						Offset
-					</label>
-					<label class="radio-label">
-						<input type="radio" v-model="partialMode" value="range" />
-						Range
-					</label>
+				<div :class="{ 'form-fields': true }">
+					<div class="partial-mode">
+						<label class="radio-label">
+							<input type="radio" v-model="partialMode" value="offset" />
+							Offset
+						</label>
+						<label class="radio-label">
+							<input type="radio" v-model="partialMode" value="range" />
+							Range
+						</label>
+					</div>
 				</div>
 
-				<template v-if="partialMode === 'offset'">
-					<label class="field-label">Offset (seconds)</label>
-					<input v-model.number="offset" class="modal-input" type="number" min="0" step="0.1" placeholder="0" />
-				</template>
+				<WaveformTimeline
+					:file-path="filePath"
+					:duration="fileDuration"
+					:mode="partialMode"
+					:offset="offset"
+					:range-start="rangeStart"
+					:range-end="rangeEnd"
+					@update:offset="offset = $event"
+					@update:range-start="rangeStart = $event"
+					@update:range-end="rangeEnd = $event"
+				/>
 
-				<template v-if="partialMode === 'range'">
-					<div class="range-row">
-						<div class="range-field">
-							<label class="field-label">Range Start</label>
-							<input v-model.number="rangeStart" class="modal-input" type="number" min="0" step="0.1" placeholder="0" />
+				<div class="form-fields">
+					<template v-if="partialMode === 'offset'">
+						<div class="input-with-preview">
+							<div class="input-grow">
+								<label class="field-label">Offset (seconds)</label>
+								<input v-model.number="offset" class="modal-input" type="number" min="0" step="0.1" placeholder="0" />
+							</div>
+							<button class="btn-preview" title="Preview from offset" @click="previewPlayback">&#9654;</button>
 						</div>
-						<div class="range-field">
-							<label class="field-label">Range End</label>
-							<input v-model.number="rangeEnd" class="modal-input" type="number" min="0" step="0.1" placeholder="end" />
+					</template>
+
+					<template v-if="partialMode === 'range'">
+						<div class="input-with-preview">
+							<div class="range-row">
+								<div class="range-field">
+									<label class="field-label">Range Start</label>
+									<input v-model.number="rangeStart" class="modal-input" type="number" min="0" step="0.1" placeholder="0" />
+								</div>
+								<div class="range-field">
+									<label class="field-label">Range End</label>
+									<input v-model.number="rangeEnd" class="modal-input" type="number" min="0" step="0.1" placeholder="end" />
+								</div>
+							</div>
+							<button class="btn-preview" title="Preview range" @click="previewPlayback">&#9654;</button>
 						</div>
-					</div>
-				</template>
+					</template>
+				</div>
 			</template>
 
 			<div v-if="error" class="modal-error">{{ error }}</div>
@@ -68,6 +94,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from "vue"
 import BaseModal from "./BaseModal.vue"
+import WaveformTimeline from "./WaveformTimeline.vue"
 import { useLibraryStore } from "../stores/libraryStore"
 import { useSoundboardStore } from "../stores/soundboardStore"
 import type { SoundboardItem } from "../stores/soundboardStore"
@@ -81,7 +108,6 @@ const emit = defineEmits<{ close: [] }>()
 
 const library = useLibraryStore()
 const soundboardStore = useSoundboardStore()
-
 const selectRef = ref<HTMLSelectElement>()
 const selectedId = ref("")
 const customName = ref("")
@@ -91,26 +117,41 @@ const offset = ref<number | undefined>(undefined)
 const rangeStart = ref<number | undefined>(undefined)
 const rangeEnd = ref<number | undefined>(undefined)
 const error = ref("")
+const fileDuration = ref(0)
 
 const fileName = computed(() => props.filePath.split("/").pop() || props.filePath)
 const profileSoundboards = computed(() => soundboardStore.getSoundboardsForProfile(library.activeProfileName))
+const modalMaxWidth = computed(() => (partial.value ? "80vw" : "400px"))
 
-onMounted(() => {
+onMounted(async () => {
 	nextTick(() => selectRef.value?.focus())
+
+	// Resolve file duration
+	const file = library.files.find((f) => f.path === props.filePath)
+	fileDuration.value = file?.duration ?? (await window.electronAPI.getAudioDuration(props.filePath)) ?? 0
 })
+
+function previewPlayback() {
+	const file = library.files.find((f) => f.path === props.filePath)
+	if (!file) return
+	library.stopPlayback()
+
+	if (partialMode.value === "offset") {
+		library.playFile(file, { offset: offset.value ?? 0 })
+	} else {
+		library.playFile(file, { range: [rangeStart.value ?? 0, rangeEnd.value ?? fileDuration.value] })
+	}
+}
 
 async function handleSubmit() {
 	if (!selectedId.value) return
 	error.value = ""
 
-	const file = library.files.find((f) => f.path === props.filePath)
-	const duration = file?.duration ?? (await window.electronAPI.getAudioDuration(props.filePath)) ?? 0
-
 	const item: SoundboardItem = {
 		id: `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
 		name: customName.value.trim() || fileName.value,
 		filePath: props.filePath,
-		duration,
+		duration: fileDuration.value,
 	}
 
 	if (partial.value) {
@@ -129,6 +170,14 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
+:deep(.modal) {
+	transition: max-width 0.2s ease;
+}
+
+.form-fields {
+	max-width: 400px;
+}
+
 .partial-toggle {
 	margin: 8px 0 4px;
 }
@@ -172,5 +221,36 @@ async function handleSubmit() {
 
 .range-field {
 	flex: 1;
+}
+
+.input-with-preview {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+}
+
+.input-grow {
+	flex: 1;
+}
+
+.btn-preview {
+	flex-shrink: 0;
+	width: 36px;
+	height: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--accent);
+	color: var(--bg-primary);
+	border: none;
+	border-radius: 50%;
+	font-size: 14px;
+	cursor: pointer;
+	margin-bottom: 1px;
+	transition: opacity 0.15s;
+}
+
+.btn-preview:hover {
+	opacity: 0.85;
 }
 </style>

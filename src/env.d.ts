@@ -64,6 +64,8 @@ interface ElectronAPI {
   saveFileDialog: (defaultName: string) => Promise<string | null>
   selectFile: () => Promise<string | null>
   readFile: (filePath: string) => Promise<string>
+  readFileBuffer: (filePath: string) => Promise<ArrayBuffer>
+  getWaveformPeaks: (filePath: string, targetWidth: number) => Promise<number[]>
   writeFile: (filePath: string, data: string) => Promise<void>
   backupCreate: (data: string) => Promise<{ filename: string }>
   backupList: () => Promise<BackupEntry[]>

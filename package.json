@@ -21,7 +21,8 @@
 		"chroma-js": "^3.2.0",
 		"music-metadata": "^7.14.0",
 		"vue": "^3.4.0",
-		"vue-router": "^4.3.0"
+		"vue-router": "^4.3.0",
+		"wavesurfer.js": "^7.12.1"
 	},
 	"devDependencies": {
 		"@types/chroma-js": "^3.1.2",
@@ -59,7 +60,9 @@
 			"buildResources": "build",
 			"output": "release"
 		},
-		"electronLanguages": ["en"],
+		"electronLanguages": [
+			"en"
+		],
 		"mac": {
 			"icon": "build/icon.icns"
 		},

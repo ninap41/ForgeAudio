@@ -270,6 +270,102 @@ ipcMain.handle("fs:readFile", async (_event, filePath: string) => {
 	return fsReadFile(filePath, "utf-8")
 })
 
+ipcMain.handle("fs:readFileBuffer", async (_event, filePath: string) => {
+	const buf = await fsReadFile(filePath)
+	return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+})
+
+ipcMain.handle("audio:getWaveformPeaks", async (_event, filePath: string, targetWidth: number) => {
+	const buf = await fsReadFile(filePath)
+	if (buf.length === 0 || targetWidth <= 0) return []
+
+	// WAV: parse header and read actual PCM samples for accurate peaks
+	if (buf.length > 44 && buf.toString("ascii", 0, 4) === "RIFF" && buf.toString("ascii", 8, 12) === "WAVE") {
+		const wavPeaks = generateWavPeaks(buf, targetWidth)
+		if (wavPeaks) return wavPeaks
+	}
+
+	// Fallback for compressed formats: approximate peaks from raw bytes
+	return generateBytePeaks(buf, targetWidth)
+})
+
+function generateWavPeaks(buffer: Buffer, targetWidth: number): number[] | null {
+	try {
+		let numChannels = 0
+		let bitsPerSample = 0
+		let dataStart = 0
+		let dataLength = 0
+
+		// Iterate RIFF chunks to find fmt and data
+		let offset = 12
+		while (offset < buffer.length - 8) {
+			const chunkId = buffer.toString("ascii", offset, offset + 4)
+			const chunkSize = buffer.readUInt32LE(offset + 4)
+
+			if (chunkId === "fmt " && chunkSize >= 16) {
+				numChannels = buffer.readUInt16LE(offset + 10)
+				bitsPerSample = buffer.readUInt16LE(offset + 22)
+			} else if (chunkId === "data") {
+				dataStart = offset + 8
+				dataLength = Math.min(chunkSize, buffer.length - dataStart)
+			}
+
+			offset += 8 + chunkSize
+			if (chunkSize % 2 !== 0) offset++ // RIFF padding
+		}
+
+		if (!numChannels || !bitsPerSample || !dataStart || !dataLength) return null
+		const bytesPerSample = bitsPerSample / 8
+		if (bytesPerSample !== 2 && bytesPerSample !== 3 && bytesPerSample !== 4) return null
+
+		const frameSize = bytesPerSample * numChannels
+		const totalSamples = Math.floor(dataLength / frameSize)
+		const samplesPerBin = Math.max(1, Math.floor(totalSamples / targetWidth))
+
+		const peaks: number[] = []
+		for (let i = 0; i < targetWidth; i++) {
+			const sampleStart = i * samplesPerBin
+			const sampleEnd = Math.min(sampleStart + samplesPerBin, totalSamples)
+			let max = 0
+			for (let s = sampleStart; s < sampleEnd; s++) {
+				const byteOff = dataStart + s * frameSize
+				if (byteOff + bytesPerSample > buffer.length) break
+				let sample: number
+				if (bytesPerSample === 2) {
+					sample = buffer.readInt16LE(byteOff) / 32768
+				} else if (bytesPerSample === 3) {
+					sample = ((buffer[byteOff] | (buffer[byteOff + 1] << 8) | (buffer[byteOff + 2] << 16)) << 8 >> 8) / 8388608
+				} else {
+					sample = buffer.readInt32LE(byteOff) / 2147483648
+				}
+				const abs = Math.abs(sample)
+				if (abs > max) max = abs
+			}
+			peaks.push(max)
+		}
+		return peaks
+	} catch {
+		// Header parse failed — fall through to byte-level
+	}
+	return null
+}
+
+function generateBytePeaks(buffer: Buffer, targetWidth: number): number[] {
+	const peaks: number[] = []
+	const chunkSize = Math.max(1, Math.floor(buffer.length / targetWidth))
+	for (let i = 0; i < targetWidth; i++) {
+		const start = i * chunkSize
+		const end = Math.min(start + chunkSize, buffer.length)
+		let max = 0
+		for (let j = start; j < end; j++) {
+			const val = Math.abs((buffer[j] - 128) / 128)
+			if (val > max) max = val
+		}
+		peaks.push(max)
+	}
+	return peaks
+}
+
 ipcMain.handle("fs:writeFile", async (_event, filePath: string, data: string) => {
 	return writeFile(filePath, data, "utf-8")
 })

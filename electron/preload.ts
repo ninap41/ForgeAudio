@@ -65,6 +65,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // File operations
   readFile: (filePath: string) => ipcRenderer.invoke('fs:readFile', filePath),
+  readFileBuffer: (filePath: string) => ipcRenderer.invoke('fs:readFileBuffer', filePath),
+  getWaveformPeaks: (filePath: string, targetWidth: number) => ipcRenderer.invoke('audio:getWaveformPeaks', filePath, targetWidth),
   writeFile: (filePath: string, data: string) => ipcRenderer.invoke('fs:writeFile', filePath, data),
 
   // Backup operations
