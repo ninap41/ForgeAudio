@@ -31,10 +31,23 @@
 				>
 					<span class="sb-pad-name">{{ item.name }}</span>
 					<span class="sb-pad-duration">{{ formatSeconds(item.duration) }}</span>
-					<span v-if="item.partial && item.offset != null && item.offset > 0" class="sb-pad-partial sb-partial-glow">@{{ formatSeconds(item.offset) }}</span>
-					<span v-else-if="item.partial && item.range" class="sb-pad-partial sb-partial-glow">{{ formatSeconds(item.range[0]) }}–{{ formatSeconds(item.range[1]) }}</span>
+					<span v-if="item.partial && item.offset != null && item.offset > 0" class="sb-pad-partial sb-partial-glow"
+						>@{{ formatSeconds(item.offset) }}</span
+					>
+					<span v-else-if="item.partial && item.range" class="sb-pad-partial sb-partial-glow"
+						>{{ formatSeconds(item.range[0]) }}–{{ formatSeconds(item.range[1]) }}</span
+					>
 					<button class="sb-pad-restart" title="Restart" @click.stop="restartItem(item)">
-						<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<svg
+							width="10"
+							height="10"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
 							<polyline points="1 4 1 10 7 10" />
 							<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
 						</svg>
@@ -242,18 +255,21 @@ function playItem(item: SoundboardItem) {
 		if (item.offset != null && item.offset > 0) options.offset = item.offset
 		if (item.range) options.range = item.range
 	}
-	library.playFile({
-		path: item.filePath,
-		name: item.name,
-		extension: item.filePath.split(".").pop() || "",
-		size: 0,
-		duration: item.duration,
-		tags: [],
-		description: "",
-		lastPlayed: null,
-		createdAt: null,
-		modifiedAt: null,
-	}, options)
+	library.playFile(
+		{
+			path: item.filePath,
+			name: item.name,
+			extension: item.filePath.split(".").pop() || "",
+			size: 0,
+			duration: item.duration,
+			tags: [],
+			description: "",
+			lastPlayed: null,
+			createdAt: null,
+			modifiedAt: null,
+		},
+		options,
+	)
 }
 
 async function handleRemove(itemId: string) {
@@ -342,9 +358,9 @@ function onItemContextMenu(item: SoundboardItem) {
 	font-size: 10px;
 	color: var(--text-primary);
 	text-align: center;
-	overflow: hidden;
+	/* overflow: hidden; */
 	text-overflow: ellipsis;
-	white-space: nowrap;
+	/* white-space: nowrap; */
 	max-width: 100%;
 	padding: 0 2px;
 }
