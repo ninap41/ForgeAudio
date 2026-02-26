@@ -18,9 +18,18 @@
 				<span v-if="isColumnVisible('range')" class="sb-th sb-th-range">Range</span>
 			</div>
 			<div
-				v-for="item in soundboard.items"
+				v-for="(item, index) in soundboard.items"
 				:key="item.id"
 				class="sb-table-row"
+				:class="{
+					'sb-drop-before': reorderTarget === index && reorderPosition === 'before',
+					'sb-drop-after': reorderTarget === index && reorderPosition === 'after',
+				}"
+				draggable="true"
+				@dragstart="onReorderStart($event, index)"
+				@dragover.prevent="onReorderOver($event, index)"
+				@drop.prevent="onReorderDrop($event, index)"
+				@dragend="onReorderEnd"
 				@click="playItem(item)"
 				@contextmenu.prevent="onItemContextMenu(item)"
 			>
@@ -31,10 +40,18 @@
 					</svg>
 				</button>
 				<span class="sb-td sb-td-name" :class="{ 'sb-td--active': isItemPlaying(item) }">{{ item.name }}</span>
-				<span v-if="isColumnVisible('duration')" class="sb-td sb-td-duration">{{ formatDuration(item.duration) }}</span>
-				<span v-if="isColumnVisible('offset')" class="sb-td sb-td-offset" :class="{ 'sb-td--partial-glow': item.partial && item.offset != null && item.offset > 0 }">{{ item.offset != null ? item.offset + 's' : '—' }}</span>
-				<span v-if="isColumnVisible('range')" class="sb-td sb-td-range" :class="{ 'sb-td--partial-glow': item.partial && item.range }">{{ item.range ? item.range[0] + '–' + item.range[1] + 's' : '—' }}</span>
+				<span v-if="isColumnVisible('duration')" class="sb-td sb-td-duration">{{ formatSeconds(item.duration) }}</span>
+				<span v-if="isColumnVisible('offset')" class="sb-td sb-td-offset" :class="{ 'sb-td--partial-glow': item.partial && item.offset != null && item.offset > 0 }">{{ item.offset != null && item.offset > 0 ? formatSeconds(item.offset) : '—' }}</span>
+				<span v-if="isColumnVisible('range')" class="sb-td sb-td-range" :class="{ 'sb-td--partial-glow': item.partial && item.range }">{{ item.range ? formatSeconds(item.range[0]) + '–' + formatSeconds(item.range[1]) : '—' }}</span>
 			</div>
+			<div
+				class="sb-drop-end"
+				:class="{ 'sb-drop-end--active': dropEndActive }"
+				@dragover.prevent="onDropEndOver"
+				@dragenter.prevent="onDropEndEnter"
+				@dragleave="onDropEndLeave"
+				@drop.prevent="onDropEndDrop"
+			/>
 		</template>
 
 		<!-- Column visibility popover -->
@@ -50,6 +67,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from "vue"
 import { useLibraryStore } from "../stores/libraryStore"
+import { formatSeconds } from "../utils/formatSeconds"
 import type { Soundboard, SoundboardItem } from "../stores/soundboardStore"
 
 interface Props {
@@ -64,6 +82,12 @@ const DEFAULT_COLUMNS = ["duration", "offset", "range"]
 
 const isDragOver = ref(false)
 let dragCounter = 0
+
+// Reorder state
+const reorderSource = ref<number | null>(null)
+const reorderTarget = ref<number | null>(null)
+const reorderPosition = ref<"before" | "after">("before")
+const dropEndActive = ref(false)
 
 const columnMenuOpen = ref(false)
 const columnMenuStyle = ref<{ top: string; left: string }>({ top: "0px", left: "0px" })
@@ -109,11 +133,16 @@ onBeforeUnmount(() => {
 })
 
 function onDragOver(e: DragEvent) {
+	if (e.dataTransfer?.types.includes("application/x-forgeaudio-reorder")) {
+		e.dataTransfer.dropEffect = "move"
+		return
+	}
 	if (!library.dragPayload) return
 	if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"
 }
 
-function onDragEnter() {
+function onDragEnter(e: DragEvent) {
+	if (e.dataTransfer?.types.includes("application/x-forgeaudio-reorder")) return
 	if (!library.dragPayload) return
 	dragCounter++
 	isDragOver.value = true
@@ -127,9 +156,89 @@ function onDragLeave() {
 	}
 }
 
-function onDrop() {
+function onDrop(e: DragEvent) {
 	dragCounter = 0
 	isDragOver.value = false
+	if (e.dataTransfer?.types.includes("application/x-forgeaudio-reorder")) return
+	const data = library.dragPayload
+	if (!data) return
+	const item: SoundboardItem = {
+		id: `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+		name: data.name,
+		filePath: data.path,
+		duration: data.duration ?? 0,
+	}
+	library.addSoundboardItem(props.soundboard.id, item)
+	library.dragPayload = null
+}
+
+// ─── Reorder drag-and-drop ──────────────────────────────────────────────────
+
+function onReorderStart(e: DragEvent, index: number) {
+	reorderSource.value = index
+	e.dataTransfer!.effectAllowed = "move"
+	e.dataTransfer!.setData("application/x-forgeaudio-reorder", String(index))
+}
+
+function onReorderOver(e: DragEvent, index: number) {
+	if (!e.dataTransfer?.types.includes("application/x-forgeaudio-reorder")) return
+	e.dataTransfer.dropEffect = "move"
+	reorderTarget.value = index
+	const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+	reorderPosition.value = e.clientY < rect.top + rect.height / 2 ? "before" : "after"
+}
+
+function onReorderDrop(e: DragEvent, index: number) {
+	const fromStr = e.dataTransfer?.getData("application/x-forgeaudio-reorder")
+	if (fromStr == null) return
+	const from = parseInt(fromStr, 10)
+	const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+	const pos = e.clientY < rect.top + rect.height / 2 ? "before" : "after"
+	let to = pos === "before" ? index : index + 1
+	if (from < to) to--
+	library.reorderSoundboardItems(props.soundboard.id, from, to)
+	reorderSource.value = null
+	reorderTarget.value = null
+}
+
+function onReorderEnd() {
+	reorderSource.value = null
+	reorderTarget.value = null
+	dropEndActive.value = false
+}
+
+// ─── Drop-end zone (reorder to last position) ──────────────────────────────
+
+function onDropEndOver(e: DragEvent) {
+	if (e.dataTransfer?.types.includes("application/x-forgeaudio-reorder")) {
+		e.dataTransfer.dropEffect = "move"
+	} else if (library.dragPayload && e.dataTransfer) {
+		e.dataTransfer.dropEffect = "copy"
+	}
+}
+
+function onDropEndEnter(e: DragEvent) {
+	if (e.dataTransfer?.types.includes("application/x-forgeaudio-reorder")) {
+		dropEndActive.value = true
+	}
+}
+
+function onDropEndLeave() {
+	dropEndActive.value = false
+}
+
+function onDropEndDrop(e: DragEvent) {
+	dropEndActive.value = false
+	if (e.dataTransfer?.types.includes("application/x-forgeaudio-reorder")) {
+		const fromStr = e.dataTransfer.getData("application/x-forgeaudio-reorder")
+		if (fromStr == null) return
+		const from = parseInt(fromStr, 10)
+		const to = props.soundboard.items.length - 1
+		if (from !== to) {
+			library.reorderSoundboardItems(props.soundboard.id, from, to)
+		}
+		return
+	}
 	const data = library.dragPayload
 	if (!data) return
 	const item: SoundboardItem = {
@@ -183,12 +292,6 @@ function playItem(item: SoundboardItem) {
 		createdAt: null,
 		modifiedAt: null,
 	}, options)
-}
-
-function formatDuration(seconds: number): string {
-	const m = Math.floor(seconds / 60)
-	const s = Math.floor(seconds % 60)
-	return `${m}:${s.toString().padStart(2, "0")}`
 }
 
 function onItemContextMenu(item: SoundboardItem) {
@@ -246,12 +349,24 @@ function onItemContextMenu(item: SoundboardItem) {
 	gap: 4px;
 	padding: 3px 6px;
 	border-radius: 3px;
-	cursor: pointer;
+	cursor: grab;
 	transition: background 0.15s;
+}
+
+.sb-table-row:active {
+	cursor: grabbing;
 }
 
 .sb-table-row:hover {
 	background: var(--bg-hover);
+}
+
+.sb-drop-before {
+	border-top: 2px solid var(--accent);
+}
+
+.sb-drop-after {
+	border-bottom: 2px solid var(--accent);
 }
 
 .sb-restart-btn {
@@ -348,5 +463,22 @@ function onItemContextMenu(item: SoundboardItem) {
 	outline: 2px dashed var(--accent);
 	outline-offset: -2px;
 	background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.sb-drop-end {
+	min-height: 24px;
+	border: 1px dashed var(--border);
+	border-radius: 4px;
+	margin-top: 2px;
+	transition:
+		background 0.15s,
+		border-color 0.15s,
+		min-height 0.15s;
+}
+
+.sb-drop-end--active {
+	min-height: 36px;
+	border-color: var(--accent);
+	background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 </style>

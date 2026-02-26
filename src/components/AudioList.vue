@@ -94,7 +94,14 @@
 			<div v-if="library.filteredFiles.length === 0" class="no-results">No audio files found.</div>
 
 			<!-- Pass widths so rows can align perfectly with the header -->
-			<AudioRow v-bind="{ widths, file }" v-for="file in library.filteredFiles" :key="file.path" />
+			<AudioRow
+				v-for="file in library.filteredFiles"
+				:key="file.path"
+				:file="file"
+				:widths="widths"
+				:expanded="expandedPaths.has(file.path)"
+				@toggle-expand="toggleExpand"
+			/>
 		</div>
 
 		<div class="list-footer">
@@ -116,6 +123,15 @@ const library = useLibraryStore()
 const listBody = ref<HTMLElement>()
 const isDragOver = ref(false)
 let dragCounter = 0
+const expandedPaths = ref(new Set<string>())
+
+function toggleExpand(path: string) {
+	if (expandedPaths.value.has(path)) {
+		expandedPaths.value.delete(path)
+	} else {
+		expandedPaths.value.add(path)
+	}
+}
 
 function onDragOver(e: DragEvent) {
 	if (library.dragPayload) return // internal row drag — skip

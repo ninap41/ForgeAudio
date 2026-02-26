@@ -2,6 +2,7 @@ import { ref, computed, reactive } from "vue"
 
 export interface SoundboardItem {
 	id: string
+	uniqueId?: string
 	name: string
 	filePath: string
 	duration: number
@@ -116,6 +117,9 @@ export function useSoundboardStore() {
 	function addItem(soundboardId: string, item: SoundboardItem) {
 		const sb = soundboards.value[soundboardId]
 		if (sb) {
+			if (!item.uniqueId) {
+				item.uniqueId = `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+			}
 			sb.items.push(item)
 			sb.updatedAt = new Date().toISOString()
 		}
@@ -133,14 +137,23 @@ export function useSoundboardStore() {
 		const sb = soundboards.value[soundboardId]
 		if (!sb) return
 		if (fromIndex < 0 || fromIndex >= sb.items.length) return
-		if (toIndex < 0 || toIndex >= sb.items.length) return
 		if (fromIndex === toIndex) return
 		const [item] = sb.items.splice(fromIndex, 1)
-		sb.items.splice(toIndex, 0, item)
+		// After splice, array is shorter by 1. Clamp toIndex to valid range.
+		const clampedTo = Math.max(0, Math.min(toIndex, sb.items.length))
+		sb.items.splice(clampedTo, 0, item)
 		sb.updatedAt = new Date().toISOString()
 	}
 
 	function loadSoundboards(data: Record<string, Soundboard>) {
+		// Backfill uniqueId on items that lack one
+		for (const sb of Object.values(data)) {
+			for (const item of sb.items) {
+				if (!item.uniqueId) {
+					item.uniqueId = `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+				}
+			}
+		}
 		soundboards.value = data
 	}
 

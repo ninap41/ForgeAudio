@@ -22,7 +22,7 @@
 					</div>
 					<div class="data-row">
 						<dt>Duration</dt>
-						<dd>{{ audioFile?.duration != null ? formatDuration(audioFile.duration) : '—' }}</dd>
+						<dd>{{ audioFile?.duration != null ? formatSeconds(audioFile.duration) : '—' }}</dd>
 					</div>
 					<div class="data-row">
 						<dt>Tags</dt>
@@ -69,15 +69,15 @@
 					</div>
 					<div class="data-row">
 						<dt>Offset</dt>
-						<dd>{{ item?.offset != null && item.offset > 0 ? item.offset + 's' : '—' }}</dd>
+						<dd>{{ item?.offset != null && item.offset > 0 ? formatSeconds(item.offset) : '—' }}</dd>
 					</div>
 					<div class="data-row">
 						<dt>Range</dt>
-						<dd>{{ item?.range ? '[' + item.range[0] + 's, ' + item.range[1] + 's]' : '—' }}</dd>
+						<dd>{{ item?.range ? formatSeconds(item.range[0]) + ' – ' + formatSeconds(item.range[1]) : '—' }}</dd>
 					</div>
 					<div class="data-row">
 						<dt>Item Duration</dt>
-						<dd>{{ item ? formatDuration(item.duration) : '—' }}</dd>
+						<dd>{{ item ? formatSeconds(item.duration) : '—' }}</dd>
 					</div>
 				</dl>
 			</section>
@@ -92,6 +92,7 @@ import TagChip from "./TagChip.vue"
 import { useLibraryStore } from "@/stores/libraryStore"
 import { useSoundboardStore } from "@/stores/soundboardStore"
 import { formatBytes } from "@/utils/formatBytes"
+import { formatSeconds } from "@/utils/formatSeconds"
 
 interface Props {
 	soundboardId: string
@@ -115,12 +116,6 @@ const audioFile = computed(() => {
 	if (!item.value) return null
 	return library.files.find((f) => f.path === item.value!.filePath) ?? null
 })
-
-function formatDuration(seconds: number): string {
-	const m = Math.floor(seconds / 60)
-	const s = Math.floor(seconds % 60)
-	return `${m}:${s.toString().padStart(2, "0")}`
-}
 
 function formatDate(iso: string): string {
 	return new Date(iso).toLocaleString("en-US", {

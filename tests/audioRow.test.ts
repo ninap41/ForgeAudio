@@ -111,7 +111,7 @@ describe('AudioRow', () => {
       props: { file: makeFile({ path: '/lib/kick.wav' }), widths: DEFAULT_WIDTHS },
     })
 
-    expect(wrapper.find('.audio-row').attributes('data-path')).toBe('/lib/kick.wav')
+    expect(wrapper.find('.audio-row-wrapper').attributes('data-path')).toBe('/lib/kick.wav')
   })
 
   it('shows formatted createdAt date', () => {
@@ -187,5 +187,64 @@ describe('AudioRow', () => {
     wrapper.find('.audio-row').element.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
 
     expect(library.dragPayload).toBeNull()
+  })
+
+  it('renders expand button', () => {
+    const wrapper = mount(AudioRow, {
+      props: { file: makeFile(), widths: DEFAULT_WIDTHS },
+    })
+    expect(wrapper.find('.expand-btn').exists()).toBe(true)
+  })
+
+  it('does not show detail panel when not expanded', () => {
+    const wrapper = mount(AudioRow, {
+      props: { file: makeFile(), widths: DEFAULT_WIDTHS, expanded: false },
+    })
+    expect(wrapper.find('.row-detail').exists()).toBe(false)
+  })
+
+  it('shows detail panel when expanded', () => {
+    const file = makeFile({
+      path: '/sounds/test.wav',
+      name: 'test.wav',
+      extension: '.wav',
+      size: 2048,
+      duration: 65,
+      tags: ['percussion'],
+      description: 'A test file',
+    })
+    const wrapper = mount(AudioRow, {
+      props: { file, widths: DEFAULT_WIDTHS, expanded: true },
+    })
+    expect(wrapper.find('.row-detail').exists()).toBe(true)
+    expect(wrapper.find('.detail-path').text()).toBe('/sounds/test.wav')
+  })
+
+  it('emits toggle-expand on expand button click', async () => {
+    const file = makeFile({ path: '/sounds/test.wav' })
+    const wrapper = mount(AudioRow, {
+      props: { file, widths: DEFAULT_WIDTHS },
+    })
+    await wrapper.find('.expand-btn').trigger('click')
+    expect(wrapper.emitted('toggle-expand')).toBeTruthy()
+    expect(wrapper.emitted('toggle-expand')![0]).toEqual(['/sounds/test.wav'])
+  })
+
+  it('shows formatted duration in detail panel', () => {
+    const wrapper = mount(AudioRow, {
+      props: { file: makeFile({ duration: 125 }), widths: DEFAULT_WIDTHS, expanded: true },
+    })
+    const detailRows = wrapper.findAll('.detail-row')
+    const durationRow = detailRows.find(r => r.find('dt').text() === 'Duration')
+    expect(durationRow?.find('dd').text()).toBe('2:05')
+  })
+
+  it('shows formatted size in detail panel', () => {
+    const wrapper = mount(AudioRow, {
+      props: { file: makeFile({ size: 1048576 }), widths: DEFAULT_WIDTHS, expanded: true },
+    })
+    const detailRows = wrapper.findAll('.detail-row')
+    const sizeRow = detailRows.find(r => r.find('dt').text() === 'Size')
+    expect(sizeRow?.find('dd').text()).toBe('1.00 MB')
   })
 })

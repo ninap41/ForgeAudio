@@ -58,6 +58,7 @@
 							<div class="input-grow">
 								<label class="field-label">Offset (seconds)</label>
 								<input v-model.number="offset" class="modal-input" type="number" min="0" step="0.1" placeholder="0" />
+								<span v-if="offset != null && offset > 0" class="time-hint">{{ formatSeconds(offset) }}</span>
 							</div>
 							<button class="btn-preview" title="Preview from offset" @click="previewPlayback">&#9654;</button>
 						</div>
@@ -69,10 +70,12 @@
 								<div class="range-field">
 									<label class="field-label">Range Start</label>
 									<input v-model.number="rangeStart" class="modal-input" type="number" min="0" step="0.1" placeholder="0" />
+									<span v-if="rangeStart != null && rangeStart > 0" class="time-hint">{{ formatSeconds(rangeStart) }}</span>
 								</div>
 								<div class="range-field">
 									<label class="field-label">Range End</label>
 									<input v-model.number="rangeEnd" class="modal-input" type="number" min="0" step="0.1" placeholder="end" />
+									<span v-if="rangeEnd != null && rangeEnd > 0" class="time-hint">{{ formatSeconds(rangeEnd) }}</span>
 								</div>
 							</div>
 							<button class="btn-preview" title="Preview range" @click="previewPlayback">&#9654;</button>
@@ -97,6 +100,7 @@ import BaseModal from "./BaseModal.vue"
 import WaveformTimeline from "./WaveformTimeline.vue"
 import { useLibraryStore } from "../stores/libraryStore"
 import { useSoundboardStore } from "../stores/soundboardStore"
+import { formatSeconds } from "../utils/formatSeconds"
 import type { SoundboardItem } from "../stores/soundboardStore"
 
 interface Props {
@@ -249,5 +253,12 @@ async function handleSubmit() {
 
 .btn-preview:hover {
 	opacity: 0.85;
+}
+
+.time-hint {
+	display: block;
+	font-size: 10px;
+	color: var(--text-muted);
+	margin-top: 2px;
 }
 </style>

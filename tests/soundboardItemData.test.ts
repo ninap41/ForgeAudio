@@ -236,7 +236,7 @@ describe('SoundboardItemDataModal', () => {
     const wrapper = createWrapper()
     const rows = wrapper.findAll('.data-row dd')
     // Row 13: Offset
-    expect(rows[13].text()).toBe('1.5s')
+    expect(rows[13].text()).toBe('0:01')
   })
 
   it('shows dash for offset when not set', () => {
@@ -251,7 +251,7 @@ describe('SoundboardItemDataModal', () => {
     const wrapper = createWrapper()
     const rows = wrapper.findAll('.data-row dd')
     // Row 14: Range
-    expect(rows[14].text()).toBe('[0.5s, 2s]')
+    expect(rows[14].text()).toBe('0:00 – 0:02')
   })
 
   it('shows dash for range when not set', () => {

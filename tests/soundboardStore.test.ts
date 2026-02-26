@@ -371,6 +371,118 @@ describe('soundboardStore', () => {
     })
   })
 
+  describe('reorderItems', () => {
+    it('reorders items within bounds', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 1 })
+      store.addItem(id, { id: 'i2', name: 'b.wav', filePath: '/b.wav', duration: 2 })
+      store.addItem(id, { id: 'i3', name: 'c.wav', filePath: '/c.wav', duration: 3 })
+      store.reorderItems(id, 0, 2)
+      expect(store.allSoundboards[0].items.map((i: SoundboardItem) => i.id)).toEqual(['i2', 'i3', 'i1'])
+    })
+
+    it('allows reorder to end position', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 1 })
+      store.addItem(id, { id: 'i2', name: 'b.wav', filePath: '/b.wav', duration: 2 })
+      store.addItem(id, { id: 'i3', name: 'c.wav', filePath: '/c.wav', duration: 3 })
+      // Move first item to end: after splice(0,1) array is [i2,i3], toIndex 2 = append
+      store.reorderItems(id, 0, 2)
+      expect(store.allSoundboards[0].items.map((i: SoundboardItem) => i.id)).toEqual(['i2', 'i3', 'i1'])
+    })
+
+    it('moves first item to second position', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 1 })
+      store.addItem(id, { id: 'i2', name: 'b.wav', filePath: '/b.wav', duration: 2 })
+      store.reorderItems(id, 0, 1)
+      expect(store.allSoundboards[0].items.map((i: SoundboardItem) => i.id)).toEqual(['i2', 'i1'])
+    })
+
+    it('is a no-op for same index', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 1 })
+      store.addItem(id, { id: 'i2', name: 'b.wav', filePath: '/b.wav', duration: 2 })
+      store.reorderItems(id, 1, 1)
+      expect(store.allSoundboards[0].items.map((i: SoundboardItem) => i.id)).toEqual(['i1', 'i2'])
+    })
+
+    it('clamps toIndex to valid range', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 1 })
+      store.addItem(id, { id: 'i2', name: 'b.wav', filePath: '/b.wav', duration: 2 })
+      // toIndex 10 should be clamped to end
+      store.reorderItems(id, 0, 10)
+      expect(store.allSoundboards[0].items.map((i: SoundboardItem) => i.id)).toEqual(['i2', 'i1'])
+    })
+  })
+
+  describe('uniqueId', () => {
+    it('auto-assigns uniqueId on addItem when not provided', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 1 })
+      const item = store.allSoundboards[0].items[0]
+      expect(item.uniqueId).toBeTruthy()
+      expect(item.uniqueId!.startsWith('sbi_')).toBe(true)
+    })
+
+    it('preserves uniqueId on addItem when already set', () => {
+      const id = store.createSoundboard('X', '', 'LIST', 'Default')
+      store.addItem(id, { id: 'i1', uniqueId: 'custom_id', name: 'a.wav', filePath: '/a.wav', duration: 1 })
+      expect(store.allSoundboards[0].items[0].uniqueId).toBe('custom_id')
+    })
+
+    it('backfills uniqueId on loadSoundboards for items missing it', () => {
+      const data: Record<string, Soundboard> = {
+        sb1: {
+          id: 'sb1',
+          profileId: 'Default',
+          name: 'Test',
+          description: '',
+          layoutType: 'LIST',
+          enabled: false,
+          state: 'expanded',
+          items: [
+            { id: 'i1', name: 'a.wav', filePath: '/a.wav', duration: 1 },
+            { id: 'i2', name: 'b.wav', filePath: '/b.wav', duration: 2 },
+          ],
+        },
+      }
+      store.loadSoundboards(data)
+      const items = store.allSoundboards[0].items
+      expect(items[0].uniqueId).toBeTruthy()
+      expect(items[1].uniqueId).toBeTruthy()
+      expect(items[0].uniqueId).not.toBe(items[1].uniqueId)
+    })
+
+    it('does not overwrite existing uniqueId on loadSoundboards', () => {
+      const data: Record<string, Soundboard> = {
+        sb1: {
+          id: 'sb1',
+          profileId: 'Default',
+          name: 'Test',
+          description: '',
+          layoutType: 'LIST',
+          enabled: false,
+          state: 'expanded',
+          items: [
+            { id: 'i1', uniqueId: 'keep_me', name: 'a.wav', filePath: '/a.wav', duration: 1 },
+          ],
+        },
+      }
+      store.loadSoundboards(data)
+      expect(store.allSoundboards[0].items[0].uniqueId).toBe('keep_me')
+    })
+  })
+
+  describe('gridColumns', () => {
+    it('updates gridColumns via updateSoundboard', () => {
+      const id = store.createSoundboard('X', '', 'GRID', 'Default')
+      store.updateSoundboard(id, { gridColumns: 4 })
+      expect(store.allSoundboards[0].gridColumns).toBe(4)
+    })
+  })
+
   describe('_resetSoundboardStore', () => {
     it('clears all state', () => {
       store.createSoundboard('A', '', 'LIST', 'Default')

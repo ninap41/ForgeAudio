@@ -217,4 +217,83 @@ describe('DockedSoundboardContainer', () => {
     expect(mockElectronAPI.onSbItemViewData).toHaveBeenCalledTimes(1)
     expect(typeof mockElectronAPI.onSbItemViewData.mock.calls[0][0]).toBe('function')
   })
+
+  it('shows formatted offset badge in list view', () => {
+    const store = useSoundboardStore()
+    const id = store.createSoundboard('X', '', 'LIST', 'Default')
+    store.addItem(id, { id: 'i1', name: 'kick.wav', filePath: '/kick.wav', duration: 10, partial: true, offset: 65 })
+    store.toggleEnabled(id)
+    const wrapper = createWrapper()
+    const badge = wrapper.find('.sb-partial-badge')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toContain('1:05')
+  })
+
+  it('shows formatted range badge in grid view', () => {
+    const store = useSoundboardStore()
+    const id = store.createSoundboard('X', '', 'GRID', 'Default')
+    store.addItem(id, { id: 'i1', name: 'kick.wav', filePath: '/kick.wav', duration: 10, partial: true, range: [5, 125] })
+    store.toggleEnabled(id)
+    const wrapper = createWrapper()
+    const partial = wrapper.find('.sb-pad-partial')
+    expect(partial.exists()).toBe(true)
+    expect(partial.text()).toContain('0:05')
+    expect(partial.text()).toContain('2:05')
+  })
+
+  it('renders drop-end zone in list view when items exist', () => {
+    const store = useSoundboardStore()
+    const id = store.createSoundboard('X', '', 'LIST', 'Default')
+    store.addItem(id, { id: 'i1', name: 'kick.wav', filePath: '/kick.wav', duration: 1 })
+    store.toggleEnabled(id)
+    const wrapper = createWrapper()
+    expect(wrapper.find('.sb-drop-end').exists()).toBe(true)
+  })
+
+  it('renders drop-end zone in grid view when items exist', () => {
+    const store = useSoundboardStore()
+    const id = store.createSoundboard('X', '', 'GRID', 'Default')
+    store.addItem(id, { id: 'i1', name: 'kick.wav', filePath: '/kick.wav', duration: 1 })
+    store.toggleEnabled(id)
+    const wrapper = createWrapper()
+    expect(wrapper.find('.sb-drop-end').exists()).toBe(true)
+  })
+
+  it('renders drop-end zone in table view when items exist', () => {
+    const store = useSoundboardStore()
+    const id = store.createSoundboard('X', '', 'TABLE', 'Default')
+    store.addItem(id, { id: 'i1', name: 'kick.wav', filePath: '/kick.wav', duration: 1 })
+    store.toggleEnabled(id)
+    const wrapper = createWrapper()
+    expect(wrapper.find('.sb-drop-end').exists()).toBe(true)
+  })
+
+  it('does not render drop-end zone when no items', () => {
+    const store = useSoundboardStore()
+    const id = store.createSoundboard('X', '', 'LIST', 'Default')
+    store.toggleEnabled(id)
+    const wrapper = createWrapper()
+    expect(wrapper.find('.sb-drop-end').exists()).toBe(false)
+  })
+
+  it('shows formatted offset in table view', () => {
+    const store = useSoundboardStore()
+    const id = store.createSoundboard('X', '', 'TABLE', 'Default')
+    store.addItem(id, { id: 'i1', name: 'kick.wav', filePath: '/kick.wav', duration: 10, partial: true, offset: 90 })
+    store.toggleEnabled(id)
+    const wrapper = createWrapper()
+    const offsetCell = wrapper.find('.sb-td-offset')
+    expect(offsetCell.exists()).toBe(true)
+    expect(offsetCell.text()).toBe('1:30')
+  })
+
+  it('table view rows are draggable', () => {
+    const store = useSoundboardStore()
+    const id = store.createSoundboard('X', '', 'TABLE', 'Default')
+    store.addItem(id, { id: 'i1', name: 'kick.wav', filePath: '/kick.wav', duration: 1 })
+    store.toggleEnabled(id)
+    const wrapper = createWrapper()
+    const row = wrapper.find('.sb-table-row')
+    expect(row.attributes('draggable')).toBe('true')
+  })
 })
