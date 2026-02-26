@@ -427,6 +427,17 @@ export function useLibraryStore() {
 		if (currentFile.value?.path === oldPath && file) {
 			currentFile.value = file
 		}
+
+		// Propagate rename to soundboard items referencing this file
+		for (const sb of soundboardStore.allSoundboards) {
+			for (const item of sb.items) {
+				if (item.filePath === oldPath) {
+					item.filePath = result.newPath!
+					item.name = newName
+				}
+			}
+		}
+
 		await saveMetadata()
 		return { newPath: result.newPath }
 	}

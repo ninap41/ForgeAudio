@@ -136,6 +136,33 @@ describe('AddTagModal', () => {
     const addBtn = wrapper.find('.btn-accent')
     expect((addBtn.element as HTMLButtonElement).disabled).toBe(true)
   })
+
+  it('disables add button when input is "uncategorized"', async () => {
+    const wrapper = mount(AddTagModal, {
+      props: { filePath: '/sounds/kick.wav' },
+    })
+
+    await wrapper.find('.modal-input').setValue('uncategorized')
+    expect((wrapper.find('.btn-accent').element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('disables add button when input is "Uncategorized" (case-insensitive)', async () => {
+    const wrapper = mount(AddTagModal, {
+      props: { filePath: '/sounds/kick.wav' },
+    })
+
+    await wrapper.find('.modal-input').setValue('Uncategorized')
+    expect((wrapper.find('.btn-accent').element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('enables add button when input is a valid tag name', async () => {
+    const wrapper = mount(AddTagModal, {
+      props: { filePath: '/sounds/kick.wav' },
+    })
+
+    await wrapper.find('.modal-input').setValue('percussion')
+    expect((wrapper.find('.btn-accent').element as HTMLButtonElement).disabled).toBe(false)
+  })
 })
 
 describe('EditDescriptionModal', () => {
@@ -403,6 +430,53 @@ describe('EditTagModal', () => {
 
     expect(wrapper.find('.modal-error').exists()).toBe(true)
     expect(wrapper.emitted('close')).toBeFalsy()
+  })
+
+  it('disables save button when input is "uncategorized"', async () => {
+    const tagStore = useTagStore()
+    tagStore.createTag('impact', '#ff0000')
+
+    const wrapper = mount(EditTagModal, { props: { tagName: 'impact' } })
+    await wrapper.find('.modal-input').setValue('uncategorized')
+
+    expect((wrapper.find('.btn-accent').element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('enables save button for valid non-empty input that is not "uncategorized"', async () => {
+    const tagStore = useTagStore()
+    tagStore.createTag('impact', '#ff0000')
+
+    const wrapper = mount(EditTagModal, { props: { tagName: 'impact' } })
+    await wrapper.find('.modal-input').setValue('drums')
+
+    expect((wrapper.find('.btn-accent').element as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('propagates tag rename to files containing the old tag', async () => {
+    const library = useLibraryStore()
+    const tagStore = useTagStore()
+    tagStore.createTag('impact', '#ff0000')
+    library.files = [
+      {
+        path: '/sounds/kick.wav', name: 'kick.wav', extension: '.wav',
+        size: 1024, duration: 2.5, tags: ['impact'], description: '', lastPlayed: null,
+        createdAt: null, modifiedAt: null,
+      },
+      {
+        path: '/sounds/snare.wav', name: 'snare.wav', extension: '.wav',
+        size: 1024, duration: 1.5, tags: ['other'], description: '', lastPlayed: null,
+        createdAt: null, modifiedAt: null,
+      },
+    ]
+
+    const wrapper = mount(EditTagModal, { props: { tagName: 'impact' } })
+    await wrapper.find('.modal-input').setValue('drums')
+    await wrapper.find('.btn-accent').trigger('click')
+    await new Promise(r => setTimeout(r, 0))
+
+    expect(library.files[0].tags).toContain('drums')
+    expect(library.files[0].tags).not.toContain('impact')
+    expect(library.files[1].tags).toEqual(['other'])
   })
 })
 

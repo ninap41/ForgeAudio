@@ -60,6 +60,10 @@
 						<dd>{{ item?.name ?? '—' }}</dd>
 					</div>
 					<div class="data-row">
+						<dt>Unique ID</dt>
+						<dd class="data-monospace">{{ item?.uniqueId ?? '—' }}</dd>
+					</div>
+					<div class="data-row">
 						<dt>Soundboard</dt>
 						<dd>{{ soundboard?.name ?? '—' }}</dd>
 					</div>
@@ -183,6 +187,11 @@ function formatDate(iso: string): string {
 }
 
 .data-path {
+	font-family: monospace;
+	font-size: 11px;
+}
+
+.data-monospace {
 	font-family: monospace;
 	font-size: 11px;
 }

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useLibraryStore, _resetLibraryStore, type AudioFile, type SortColumn, type ProfileSnapshot } from '../src/stores/libraryStore'
 import { useTagStore, _resetTagStore } from '../src/stores/tagStore'
 import { _resetThemeStore } from '../src/stores/themeStore'
+import { useSoundboardStore, _resetSoundboardStore } from '../src/stores/soundboardStore'
 
 // Mock window.electronAPI
 const mockElectronAPI = {
@@ -61,6 +62,7 @@ beforeEach(() => {
   _resetLibraryStore()
   _resetTagStore()
   _resetThemeStore()
+  _resetSoundboardStore()
   vi.resetAllMocks()
   mockElectronAPI.writeMetadata.mockResolvedValue(undefined)
   mockElectronAPI.deleteFile.mockResolvedValue({ success: true })
@@ -762,6 +764,30 @@ describe('libraryStore', () => {
       expect(result.error).toBe('File in use')
       expect(store.files[0].name).toBe('kick.wav')
       expect(store.files[0].path).toBe('/sounds/kick.wav')
+    })
+
+    it('propagates rename to soundboard items with matching filePath', async () => {
+      const store = useLibraryStore()
+      const sbStore = useSoundboardStore()
+      store.files = [makeFile({ path: '/sounds/kick.wav', name: 'kick.wav' })]
+      mockElectronAPI.renameFile.mockResolvedValue({ success: true, newPath: '/sounds/kick_v2.wav' })
+
+      const sbId = sbStore.createSoundboard('Board', '', 'LIST', 'Default')
+      sbStore.addItem(sbId, {
+        id: 'sbi_1', name: 'kick.wav', filePath: '/sounds/kick.wav', duration: 2.5,
+      })
+      sbStore.addItem(sbId, {
+        id: 'sbi_2', name: 'snare.wav', filePath: '/sounds/snare.wav', duration: 1.0,
+      })
+
+      await store.renameFile('/sounds/kick.wav', 'kick_v2.wav')
+
+      const sb = sbStore.allSoundboards.find((s: any) => s.id === sbId)!
+      expect(sb.items[0].filePath).toBe('/sounds/kick_v2.wav')
+      expect(sb.items[0].name).toBe('kick_v2.wav')
+      // Unrelated item unchanged
+      expect(sb.items[1].filePath).toBe('/sounds/snare.wav')
+      expect(sb.items[1].name).toBe('snare.wav')
     })
   })
 

@@ -189,11 +189,12 @@ describe('AudioRow', () => {
     expect(library.dragPayload).toBeNull()
   })
 
-  it('renders expand button', () => {
+  it('renders expand button inside the name column', () => {
     const wrapper = mount(AudioRow, {
       props: { file: makeFile(), widths: DEFAULT_WIDTHS },
     })
     expect(wrapper.find('.expand-btn').exists()).toBe(true)
+    expect(wrapper.find('.col-name .expand-btn').exists()).toBe(true)
   })
 
   it('does not show detail panel when not expanded', () => {

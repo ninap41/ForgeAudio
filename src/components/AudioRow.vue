@@ -22,8 +22,16 @@
 			</div>
 
 			<div class="col col-name" :style="{ width: widths.name + 'px' }" :title="file.path">
-				<span class="file-name">{{ file.name }}</span>
-				<span v-if="file.description" class="file-description">{{ file.description }}</span>
+				<div class="name-content">
+					<span class="file-name">{{ file.name }}</span>
+					<span v-if="file.description" class="file-description">{{ file.description }}</span>
+				</div>
+				<button class="expand-btn" :title="expanded ? 'Collapse' : 'Expand'" @click.stop="emit('toggle-expand', file.path)">
+					<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+						<polygon v-if="expanded" points="6,9 12,15 18,9" />
+						<polygon v-else points="9,6 15,12 9,18" />
+					</svg>
+				</button>
 			</div>
 
 			<div class="col col-tags" :style="{ width: widths.tags + 'px' }">
@@ -53,13 +61,6 @@
 			<div class="col col-date" :style="{ width: widths.modifiedAt + 'px' }">
 				{{ formatDate(file.modifiedAt) }}
 			</div>
-
-			<button class="expand-btn" :title="expanded ? 'Collapse' : 'Expand'" @click.stop="emit('toggle-expand', file.path)">
-				<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-					<polygon v-if="expanded" points="6,9 12,15 18,9" />
-					<polygon v-else points="9,6 15,12 9,18" />
-				</svg>
-			</button>
 		</div>
 
 		<div v-if="expanded" class="row-detail">
@@ -227,16 +228,17 @@ function formatDate(iso: string | null): string {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	border-radius: 50%;
+	border-radius: 4px;
 	color: var(--text-secondary);
+	background: var(--bg-hover);
 	transition:
 		color 0.15s,
 		background 0.15s;
 }
 
 .play-btn:hover {
-	color: var(--text-primary);
-	background: var(--bg-hover);
+	color: var(--bg);
+	background: var(--accent);
 }
 
 /* IMPORTANT: widths are driven by inline styles now */
@@ -251,14 +253,21 @@ function formatDate(iso: string | null): string {
 /* name column layout */
 .col-name {
 	display: flex;
-	flex-direction: column;
-	justify-content: flex-start; /* ✅ top */
-	align-items: flex-start; /* ✅ left */
-	gap: 1px;
+	flex-direction: row;
+	align-items: center;
+	gap: 4px;
 	font-size: 13px;
+	min-width: 0;
+	overflow: hidden;
+}
 
-	min-width: 0; /* ✅ keep for truncation */
-	overflow: hidden; /* ✅ keep for truncation */
+.name-content {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
 }
 
 .file-name,
@@ -315,6 +324,7 @@ function formatDate(iso: string | null): string {
 	cursor: pointer;
 	padding: 0;
 	flex-shrink: 0;
+	margin-left: auto;
 	opacity: 0;
 	transition:
 		color 0.15s,
