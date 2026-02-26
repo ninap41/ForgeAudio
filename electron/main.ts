@@ -1,6 +1,16 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, shell, protocol, nativeImage } from "electron"
 import { join, extname, dirname } from "path"
-import { open as fsOpen, unlink, rename, readFile as fsReadFile, writeFile, mkdir, readdir, stat, copyFile } from "fs/promises"
+import {
+	open as fsOpen,
+	unlink,
+	rename,
+	readFile as fsReadFile,
+	writeFile,
+	mkdir,
+	readdir,
+	stat,
+	copyFile,
+} from "fs/promises"
 
 const AUDIO_MIME: Record<string, string> = {
 	".wav": "audio/wav",
@@ -334,7 +344,7 @@ function generateWavPeaks(buffer: Buffer, targetWidth: number): number[] | null 
 				if (bytesPerSample === 2) {
 					sample = buffer.readInt16LE(byteOff) / 32768
 				} else if (bytesPerSample === 3) {
-					sample = ((buffer[byteOff] | (buffer[byteOff + 1] << 8) | (buffer[byteOff + 2] << 16)) << 8 >> 8) / 8388608
+					sample = (((buffer[byteOff] | (buffer[byteOff + 1] << 8) | (buffer[byteOff + 2] << 16)) << 8) >> 8) / 8388608
 				} else {
 					sample = buffer.readInt32LE(byteOff) / 2147483648
 				}
@@ -450,54 +460,51 @@ async function walkForAudioFiles(dir: string): Promise<string[]> {
 	return results
 }
 
-ipcMain.handle(
-	"fs:resolveDroppedPaths",
-	async (_event, droppedPaths: string[], destDir: string) => {
-		const readyToCopy: { sourcePath: string; destPath: string; fileName: string }[] = []
-		const conflicts: { sourcePath: string; destPath: string; fileName: string }[] = []
-		let skippedCount = 0
+ipcMain.handle("fs:resolveDroppedPaths", async (_event, droppedPaths: string[], destDir: string) => {
+	const readyToCopy: { sourcePath: string; destPath: string; fileName: string }[] = []
+	const conflicts: { sourcePath: string; destPath: string; fileName: string }[] = []
+	let skippedCount = 0
 
-		const audioFiles: string[] = []
+	const audioFiles: string[] = []
 
-		for (const p of droppedPaths) {
-			let s
-			try {
-				s = await stat(p)
-			} catch {
-				skippedCount++
-				continue
-			}
-			if (s.isDirectory()) {
-				const found = await walkForAudioFiles(p)
-				audioFiles.push(...found)
-			} else if (s.isFile()) {
-				const ext = extname(p).toLowerCase()
-				if (SUPPORTED_EXTENSIONS.has(ext)) {
-					audioFiles.push(p)
-				} else {
-					skippedCount++
-				}
-			}
+	for (const p of droppedPaths) {
+		let s
+		try {
+			s = await stat(p)
+		} catch {
+			skippedCount++
+			continue
 		}
-
-		for (const sourcePath of audioFiles) {
-			const fileName = sourcePath.split(/[\\/]/).pop()!
-			const destPath = join(destDir, fileName)
-			let exists = false
-			try {
-				await stat(destPath)
-				exists = true
-			} catch {}
-			if (exists) {
-				conflicts.push({ sourcePath, destPath, fileName })
+		if (s.isDirectory()) {
+			const found = await walkForAudioFiles(p)
+			audioFiles.push(...found)
+		} else if (s.isFile()) {
+			const ext = extname(p).toLowerCase()
+			if (SUPPORTED_EXTENSIONS.has(ext)) {
+				audioFiles.push(p)
 			} else {
-				readyToCopy.push({ sourcePath, destPath, fileName })
+				skippedCount++
 			}
 		}
+	}
 
-		return { readyToCopy, conflicts, skippedCount }
-	},
-)
+	for (const sourcePath of audioFiles) {
+		const fileName = sourcePath.split(/[\\/]/).pop()!
+		const destPath = join(destDir, fileName)
+		let exists = false
+		try {
+			await stat(destPath)
+			exists = true
+		} catch {}
+		if (exists) {
+			conflicts.push({ sourcePath, destPath, fileName })
+		} else {
+			readyToCopy.push({ sourcePath, destPath, fileName })
+		}
+	}
+
+	return { readyToCopy, conflicts, skippedCount }
+})
 
 ipcMain.handle(
 	"fs:copyFileToLibrary",
@@ -541,11 +548,11 @@ ipcMain.handle(
 )
 
 // Native file drag to external apps
-ipcMain.on('drag:startFile', (event, filePath: string) => {
+ipcMain.on("drag:startFile", (event, filePath: string) => {
 	let icon: Electron.NativeImage
 	try {
-		icon = nativeImage.createFromPath(join(__dirname, '../public/drag-icon.png'))
-		if (icon.isEmpty()) throw new Error('empty')
+		icon = nativeImage.createFromPath(join(__dirname, "../public/drag-icon.png"))
+		if (icon.isEmpty()) throw new Error("empty")
 	} catch {
 		icon = nativeImage.createEmpty()
 	}
@@ -553,122 +560,140 @@ ipcMain.on('drag:startFile', (event, filePath: string) => {
 })
 
 // Context menu triggered from renderer
-ipcMain.on("context-menu:show", (event, params: {
-	filePath: string
-	soundboards?: Array<{ id: string; name: string }>
-	recentSoundboardId?: string | null
-	recentSoundboardName?: string | null
-	lastUsedTag?: string | null
-}) => {
-	const template: Electron.MenuItemConstructorOptions[] = [
-		{
-			label: "Play",
-			click: () => event.sender.send("context-menu:play", params.filePath),
+ipcMain.on(
+	"context-menu:show",
+	(
+		event,
+		params: {
+			filePath: string
+			soundboards?: Array<{ id: string; name: string }>
+			recentSoundboardId?: string | null
+			recentSoundboardName?: string | null
+			lastUsedTag?: string | null
 		},
-		{
-			label: "Add Tag",
-			click: () => event.sender.send("context-menu:addTag", params.filePath),
-		},
-	]
+	) => {
+		const template: Electron.MenuItemConstructorOptions[] = [
+			{
+				label: "Play",
+				click: () => event.sender.send("context-menu:play", params.filePath),
+			},
+			{
+				label: "Add Tag",
+				click: () => event.sender.send("context-menu:addTag", params.filePath),
+			},
+		]
 
-	if (params.lastUsedTag) {
-		template.push({
-			label: `Add Tag '${params.lastUsedTag}'`,
-			click: () => event.sender.send("context-menu:quickTag", {
-				filePath: params.filePath,
-				tag: params.lastUsedTag,
-			}),
-		})
-	}
-
-	template.push(
-		{
-			label: "Edit Description",
-			click: () => event.sender.send("context-menu:editDescription", params.filePath),
-		},
-		{
-			label: "Rename…",
-			click: () => event.sender.send("context-menu:rename", params.filePath),
-		},
-	)
-
-	// Soundboard items (dynamic)
-	if (params.soundboards && params.soundboards.length > 0) {
-		template.push({ type: "separator" })
-		template.push({
-			label: "Add to Soundboard…",
-			click: () => event.sender.send("context-menu:addToSoundboard", params.filePath),
-		})
-		if (params.recentSoundboardId && params.recentSoundboardName) {
+		if (params.lastUsedTag) {
 			template.push({
-				label: `Add to '${params.recentSoundboardName}'`,
-				click: () => event.sender.send("context-menu:quickAddToSoundboard", {
-					filePath: params.filePath,
-					soundboardId: params.recentSoundboardId,
-				}),
+				label: `Add Tag '${params.lastUsedTag}'`,
+				click: () =>
+					event.sender.send("context-menu:quickTag", {
+						filePath: params.filePath,
+						tag: params.lastUsedTag,
+					}),
 			})
 		}
-	}
 
-	template.push({ type: "separator" })
-	template.push({
-		label: process.platform === "darwin" ? "Reveal in Finder" : "Show in Explorer",
-		click: () => shell.showItemInFolder(params.filePath),
-	})
-	template.push({
-		label: "Copy File Path",
-		click: () => {
-			const { clipboard } = require("electron")
-			clipboard.writeText(params.filePath)
-		},
-	})
-	template.push({ type: "separator" })
-	template.push({
-		label: "Delete File…",
-		click: () => event.sender.send("context-menu:delete", params.filePath),
-	})
+		template.push(
+			{
+				label: "Edit Description",
+				click: () => event.sender.send("context-menu:editDescription", params.filePath),
+			},
+			{
+				label: "Rename…",
+				click: () => event.sender.send("context-menu:rename", params.filePath),
+			},
+		)
 
-	const menu = Menu.buildFromTemplate(template)
-	menu.popup()
-})
+		// Soundboard items (dynamic)
+		if (params.soundboards && params.soundboards.length > 0) {
+			template.push({ type: "separator" })
+			template.push({
+				label: "Add to Soundboard…",
+				click: () => event.sender.send("context-menu:addToSoundboard", params.filePath),
+			})
+			if (params.recentSoundboardId && params.recentSoundboardName) {
+				template.push({
+					label: `Add to '${params.recentSoundboardName}'`,
+					click: () =>
+						event.sender.send("context-menu:quickAddToSoundboard", {
+							filePath: params.filePath,
+							soundboardId: params.recentSoundboardId,
+						}),
+				})
+			}
+		}
+
+		template.push({ type: "separator" })
+		template.push({
+			label: process.platform === "darwin" ? "Reveal in Finder" : "Show in Explorer",
+			click: () => shell.showItemInFolder(params.filePath),
+		})
+		template.push({
+			label: "Copy File Path",
+			click: () => {
+				const { clipboard } = require("electron")
+				clipboard.writeText(params.filePath)
+			},
+		})
+		template.push({ type: "separator" })
+		template.push({
+			label: "Delete File…",
+			click: () => event.sender.send("context-menu:delete", params.filePath),
+		})
+
+		const menu = Menu.buildFromTemplate(template)
+		menu.popup()
+	},
+)
 
 // Soundboard item context menu
-ipcMain.on("context-menu:showSoundboardItem", (event, params: {
-	soundboardId: string
-	itemId: string
-	itemName: string
-}) => {
-	const template: Electron.MenuItemConstructorOptions[] = [
-		{
-			label: "Play",
-			click: () => event.sender.send("context-menu:sbItemPlay", {
-				soundboardId: params.soundboardId,
-				itemId: params.itemId,
-			}),
+ipcMain.on(
+	"context-menu:showSoundboardItem",
+	(
+		event,
+		params: {
+			soundboardId: string
+			itemId: string
+			itemName: string
 		},
-		{
-			label: "View Data",
-			click: () => event.sender.send("context-menu:sbItemViewData", {
-				soundboardId: params.soundboardId,
-				itemId: params.itemId,
-			}),
-		},
-		{
-			label: "Edit…",
-			click: () => event.sender.send("context-menu:sbItemEdit", {
-				soundboardId: params.soundboardId,
-				itemId: params.itemId,
-			}),
-		},
-		{ type: "separator" },
-		{
-			label: "Remove",
-			click: () => event.sender.send("context-menu:sbItemRemove", {
-				soundboardId: params.soundboardId,
-				itemId: params.itemId,
-			}),
-		},
-	]
-	const menu = Menu.buildFromTemplate(template)
-	menu.popup()
-})
+	) => {
+		const template: Electron.MenuItemConstructorOptions[] = [
+			{
+				label: "Play",
+				click: () =>
+					event.sender.send("context-menu:sbItemPlay", {
+						soundboardId: params.soundboardId,
+						itemId: params.itemId,
+					}),
+			},
+			{
+				label: "View Data",
+				click: () =>
+					event.sender.send("context-menu:sbItemViewData", {
+						soundboardId: params.soundboardId,
+						itemId: params.itemId,
+					}),
+			},
+			{
+				label: "Edit…",
+				click: () =>
+					event.sender.send("context-menu:sbItemEdit", {
+						soundboardId: params.soundboardId,
+						itemId: params.itemId,
+					}),
+			},
+			{ type: "separator" },
+			{
+				label: "Remove",
+				click: () =>
+					event.sender.send("context-menu:sbItemRemove", {
+						soundboardId: params.soundboardId,
+						itemId: params.itemId,
+					}),
+			},
+		]
+		const menu = Menu.buildFromTemplate(template)
+		menu.popup()
+	},
+)
