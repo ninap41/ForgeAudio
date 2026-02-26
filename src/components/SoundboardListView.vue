@@ -101,13 +101,13 @@ function onDragOver(e: DragEvent) {
 		e.dataTransfer.dropEffect = "move"
 		return
 	}
-	if (!e.dataTransfer?.types.includes("application/x-forgeaudio-file")) return
-	e.dataTransfer.dropEffect = "copy"
+	if (!library.dragPayload) return
+	if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"
 }
 
 function onDragEnter(e: DragEvent) {
 	if (e.dataTransfer?.types.includes("application/x-forgeaudio-reorder")) return
-	if (!e.dataTransfer?.types.includes("application/x-forgeaudio-file")) return
+	if (!library.dragPayload) return
 	dragCounter++
 	isDragOver.value = true
 }
@@ -121,13 +121,11 @@ function onDragLeave() {
 }
 
 function onDrop(e: DragEvent) {
-	// Handle external file drop
 	dragCounter = 0
 	isDragOver.value = false
 	if (e.dataTransfer?.types.includes("application/x-forgeaudio-reorder")) return
-	const json = e.dataTransfer?.getData("application/x-forgeaudio-file")
-	if (!json) return
-	const data = JSON.parse(json)
+	const data = library.dragPayload
+	if (!data) return
 	const item: SoundboardItem = {
 		id: `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
 		name: data.name,
@@ -135,6 +133,7 @@ function onDrop(e: DragEvent) {
 		duration: data.duration ?? 0,
 	}
 	library.addSoundboardItem(props.soundboard.id, item)
+	library.dragPayload = null
 }
 
 // ─── Reorder drag-and-drop ──────────────────────────────────────────────────

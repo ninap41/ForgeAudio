@@ -100,6 +100,9 @@ const playbackOffset = ref<number | null>(null)
 const playbackRange = ref<[number, number] | null>(null)
 const playbackRestartCounter = ref(0)
 
+// Drag payload for native file drag (shared between AudioRow and drop targets)
+const dragPayload = ref<{ path: string; name: string; extension: string; duration: number } | null>(null)
+
 const filteredFiles = computed(() => {
 	let result = files.value
 
@@ -835,6 +838,7 @@ export function useLibraryStore() {
 		playbackOffset,
 		playbackRange,
 		playbackRestartCounter,
+		dragPayload,
 		filteredFiles,
 		initFromPersistedDirectory,
 		selectAndScanDirectory,
@@ -904,6 +908,7 @@ export function _resetLibraryStore() {
 	isPlaying.value = false
 	playbackOffset.value = null
 	playbackRange.value = null
+	dragPayload.value = null
 	activeProfileName.value = "Default"
 	profiles.value = {}
 }

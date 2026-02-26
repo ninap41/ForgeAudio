@@ -7,6 +7,7 @@
 		@click="library.playFile(file)"
 		@contextmenu.prevent="onContextMenu"
 		@dragstart="onDragStart"
+		@dragend="onDragEnd"
 	>
 		<div class="col col-play" :style="{ width: widths.play + 'px' }">
 			<button class="play-btn" @click.stop="togglePlay">
@@ -108,19 +109,20 @@ function onContextMenu() {
 }
 
 function onDragStart(e: DragEvent) {
-	if (!e.dataTransfer) return
-	e.dataTransfer.effectAllowed = "copy"
-	e.dataTransfer.setData(
-		"application/x-forgeaudio-file",
-		JSON.stringify({
-			path: props.file.path,
-			name: props.file.name,
-			extension: props.file.extension,
-			duration: props.file.duration ?? 0,
-		}),
-	)
-	// Native OS drag for external apps (Finder, DAW, etc.)
+	// Prevent HTML5 drag — native Electron startDrag handles the OS-level drag session.
+	// Internal soundboard drops use library.dragPayload instead of dataTransfer MIME types.
+	e.preventDefault()
+	library.dragPayload = {
+		path: props.file.path,
+		name: props.file.name,
+		extension: props.file.extension,
+		duration: props.file.duration ?? 0,
+	}
 	window.electronAPI.startDrag(props.file.path)
+}
+
+function onDragEnd() {
+	library.dragPayload = null
 }
 
 function formatDuration(seconds: number | null): string {

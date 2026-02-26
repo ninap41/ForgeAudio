@@ -154,44 +154,38 @@ describe('AudioRow', () => {
     expect(wrapper.findAll('.col-date')[1].text()).toBe('—')
   })
 
-  it('onDragStart sets application/x-forgeaudio-file MIME data', () => {
+  it('onDragStart sets dragPayload and calls startDrag', () => {
     const file = makeFile({ path: '/sounds/kick.wav', name: 'kick.wav', extension: '.wav', duration: 1.5 })
     const wrapper = mount(AudioRow, {
       props: { file, widths: DEFAULT_WIDTHS },
     })
+    const library = useLibraryStore()
 
-    let mimeData = ''
-    const dragEvent = new DragEvent('dragstart', { bubbles: true })
+    const dragEvent = new DragEvent('dragstart', { bubbles: true, cancelable: true })
     Object.defineProperty(dragEvent, 'dataTransfer', {
-      value: {
-        effectAllowed: '',
-        setData: (type: string, data: string) => { if (type === 'application/x-forgeaudio-file') mimeData = data },
-      },
+      value: { effectAllowed: '', setData: vi.fn() },
     })
     wrapper.find('.audio-row').element.dispatchEvent(dragEvent)
 
-    const parsed = JSON.parse(mimeData)
-    expect(parsed.path).toBe('/sounds/kick.wav')
-    expect(parsed.name).toBe('kick.wav')
-    expect(parsed.extension).toBe('.wav')
-    expect(parsed.duration).toBe(1.5)
+    expect(library.dragPayload).toEqual({
+      path: '/sounds/kick.wav',
+      name: 'kick.wav',
+      extension: '.wav',
+      duration: 1.5,
+    })
+    expect(mockElectronAPI.startDrag).toHaveBeenCalledWith('/sounds/kick.wav')
   })
 
-  it('onDragStart calls window.electronAPI.startDrag with file path', () => {
+  it('onDragEnd clears dragPayload', () => {
     const file = makeFile({ path: '/sounds/snare.wav' })
     const wrapper = mount(AudioRow, {
       props: { file, widths: DEFAULT_WIDTHS },
     })
+    const library = useLibraryStore()
+    library.dragPayload = { path: '/sounds/snare.wav', name: 'snare.wav', extension: '.wav', duration: 0 }
 
-    const dragEvent = new DragEvent('dragstart', { bubbles: true })
-    Object.defineProperty(dragEvent, 'dataTransfer', {
-      value: {
-        effectAllowed: '',
-        setData: vi.fn(),
-      },
-    })
-    wrapper.find('.audio-row').element.dispatchEvent(dragEvent)
+    wrapper.find('.audio-row').element.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
 
-    expect(mockElectronAPI.startDrag).toHaveBeenCalledWith('/sounds/snare.wav')
+    expect(library.dragPayload).toBeNull()
   })
 })

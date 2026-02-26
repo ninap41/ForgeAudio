@@ -109,12 +109,12 @@ onBeforeUnmount(() => {
 })
 
 function onDragOver(e: DragEvent) {
-	if (!e.dataTransfer?.types.includes("application/x-forgeaudio-file")) return
-	e.dataTransfer.dropEffect = "copy"
+	if (!library.dragPayload) return
+	if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"
 }
 
-function onDragEnter(e: DragEvent) {
-	if (!e.dataTransfer?.types.includes("application/x-forgeaudio-file")) return
+function onDragEnter() {
+	if (!library.dragPayload) return
 	dragCounter++
 	isDragOver.value = true
 }
@@ -127,12 +127,11 @@ function onDragLeave() {
 	}
 }
 
-function onDrop(e: DragEvent) {
+function onDrop() {
 	dragCounter = 0
 	isDragOver.value = false
-	const json = e.dataTransfer?.getData("application/x-forgeaudio-file")
-	if (!json) return
-	const data = JSON.parse(json)
+	const data = library.dragPayload
+	if (!data) return
 	const item: SoundboardItem = {
 		id: `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
 		name: data.name,
@@ -140,6 +139,7 @@ function onDrop(e: DragEvent) {
 		duration: data.duration ?? 0,
 	}
 	library.addSoundboardItem(props.soundboard.id, item)
+	library.dragPayload = null
 }
 
 function restartItem(item: SoundboardItem) {
