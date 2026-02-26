@@ -9,5 +9,21 @@ dist-electron
 .env
 .env.local
 
+# Electron / builder outputs
+release/
+out/
+build/
+*.dmg
+*.zip
+*.exe
+*.AppImage
+*.snap
+
+# macOS app bundles
+*.app
+
+# Electron caches
+.node-gyp/
+
 # Claude Code (keep personal/local files out)
 .claude/settings.local.json
