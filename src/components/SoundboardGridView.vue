@@ -6,6 +6,7 @@
 		@dragenter.prevent="onDragEnter"
 		@dragleave="onDragLeave"
 		@drop.prevent="onDrop"
+		@contextmenu.prevent="onGridContextMenu"
 	>
 		<div v-if="soundboard.items.length === 0" class="sb-empty">
 			<p class="sb-empty-text">Drag files here or use the right-click menu</p>
@@ -27,7 +28,7 @@
 					@drop.prevent="onReorderDrop($event, index)"
 					@dragend="onReorderEnd"
 					@click="playItem(item)"
-					@contextmenu.prevent="onItemContextMenu(item)"
+					@contextmenu.prevent.stop="onItemContextMenu(item)"
 				>
 					<span class="sb-pad-name">{{ item.name }}</span>
 					<span class="sb-pad-duration">{{ formatSeconds(item.duration) }}</span>
@@ -90,6 +91,10 @@ import type { Soundboard, SoundboardItem } from "../stores/soundboardStore"
 interface Props {
 	soundboard: Soundboard
 }
+
+const emit = defineEmits<{
+	'grid-contextmenu': [soundboardId: string]
+}>()
 
 const props = defineProps<Props>()
 const library = useLibraryStore()
@@ -274,6 +279,10 @@ function playItem(item: SoundboardItem) {
 
 async function handleRemove(itemId: string) {
 	await library.removeSoundboardItem(props.soundboard.id, itemId)
+}
+
+function onGridContextMenu() {
+	emit('grid-contextmenu', props.soundboard.id)
 }
 
 function onItemContextMenu(item: SoundboardItem) {

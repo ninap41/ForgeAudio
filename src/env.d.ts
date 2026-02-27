@@ -56,6 +56,8 @@ interface ElectronAPI {
   onSbItemEdit: (callback: (data: { soundboardId: string; itemId: string }) => void) => void
   onSbItemRemove: (callback: (data: { soundboardId: string; itemId: string }) => void) => void
   onSbItemViewData: (callback: (data: { soundboardId: string; itemId: string }) => void) => void
+  showGridColumnsMenu: (params: { soundboardId: string; currentColumns: number }) => void
+  onSetGridColumns: (callback: (data: { soundboardId: string; columns: number }) => void) => void
   startDrag: (filePath: string) => void
   getRootDirectory: () => Promise<string | null>
   setRootDirectory: (dir: string | null) => Promise<void>

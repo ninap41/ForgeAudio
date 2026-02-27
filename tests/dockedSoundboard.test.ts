@@ -52,6 +52,8 @@ const mockElectronAPI = {
   onSbItemRemove: vi.fn(),
   onSbItemViewData: vi.fn(),
   startDrag: vi.fn(),
+  showGridColumnsMenu: vi.fn(),
+  onSetGridColumns: vi.fn(),
 }
 
 ;(window as any).electronAPI = mockElectronAPI

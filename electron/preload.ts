@@ -110,4 +110,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('context-menu:sbItemRemove', (_event, data) => callback(data)),
   onSbItemViewData: (callback: (data: { soundboardId: string; itemId: string }) => void) =>
     ipcRenderer.on('context-menu:sbItemViewData', (_event, data) => callback(data)),
+
+  // Grid columns context menu
+  showGridColumnsMenu: (params: { soundboardId: string; currentColumns: number }) =>
+    ipcRenderer.send('context-menu:showGridColumns', params),
+  onSetGridColumns: (callback: (data: { soundboardId: string; columns: number }) => void) =>
+    ipcRenderer.on('context-menu:setGridColumns', (_event, data) => callback(data)),
 })

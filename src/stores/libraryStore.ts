@@ -141,21 +141,25 @@ const filteredFiles = computed(() => {
 		result = result.filter((f) => filterExtension.value.includes(f.extension))
 	}
 
-	// Tagged filter
-	if (filterTagged.value === "tagged") {
-		result = result.filter((f) => f.tags.length > 0)
-	} else if (filterTagged.value === "untagged") {
-		result = result.filter((f) => f.tags.length === 0)
-	}
-
 	// Tag chip filters — file must have ALL selected tags
+	// "uncategorized" is a special virtual tag meaning "file has 0 tags"
 	if (selectedTags.value.length > 0) {
-		result = result.filter((f) => selectedTags.value.every((tag) => f.tags.includes(tag)))
+		result = result.filter((f) =>
+			selectedTags.value.every((tag) => {
+				if (tag === "uncategorized") return f.tags.length === 0
+				return f.tags.includes(tag)
+			}),
+		)
 	}
 
 	// Excluded tag filters — file must NOT have ANY excluded tag
 	if (excludedTags.value.length > 0) {
-		result = result.filter((f) => !excludedTags.value.some((tag) => f.tags.includes(tag)))
+		result = result.filter((f) =>
+			!excludedTags.value.some((tag) => {
+				if (tag === "uncategorized") return f.tags.length === 0
+				return f.tags.includes(tag)
+			}),
+		)
 	}
 
 	// Description chip filters — each chip must match name or description (AND across chips)

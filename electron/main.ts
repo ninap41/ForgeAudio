@@ -723,6 +723,24 @@ ipcMain.on(
 	},
 )
 
+// Grid columns context menu
+ipcMain.on(
+	"context-menu:showGridColumns",
+	(event, params: { soundboardId: string; currentColumns: number }) => {
+		const template: Electron.MenuItemConstructorOptions[] = Array.from({ length: 8 }, (_, i) => ({
+			label: `${i + 1} column${i > 0 ? "s" : ""}`,
+			type: "radio" as const,
+			checked: params.currentColumns === i + 1,
+			click: () =>
+				event.sender.send("context-menu:setGridColumns", {
+					soundboardId: params.soundboardId,
+					columns: i + 1,
+				}),
+		}))
+		Menu.buildFromTemplate(template).popup()
+	},
+)
+
 // Soundboard item context menu
 ipcMain.on(
 	"context-menu:showSoundboardItem",

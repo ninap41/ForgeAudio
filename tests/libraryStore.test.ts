@@ -118,28 +118,28 @@ describe('libraryStore', () => {
       expect(store.filteredFiles).toHaveLength(2)
     })
 
-    it('filters tagged files', () => {
+    it('filters untagged files via "uncategorized" in selectedTags', () => {
       const store = useLibraryStore()
       store.files = [
         makeFile({ tags: ['impact'] }),
         makeFile({ path: '/b.wav', name: 'b.wav', tags: [] }),
       ]
-      store.filterTagged = 'tagged'
-
-      expect(store.filteredFiles).toHaveLength(1)
-      expect(store.filteredFiles[0].tags).toContain('impact')
-    })
-
-    it('filters untagged files', () => {
-      const store = useLibraryStore()
-      store.files = [
-        makeFile({ tags: ['impact'] }),
-        makeFile({ path: '/b.wav', name: 'b.wav', tags: [] }),
-      ]
-      store.filterTagged = 'untagged'
+      store.addTagFilter('uncategorized')
 
       expect(store.filteredFiles).toHaveLength(1)
       expect(store.filteredFiles[0].tags).toHaveLength(0)
+    })
+
+    it('filters tagged files via "uncategorized" in excludedTags', () => {
+      const store = useLibraryStore()
+      store.files = [
+        makeFile({ tags: ['impact'] }),
+        makeFile({ path: '/b.wav', name: 'b.wav', tags: [] }),
+      ]
+      store.addExcludeTagFilter('uncategorized')
+
+      expect(store.filteredFiles).toHaveLength(1)
+      expect(store.filteredFiles[0].tags).toContain('impact')
     })
 
     it('filters by description chip matching filename', () => {

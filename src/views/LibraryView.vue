@@ -17,11 +17,6 @@
 						</label>
 					</div>
 				</div>
-				<select v-model="library.filterTagged" @change="library.saveMetadata()" class="filter-select">
-					<option value="all">All files</option>
-					<option value="tagged">Tagged</option>
-					<option value="untagged">Untagged</option>
-				</select>
 				<button class="btn" @click="library.selectAndScanDirectory()">
 					{{ library.rootDirectory ? "Change Folder" : "Open Folder" }}
 				</button>
