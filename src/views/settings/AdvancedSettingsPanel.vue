@@ -64,6 +64,21 @@
           </label>
         </div>
       </div>
+
+      <!-- Appearance -->
+      <div class="setting-card">
+        <h4>Appearance</h4>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-label">Boot Splash Animation</span>
+            <span class="toggle-hint">Show the opening animation on app launch</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" v-model="settings.showBootSplash" @change="persistSettings" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
     </div>
   </section>
 </template>

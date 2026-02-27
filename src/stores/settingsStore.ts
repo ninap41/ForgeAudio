@@ -10,6 +10,7 @@ const scannerBatchSize = ref(50)
 const durationConcurrency = ref(8)
 const autoLoadDurations = ref(true)
 const autoBackup = ref(true)
+const showBootSplash = ref(true)
 
 export function useSettingsStore() {
   async function loadBackups() {
@@ -78,6 +79,9 @@ export function useSettingsStore() {
     if (typeof settings.autoBackup === 'boolean') {
       autoBackup.value = settings.autoBackup
     }
+    if (typeof settings.showBootSplash === 'boolean') {
+      showBootSplash.value = settings.showBootSplash
+    }
   }
 
   function getSettingsSnapshot() {
@@ -86,6 +90,7 @@ export function useSettingsStore() {
       durationConcurrency: durationConcurrency.value,
       autoLoadDurations: autoLoadDurations.value,
       autoBackup: autoBackup.value,
+      showBootSplash: showBootSplash.value,
     }
   }
 
@@ -98,6 +103,7 @@ export function useSettingsStore() {
     durationConcurrency,
     autoLoadDurations,
     autoBackup,
+    showBootSplash,
     loadBackups,
     createBackup,
     deleteBackup,
@@ -116,4 +122,5 @@ export function _resetSettingsStore() {
   durationConcurrency.value = 8
   autoLoadDurations.value = true
   autoBackup.value = true
+  showBootSplash.value = true
 }

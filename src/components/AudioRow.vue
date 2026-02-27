@@ -62,7 +62,7 @@
 			<div class="col col-date clickable-date" :style="{ width: widths.modifiedAt + 'px' }" @contextmenu.prevent.stop="onDateContextMenu('modifiedAt', file.modifiedAt)">
 				{{ formatDate(file.modifiedAt) }}
 			</div>
-			<div class="col col-date" :style="{ width: widths.lastPlayed + 'px' }">
+			<div class="col col-date clickable-date" :style="{ width: widths.lastPlayed + 'px' }" @contextmenu.prevent.stop="onDateContextMenu('lastPlayed', file.lastPlayed)">
 				{{ formatDate(file.lastPlayed) }}
 			</div>
 		</div>
@@ -112,7 +112,9 @@
 				</div>
 				<div class="detail-row">
 					<dt>Last Played</dt>
-					<dd>{{ file.lastPlayed ? formatDate(file.lastPlayed) : "—" }}</dd>
+					<dd class="clickable-date" @contextmenu.prevent.stop="onDateContextMenu('lastPlayed', file.lastPlayed)">
+						{{ file.lastPlayed ? formatDate(file.lastPlayed) : "—" }}
+					</dd>
 				</div>
 			</dl>
 		</div>
@@ -176,7 +178,7 @@ function onContextMenu() {
 	})
 }
 
-function onDateContextMenu(field: "createdAt" | "modifiedAt", date: string | null) {
+function onDateContextMenu(field: "createdAt" | "modifiedAt" | "lastPlayed", date: string | null) {
 	if (!date) return
 	window.electronAPI.showDateContextMenu({ field, date })
 }

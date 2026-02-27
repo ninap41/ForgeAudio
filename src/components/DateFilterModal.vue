@@ -52,7 +52,7 @@ import { useLibraryStore, type DateFilter } from "@/stores/libraryStore"
 import { MONTHS } from "@/utils/formatDateOrdinal"
 
 interface Props {
-	field: "createdAt" | "modifiedAt"
+	field: "createdAt" | "modifiedAt" | "lastPlayed"
 	operator: "on" | "before" | "after"
 }
 
@@ -77,7 +77,8 @@ const yearInput = computed(() => {
 	return isNaN(n) ? null : n
 })
 
-const fieldLabel = computed(() => (props.field === "createdAt" ? "created" : "modified"))
+const fieldLabels: Record<string, string> = { createdAt: "created", modifiedAt: "modified", lastPlayed: "last played" }
+const fieldLabel = computed(() => fieldLabels[props.field] || props.field)
 const modalTitle = computed(() => `Filter: ${fieldLabel.value} ${props.operator}`)
 
 const resolvedMonthIndex = computed(() => {

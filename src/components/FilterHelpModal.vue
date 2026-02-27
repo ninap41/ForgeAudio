@@ -24,7 +24,7 @@
         <li>Press <kbd>Escape</kbd> to clear all filters</li>
         <li>Remove individual chips with the <code>&times;</code> button</li>
         <li>Including and excluding the same term moves it to exclude</li>
-        <li>Right-click a date in a file's detail panel to quickly add a date filter</li>
+        <li>Right-click any date column (created, modified, last played) to quickly add a date filter</li>
       </ul>
     </div>
   </BaseModal>
@@ -40,7 +40,7 @@ const filterGuides = [
   { syntax: '!text',  prefix: '!',     type: 'Description', action: 'Exclude', description: 'Hide files whose name or description contains the text' },
   { syntax: '#tag',   prefix: '#',     type: 'Tag',         action: 'Include', description: 'Show only files that have the tag (AND with other includes)' },
   { syntax: '!#tag',  prefix: '!#',    type: 'Tag',         action: 'Exclude', description: 'Hide files that have the tag (OR — any match is hidden)' },
-  { syntax: '$date',  prefix: '$date', type: 'Date',        action: 'Filter',  description: 'Filter by created/modified date (on/before/after a date)' },
+  { syntax: '$date',  prefix: '$date', type: 'Date',        action: 'Filter',  description: 'Filter by created/modified/last played date (on/before/after)' },
 ]
 </script>
 

@@ -1,5 +1,5 @@
 <template>
-	<!-- <BootSplash v-if="showBootSplash" @done="showBootSplash = false" /> -->
+	<BootSplash v-if="showBootSplash" @done="bootSplashDismissed = true" />
 	<div id="app-shell">
 		<header class="app-header ember-wrap" :style="{ '--ember-color': emberColor }">
 			<div class="header-top" :style="{ '--ember-color': emberColor }">
@@ -63,7 +63,7 @@
 					</span>
 					<span v-if="library.rootDirectory" class="header-info-item">
 						<span class="header-info-label">Directory:</span>
-						<span class="header-info-value glow">{{ library.rootDirectory }}</span>
+						<span class="header-info-value glow clickable-path" @click="openDirectory" title="Open in Finder">{{ library.rootDirectory }}</span>
 					</span>
 				</div>
 			</nav>
@@ -94,11 +94,14 @@ import DockedSoundboardContainer from "./components/DockedSoundboardContainer.vu
 import SoundboardDrawer from "./components/SoundboardDrawer.vue"
 import { useThemeStore } from "./stores/themeStore"
 import { useLibraryStore } from "./stores/libraryStore"
+import { useSettingsStore } from "./stores/settingsStore"
 
 const themeStore = useThemeStore()
 const library = useLibraryStore()
+const settingsStore = useSettingsStore()
 const router = useRouter()
-const showBootSplash = ref(true)
+const bootSplashDismissed = ref(false)
+const showBootSplash = computed(() => settingsStore.showBootSplash && !bootSplashDismissed.value)
 const showDebugModal = ref(false)
 const showSoundboardDrawer = ref(false)
 
@@ -151,6 +154,12 @@ onMounted(() => {
 onUnmounted(() => {
 	window.removeEventListener("keydown", handleKeydown)
 })
+
+function openDirectory() {
+	if (library.rootDirectory) {
+		window.electronAPI.showInFinder(library.rootDirectory)
+	}
+}
 
 function toggleDevTools() {
 	window.electronAPI.toggleDevTools()
@@ -522,6 +531,17 @@ img.app-title {
 
 .header-info-value.glow {
 	animation: glow 1.5s steps(3, end) infinite;
+}
+
+.clickable-path {
+	cursor: pointer;
+	border-radius: 3px;
+	padding: 0 3px;
+	transition: background 0.15s;
+}
+
+.clickable-path:hover {
+	background: var(--bg-hover);
 }
 
 @keyframes glow {

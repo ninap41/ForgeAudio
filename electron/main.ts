@@ -647,23 +647,28 @@ ipcMain.on(
 	},
 )
 
-// Date context menu — right-click on Created/Modified dates in detail panel
+// Date context menu — right-click on Created/Modified/Last Played dates
 ipcMain.on(
 	"context-menu:showDateMenu",
 	(
 		event,
 		params: {
-			field: "createdAt" | "modifiedAt"
+			field: "createdAt" | "modifiedAt" | "lastPlayed"
 			date: string
 		},
 	) => {
-		const createdLabel = params.field === "createdAt" ? "Created" : "Modified"
-		const otherField = params.field === "createdAt" ? "modifiedAt" : "createdAt"
-		const otherLabel = params.field === "createdAt" ? "Modified" : "Created"
+		const fieldLabels: Record<string, string> = {
+			createdAt: "Created",
+			modifiedAt: "Modified",
+			lastPlayed: "Last played",
+		}
+		const allFields: Array<"createdAt" | "modifiedAt" | "lastPlayed"> = ["createdAt", "modifiedAt", "lastPlayed"]
 
+		// Primary field first, then the other fields with separators
+		const primaryLabel = fieldLabels[params.field]
 		const template: Electron.MenuItemConstructorOptions[] = [
 			{
-				label: `${createdLabel} on this date`,
+				label: `${primaryLabel} on this date`,
 				click: () =>
 					event.sender.send("context-menu:addDateFilter", {
 						field: params.field,
@@ -672,7 +677,7 @@ ipcMain.on(
 					}),
 			},
 			{
-				label: `${createdLabel} after this date`,
+				label: `${primaryLabel} after this date`,
 				click: () =>
 					event.sender.send("context-menu:addDateFilter", {
 						field: params.field,
@@ -681,43 +686,51 @@ ipcMain.on(
 					}),
 			},
 			{
-				label: `${createdLabel} before this date`,
+				label: `${primaryLabel} before this date`,
 				click: () =>
 					event.sender.send("context-menu:addDateFilter", {
 						field: params.field,
-						operator: "before",
-						date: params.date,
-					}),
-			},
-			{ type: "separator" },
-			{
-				label: `${otherLabel} on this date`,
-				click: () =>
-					event.sender.send("context-menu:addDateFilter", {
-						field: otherField,
-						operator: "on",
-						date: params.date,
-					}),
-			},
-			{
-				label: `${otherLabel} after this date`,
-				click: () =>
-					event.sender.send("context-menu:addDateFilter", {
-						field: otherField,
-						operator: "after",
-						date: params.date,
-					}),
-			},
-			{
-				label: `${otherLabel} before this date`,
-				click: () =>
-					event.sender.send("context-menu:addDateFilter", {
-						field: otherField,
 						operator: "before",
 						date: params.date,
 					}),
 			},
 		]
+
+		for (const otherField of allFields) {
+			if (otherField === params.field) continue
+			const otherLabel = fieldLabels[otherField]
+			template.push({ type: "separator" })
+			template.push(
+				{
+					label: `${otherLabel} on this date`,
+					click: () =>
+						event.sender.send("context-menu:addDateFilter", {
+							field: otherField,
+							operator: "on",
+							date: params.date,
+						}),
+				},
+				{
+					label: `${otherLabel} after this date`,
+					click: () =>
+						event.sender.send("context-menu:addDateFilter", {
+							field: otherField,
+							operator: "after",
+							date: params.date,
+						}),
+				},
+				{
+					label: `${otherLabel} before this date`,
+					click: () =>
+						event.sender.send("context-menu:addDateFilter", {
+							field: otherField,
+							operator: "before",
+							date: params.date,
+						}),
+				},
+			)
+		}
+
 		const menu = Menu.buildFromTemplate(template)
 		menu.popup()
 	},

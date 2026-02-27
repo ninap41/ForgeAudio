@@ -143,7 +143,7 @@ const showHelpModal = ref(false)
 
 // Date filter modal state
 const showDateFilterModal = ref(false)
-const dateFilterField = ref<"createdAt" | "modifiedAt">("createdAt")
+const dateFilterField = ref<"createdAt" | "modifiedAt" | "lastPlayed">("createdAt")
 const dateFilterOperator = ref<"on" | "before" | "after">("after")
 
 const hasFilters = computed(
@@ -181,6 +181,9 @@ const allDateOptions = [
 	{ label: "modified on", field: "modifiedAt" as const, operator: "on" as const },
 	{ label: "modified before", field: "modifiedAt" as const, operator: "before" as const },
 	{ label: "modified after", field: "modifiedAt" as const, operator: "after" as const },
+	{ label: "last played on", field: "lastPlayed" as const, operator: "on" as const },
+	{ label: "last played before", field: "lastPlayed" as const, operator: "before" as const },
+	{ label: "last played after", field: "lastPlayed" as const, operator: "after" as const },
 ]
 
 const dateSuggestions = computed(() => {
@@ -192,7 +195,8 @@ const dateSuggestions = computed(() => {
 })
 
 function formatDateChipLabel(df: DateFilter): string {
-	const fieldLabel = df.field === "createdAt" ? "created" : "modified"
+	const fieldLabels: Record<string, string> = { createdAt: "created", modifiedAt: "modified", lastPlayed: "last played" }
+	const fieldLabel = fieldLabels[df.field] || df.field
 	const dateStr = formatDateOrdinal(new Date(df.date))
 	return `${fieldLabel} ${df.operator} ${dateStr}`
 }

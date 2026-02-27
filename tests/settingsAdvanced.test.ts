@@ -91,6 +91,7 @@ describe('advanced settings', () => {
         durationConcurrency: 8,
         autoLoadDurations: true,
         autoBackup: true,
+        showBootSplash: true,
       })
     })
 

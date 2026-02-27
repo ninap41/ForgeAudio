@@ -9,7 +9,7 @@ export type SortColumn = "name" | "tags" | "duration" | "type" | "createdAt" | "
 
 export interface DateFilter {
 	id: string
-	field: "createdAt" | "modifiedAt"
+	field: "createdAt" | "modifiedAt" | "lastPlayed"
 	operator: "on" | "before" | "after"
 	date: string // ISO 8601
 }
@@ -44,6 +44,7 @@ export interface LibraryMetadata {
 		durationConcurrency?: number
 		autoLoadDurations?: boolean
 		autoBackup?: boolean
+		showBootSplash?: boolean
 	}
 	lastUsedTag?: string | null
 	activeProfile?: string
@@ -71,6 +72,7 @@ export interface ProfileSnapshot {
 		durationConcurrency?: number
 		autoLoadDurations?: boolean
 		autoBackup?: boolean
+		showBootSplash?: boolean
 	}
 	rootDirectory?: string | null
 	soundboards?: Record<string, Soundboard>
