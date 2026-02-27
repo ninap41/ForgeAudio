@@ -1,14 +1,17 @@
 <template>
   <div
     class="modal-overlay"
-    @click.self="$emit('close')"
-    @keydown.escape="$emit('close')"
+    @click.self="handleOverlayClick"
+    @keydown.escape="handleEscape"
     role="dialog"
     aria-modal="true"
     :aria-label="ariaLabel || title"
   >
-    <div class="modal" :style="{ maxWidth }">
-      <h3>{{ title }}</h3>
+    <div class="modal" :style="modalStyle">
+      <div class="modal-header">
+        <h3>{{ title }}</h3>
+        <button v-if="showCloseButton" class="modal-close-btn" aria-label="Close" @click="$emit('close')">&#10005;</button>
+      </div>
       <slot name="subtitle" />
       <slot />
       <div class="modal-actions">
@@ -21,17 +24,39 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+
 interface Props {
   title: string
   ariaLabel?: string
   maxWidth?: string
+  width?: string
+  closeOnOverlay?: boolean
+  closeOnEscape?: boolean
+  showCloseButton?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   maxWidth: '400px',
+  closeOnOverlay: true,
+  closeOnEscape: true,
+  showCloseButton: false,
 })
 
-defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: [] }>()
+
+const modalStyle = computed(() => {
+  if (props.width) return { width: props.width }
+  return { maxWidth: props.maxWidth }
+})
+
+function handleOverlayClick() {
+  if (props.closeOnOverlay) emit('close')
+}
+
+function handleEscape() {
+  if (props.closeOnEscape) emit('close')
+}
 </script>
 
 <style scoped>
@@ -53,10 +78,35 @@ defineEmits<{ close: [] }>()
   min-width: 320px;
 }
 
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
 .modal h3 {
   font-size: 15px;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.modal-close-btn:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.1));
+  color: var(--danger, #ff4d4d);
 }
 
 :deep(.modal-subtitle) {

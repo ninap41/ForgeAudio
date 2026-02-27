@@ -122,4 +122,80 @@ describe('BaseModal', () => {
     expect(overlay.attributes('role')).toBe('dialog')
     expect(overlay.attributes('aria-modal')).toBe('true')
   })
+
+  it('does not emit close on overlay click when closeOnOverlay is false', async () => {
+    const wrapper = mount(BaseModal, {
+      props: { title: 'Test', closeOnOverlay: false },
+    })
+
+    await wrapper.find('.modal-overlay').trigger('click')
+    expect(wrapper.emitted('close')).toBeFalsy()
+  })
+
+  it('does not emit close on Escape when closeOnEscape is false', async () => {
+    const wrapper = mount(BaseModal, {
+      props: { title: 'Test', closeOnEscape: false },
+    })
+
+    await wrapper.find('.modal-overlay').trigger('keydown', { key: 'Escape' })
+    expect(wrapper.emitted('close')).toBeFalsy()
+  })
+
+  it('renders X close button when showCloseButton is true', () => {
+    const wrapper = mount(BaseModal, {
+      props: { title: 'Test', showCloseButton: true },
+    })
+
+    const closeBtn = wrapper.find('.modal-close-btn')
+    expect(closeBtn.exists()).toBe(true)
+    expect(closeBtn.attributes('aria-label')).toBe('Close')
+  })
+
+  it('does not render X close button by default', () => {
+    const wrapper = mount(BaseModal, {
+      props: { title: 'Test' },
+    })
+
+    expect(wrapper.find('.modal-close-btn').exists()).toBe(false)
+  })
+
+  it('emits close when X close button is clicked', async () => {
+    const wrapper = mount(BaseModal, {
+      props: { title: 'Test', showCloseButton: true },
+    })
+
+    await wrapper.find('.modal-close-btn').trigger('click')
+    expect(wrapper.emitted('close')).toBeTruthy()
+  })
+
+  it('applies width style when width prop is set', () => {
+    const wrapper = mount(BaseModal, {
+      props: { title: 'Test', width: '80%' },
+    })
+
+    const modal = wrapper.find('.modal')
+    expect(modal.attributes('style')).toContain('width: 80%')
+    // maxWidth should not be applied when width is set
+    expect(modal.attributes('style')).not.toContain('max-width')
+  })
+
+  it('X-only close: overlay and escape disabled, X button works', async () => {
+    const wrapper = mount(BaseModal, {
+      props: {
+        title: 'Test',
+        closeOnOverlay: false,
+        closeOnEscape: false,
+        showCloseButton: true,
+      },
+    })
+
+    await wrapper.find('.modal-overlay').trigger('click')
+    expect(wrapper.emitted('close')).toBeFalsy()
+
+    await wrapper.find('.modal-overlay').trigger('keydown', { key: 'Escape' })
+    expect(wrapper.emitted('close')).toBeFalsy()
+
+    await wrapper.find('.modal-close-btn').trigger('click')
+    expect(wrapper.emitted('close')).toBeTruthy()
+  })
 })

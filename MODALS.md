@@ -63,12 +63,16 @@ defineEmits<{ close: [] }>()
 | `title` | `string` | **required** | Displayed in the `<h3>` header |
 | `ariaLabel` | `string` | falls back to `title` | Sets `aria-label` on the dialog overlay |
 | `maxWidth` | `string` | `'400px'` | CSS `max-width` on the `.modal` container |
+| `width` | `string` | — | CSS `width` on the `.modal` container (overrides `maxWidth` when set) |
+| `closeOnOverlay` | `boolean` | `true` | Whether clicking the overlay background closes the modal |
+| `closeOnEscape` | `boolean` | `true` | Whether pressing Escape closes the modal |
+| `showCloseButton` | `boolean` | `false` | Renders a ✕ close button in the top-right corner of the header |
 
 ### Emits
 
 | Event | Triggered by |
 |---|---|
-| `close` | Clicking the overlay background (`.self` — not the modal panel), pressing Escape |
+| `close` | Clicking the overlay background (when `closeOnOverlay` is true), pressing Escape (when `closeOnEscape` is true), clicking the ✕ button (when `showCloseButton` is true), or action buttons |
 
 ### Slots
 
@@ -117,7 +121,7 @@ BaseModal exposes these classes to slotted content via `:deep()` scoped styles. 
 - The overlay traps visual focus; combine with a focus-trap library if needed for strict WCAG compliance
 
 ### Keyboard
-- **Escape**: Handled by BaseModal — closes the modal
+- **Escape**: Handled by BaseModal — closes the modal (unless `closeOnEscape` is `false`)
 - **Enter**: Add `@keydown.enter="submit"` on inputs for keyboard submission
 - Child modals can also listen for `@keydown.escape="$emit('close')"` on individual inputs — the event bubbles up and both handlers fire (no conflict)
 
@@ -236,6 +240,29 @@ async function submit() {
       <button class="btn btn-danger" @click="confirm" :disabled="loading">
         {{ loading ? 'Deleting...' : 'Delete' }}
       </button>
+    </template>
+  </BaseModal>
+</template>
+```
+
+### X-only close modal (no overlay/escape dismiss)
+
+```vue
+<template>
+  <BaseModal
+    title="Edit Item"
+    width="80%"
+    :close-on-overlay="false"
+    :close-on-escape="false"
+    show-close-button
+    @close="$emit('close')"
+  >
+    <!-- Complex form content — users won't accidentally lose work -->
+    <label class="field-label">Name</label>
+    <input v-model="name" class="modal-input" />
+    <template #actions>
+      <button class="btn" @click="$emit('close')">Cancel</button>
+      <button class="btn btn-accent" @click="save">Save</button>
     </template>
   </BaseModal>
 </template>

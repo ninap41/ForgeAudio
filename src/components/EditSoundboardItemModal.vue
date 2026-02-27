@@ -1,5 +1,5 @@
 <template>
-	<BaseModal title="Edit Sound" max-width="80vw" @close="$emit('close')">
+	<BaseModal title="Edit Sound" width="80%" :close-on-overlay="false" :close-on-escape="false" show-close-button @close="$emit('close')">
 		<template #subtitle>
 			<div class="modal-subtitle">{{ originalName }}</div>
 		</template>
@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from "vue"
+import { ref, watch, onMounted, nextTick } from "vue"
 import BaseModal from "./BaseModal.vue"
 import WaveformTimeline from "./WaveformTimeline.vue"
 import { useLibraryStore } from "../stores/libraryStore"
@@ -110,6 +110,26 @@ const originalName = ref("")
 const itemFilePath = ref("")
 const fileDuration = ref(0)
 
+// Cache region state per mode so switching back restores previous values
+const cachedOffset = ref<number | undefined>(undefined)
+const cachedRangeStart = ref<number | undefined>(undefined)
+const cachedRangeEnd = ref<number | undefined>(undefined)
+
+watch(partialMode, (newMode, oldMode) => {
+	// Cache the outgoing mode's values
+	if (oldMode === "offset") {
+		cachedOffset.value = offset.value
+		// Restore cached range or reset
+		rangeStart.value = cachedRangeStart.value
+		rangeEnd.value = cachedRangeEnd.value
+	} else {
+		cachedRangeStart.value = rangeStart.value
+		cachedRangeEnd.value = rangeEnd.value
+		// Restore cached offset or reset
+		offset.value = cachedOffset.value
+	}
+})
+
 onMounted(async () => {
 	// Find the item and pre-fill
 	const sb = soundboardStore.allSoundboards.find((s) => s.id === props.soundboardId)
@@ -124,9 +144,12 @@ onMounted(async () => {
 			partialMode.value = "range"
 			rangeStart.value = item.range[0]
 			rangeEnd.value = item.range[1]
+			cachedRangeStart.value = item.range[0]
+			cachedRangeEnd.value = item.range[1]
 		} else if (item.offset != null) {
 			partialMode.value = "offset"
 			offset.value = item.offset
+			cachedOffset.value = item.offset
 		}
 	}
 	nextTick(() => nameRef.value?.focus())

@@ -1,5 +1,5 @@
 <template>
-	<BaseModal title="Add to Soundboard" max-width="80vw" @close="$emit('close')">
+	<BaseModal title="Add to Soundboard" width="80%" :close-on-overlay="false" :close-on-escape="false" show-close-button @close="$emit('close')">
 		<template #subtitle>
 			<div class="modal-subtitle">{{ fileName }}</div>
 		</template>
@@ -95,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from "vue"
+import { ref, computed, watch, onMounted, nextTick } from "vue"
 import BaseModal from "./BaseModal.vue"
 import WaveformTimeline from "./WaveformTimeline.vue"
 import { useLibraryStore } from "../stores/libraryStore"
@@ -122,6 +122,15 @@ const rangeStart = ref<number | undefined>(undefined)
 const rangeEnd = ref<number | undefined>(undefined)
 const error = ref("")
 const fileDuration = ref(0)
+
+watch(partialMode, (mode) => {
+	if (mode === "offset") {
+		rangeStart.value = undefined
+		rangeEnd.value = undefined
+	} else {
+		offset.value = undefined
+	}
+})
 
 const fileName = computed(() => props.filePath.split("/").pop() || props.filePath)
 const profileSoundboards = computed(() => soundboardStore.getSoundboardsForProfile(library.activeProfileName))
