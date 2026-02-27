@@ -49,6 +49,17 @@ export interface LibraryMetadata {
 	activeProfile?: string
 	profiles?: Record<string, ProfileEntry>
 	soundboards?: Record<string, Soundboard>
+	sortColumn?: SortColumn
+	sortDirection?: "asc" | "desc"
+	filters?: {
+		selectedTags: string[]
+		excludedTags: string[]
+		descriptionFilters: string[]
+		excludedDescriptionFilters: string[]
+		dateFilters: DateFilter[]
+		filterExtension: string[]
+		filterTagged: "all" | "tagged" | "untagged"
+	}
 }
 
 export interface ProfileSnapshot {
@@ -72,6 +83,8 @@ export interface ProfileSnapshot {
 		filterExtension: string[]
 		filterTagged: "all" | "tagged" | "untagged"
 	}
+	sortColumn?: SortColumn
+	sortDirection?: "asc" | "desc"
 }
 
 export interface ProfileEntry {
@@ -257,6 +270,25 @@ export function useLibraryStore() {
 			if (meta.profiles) {
 				profiles.value = meta.profiles
 			}
+
+			// Restore sort state
+			if (meta.sortColumn) {
+				sortColumn.value = meta.sortColumn
+			}
+			if (meta.sortDirection) {
+				sortDirection.value = meta.sortDirection
+			}
+
+			// Restore filter state
+			if (meta.filters) {
+				selectedTags.value = meta.filters.selectedTags || []
+				excludedTags.value = meta.filters.excludedTags || []
+				descriptionFilters.value = meta.filters.descriptionFilters || []
+				excludedDescriptionFilters.value = meta.filters.excludedDescriptionFilters || []
+				dateFilters.value = (meta.filters.dateFilters || []).map((df) => ({ ...df }))
+				filterExtension.value = meta.filters.filterExtension || []
+				filterTagged.value = meta.filters.filterTagged || "all"
+			}
 		} catch {
 			// library.json missing or corrupt — keep defaults
 		}
@@ -414,6 +446,21 @@ export function useLibraryStore() {
 			meta.profiles = profiles.value
 		}
 
+		// Persist sort state
+		meta.sortColumn = sortColumn.value
+		meta.sortDirection = sortDirection.value
+
+		// Persist filter state
+		meta.filters = {
+			selectedTags: [...selectedTags.value],
+			excludedTags: [...excludedTags.value],
+			descriptionFilters: [...descriptionFilters.value],
+			excludedDescriptionFilters: [...excludedDescriptionFilters.value],
+			dateFilters: dateFilters.value.map((df) => ({ ...df })),
+			filterExtension: [...filterExtension.value],
+			filterTagged: filterTagged.value,
+		}
+
 		await window.electronAPI.writeMetadata(JSON.stringify(meta, null, 2))
 
 		// Fire-and-forget auto-backup
@@ -496,10 +543,12 @@ export function useLibraryStore() {
 		}
 		// Remove from exclude list if present
 		excludedTags.value = excludedTags.value.filter((t) => t !== tag)
+		saveMetadata()
 	}
 
 	function removeTagFilter(tag: string) {
 		selectedTags.value = selectedTags.value.filter((t) => t !== tag)
+		saveMetadata()
 	}
 
 	function addExcludeTagFilter(tag: string) {
@@ -508,10 +557,12 @@ export function useLibraryStore() {
 		}
 		// Remove from include list if present (can't both include and exclude)
 		selectedTags.value = selectedTags.value.filter((t) => t !== tag)
+		saveMetadata()
 	}
 
 	function removeExcludeTagFilter(tag: string) {
 		excludedTags.value = excludedTags.value.filter((t) => t !== tag)
+		saveMetadata()
 	}
 
 	function addDescriptionFilter(text: string) {
@@ -519,10 +570,12 @@ export function useLibraryStore() {
 		if (trimmed && !descriptionFilters.value.includes(trimmed)) {
 			descriptionFilters.value = [...descriptionFilters.value, trimmed]
 		}
+		saveMetadata()
 	}
 
 	function removeDescriptionFilter(text: string) {
 		descriptionFilters.value = descriptionFilters.value.filter((t) => t !== text)
+		saveMetadata()
 	}
 
 	function addExcludeDescriptionFilter(text: string) {
@@ -532,10 +585,12 @@ export function useLibraryStore() {
 		}
 		// Remove from include list if present
 		descriptionFilters.value = descriptionFilters.value.filter((t) => t !== trimmed)
+		saveMetadata()
 	}
 
 	function removeExcludeDescriptionFilter(text: string) {
 		excludedDescriptionFilters.value = excludedDescriptionFilters.value.filter((t) => t !== text)
+		saveMetadata()
 	}
 
 	function addDateFilter(filter: DateFilter) {
@@ -546,10 +601,12 @@ export function useLibraryStore() {
 		if (!exists) {
 			dateFilters.value = [...dateFilters.value, filter]
 		}
+		saveMetadata()
 	}
 
 	function removeDateFilter(id: string) {
 		dateFilters.value = dateFilters.value.filter((df) => df.id !== id)
+		saveMetadata()
 	}
 
 	function clearAllFilters() {
@@ -558,6 +615,7 @@ export function useLibraryStore() {
 		descriptionFilters.value = []
 		excludedDescriptionFilters.value = []
 		dateFilters.value = []
+		saveMetadata()
 	}
 
 	async function editTag(oldName: string, newName: string, newColor: string): Promise<{ error?: string }> {
@@ -653,6 +711,7 @@ export function useLibraryStore() {
 			sortColumn.value = col
 			sortDirection.value = "asc"
 		}
+		saveMetadata()
 	}
 
 	function playFile(file: AudioFile, options?: { offset?: number; range?: [number, number] }) {
@@ -716,6 +775,8 @@ export function useLibraryStore() {
 				filterExtension: [...filterExtension.value],
 				filterTagged: filterTagged.value,
 			},
+			sortColumn: sortColumn.value,
+			sortDirection: sortDirection.value,
 		}
 	}
 
@@ -765,7 +826,16 @@ export function useLibraryStore() {
 			filterTagged.value = "all"
 		}
 
-		// 7. Update lastReadMeta so saveMetadata() merges correctly
+		// 7. Restore sort state
+		if (snapshot.sortColumn) {
+			sortColumn.value = snapshot.sortColumn
+			sortDirection.value = snapshot.sortDirection || "asc"
+		} else {
+			sortColumn.value = "name"
+			sortDirection.value = "asc"
+		}
+
+		// 8. Update lastReadMeta so saveMetadata() merges correctly
 		lastReadMeta = {
 			version: 1,
 			files: snapshot.files,

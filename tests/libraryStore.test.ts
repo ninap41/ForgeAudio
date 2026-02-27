@@ -894,6 +894,168 @@ describe('libraryStore', () => {
       // Clean up the dangling scan promise
       scanPromise.catch(() => {})
     })
+
+    it('persists sort state in metadata', async () => {
+      const store = useLibraryStore()
+      store.files = []
+      store.setSort('duration')
+      mockElectronAPI.writeMetadata.mockClear()
+
+      await store.saveMetadata()
+
+      const saved = JSON.parse(mockElectronAPI.writeMetadata.mock.calls[0][0])
+      expect(saved.sortColumn).toBe('duration')
+      expect(saved.sortDirection).toBe('asc')
+    })
+
+    it('persists filter state in metadata', async () => {
+      const store = useLibraryStore()
+      store.files = []
+      store.addTagFilter('bass')
+      store.addDescriptionFilter('kick')
+      store.filterExtension = ['.wav']
+      store.filterTagged = 'tagged'
+      mockElectronAPI.writeMetadata.mockClear()
+
+      await store.saveMetadata()
+
+      const saved = JSON.parse(mockElectronAPI.writeMetadata.mock.calls[0][0])
+      expect(saved.filters).toBeDefined()
+      expect(saved.filters.selectedTags).toEqual(['bass'])
+      expect(saved.filters.descriptionFilters).toEqual(['kick'])
+      expect(saved.filters.filterExtension).toEqual(['.wav'])
+      expect(saved.filters.filterTagged).toBe('tagged')
+    })
+  })
+
+  describe('loadMetadata restores sort and filter state', () => {
+    it('restores sort state from metadata', async () => {
+      mockElectronAPI.readMetadata.mockResolvedValue(JSON.stringify({
+        version: 1,
+        files: {},
+        tags: {},
+        sortColumn: 'duration',
+        sortDirection: 'desc',
+      }))
+      mockElectronAPI.getRootDirectory.mockResolvedValue(null)
+
+      const store = useLibraryStore()
+      await store.initFromPersistedDirectory()
+
+      expect(store.sortColumn).toBe('duration')
+      expect(store.sortDirection).toBe('desc')
+    })
+
+    it('restores filter state from metadata', async () => {
+      mockElectronAPI.readMetadata.mockResolvedValue(JSON.stringify({
+        version: 1,
+        files: {},
+        tags: {},
+        filters: {
+          selectedTags: ['perc'],
+          excludedTags: ['noise'],
+          descriptionFilters: ['kick'],
+          excludedDescriptionFilters: ['bad'],
+          dateFilters: [{ id: 'df_1', field: 'createdAt', operator: 'after', date: '2025-02-01T00:00:00Z' }],
+          filterExtension: ['.wav'],
+          filterTagged: 'tagged',
+        },
+      }))
+      mockElectronAPI.getRootDirectory.mockResolvedValue(null)
+
+      const store = useLibraryStore()
+      await store.initFromPersistedDirectory()
+
+      expect(store.selectedTags).toEqual(['perc'])
+      expect(store.excludedTags).toEqual(['noise'])
+      expect(store.descriptionFilters).toEqual(['kick'])
+      expect(store.excludedDescriptionFilters).toEqual(['bad'])
+      expect(store.dateFilters).toHaveLength(1)
+      expect(store.dateFilters[0].field).toBe('createdAt')
+      expect(store.filterExtension).toEqual(['.wav'])
+      expect(store.filterTagged).toBe('tagged')
+    })
+
+    it('keeps defaults when sort/filter fields absent (backward compat)', async () => {
+      mockElectronAPI.readMetadata.mockResolvedValue(JSON.stringify({
+        version: 1,
+        files: {},
+        tags: {},
+        // no sortColumn, sortDirection, filters
+      }))
+      mockElectronAPI.getRootDirectory.mockResolvedValue(null)
+
+      const store = useLibraryStore()
+      await store.initFromPersistedDirectory()
+
+      expect(store.sortColumn).toBe('name')
+      expect(store.sortDirection).toBe('asc')
+      expect(store.selectedTags).toEqual([])
+      expect(store.filterExtension).toEqual([])
+      expect(store.filterTagged).toBe('all')
+    })
+  })
+
+  describe('filter mutations call saveMetadata', () => {
+    it('setSort persists', () => {
+      const store = useLibraryStore()
+      mockElectronAPI.writeMetadata.mockClear()
+      store.setSort('tags')
+      expect(mockElectronAPI.writeMetadata).toHaveBeenCalled()
+    })
+
+    it('addTagFilter persists', () => {
+      const store = useLibraryStore()
+      mockElectronAPI.writeMetadata.mockClear()
+      store.addTagFilter('bass')
+      expect(mockElectronAPI.writeMetadata).toHaveBeenCalled()
+    })
+
+    it('removeTagFilter persists', () => {
+      const store = useLibraryStore()
+      store.addTagFilter('bass')
+      mockElectronAPI.writeMetadata.mockClear()
+      store.removeTagFilter('bass')
+      expect(mockElectronAPI.writeMetadata).toHaveBeenCalled()
+    })
+
+    it('addDescriptionFilter persists', () => {
+      const store = useLibraryStore()
+      mockElectronAPI.writeMetadata.mockClear()
+      store.addDescriptionFilter('kick')
+      expect(mockElectronAPI.writeMetadata).toHaveBeenCalled()
+    })
+
+    it('removeDescriptionFilter persists', () => {
+      const store = useLibraryStore()
+      store.addDescriptionFilter('kick')
+      mockElectronAPI.writeMetadata.mockClear()
+      store.removeDescriptionFilter('kick')
+      expect(mockElectronAPI.writeMetadata).toHaveBeenCalled()
+    })
+
+    it('addDateFilter persists', () => {
+      const store = useLibraryStore()
+      mockElectronAPI.writeMetadata.mockClear()
+      store.addDateFilter({ id: 'df_1', field: 'createdAt', operator: 'after', date: '2025-02-01T00:00:00Z' })
+      expect(mockElectronAPI.writeMetadata).toHaveBeenCalled()
+    })
+
+    it('removeDateFilter persists', () => {
+      const store = useLibraryStore()
+      store.addDateFilter({ id: 'df_1', field: 'createdAt', operator: 'after', date: '2025-02-01T00:00:00Z' })
+      mockElectronAPI.writeMetadata.mockClear()
+      store.removeDateFilter('df_1')
+      expect(mockElectronAPI.writeMetadata).toHaveBeenCalled()
+    })
+
+    it('clearAllFilters persists', () => {
+      const store = useLibraryStore()
+      store.addTagFilter('bass')
+      mockElectronAPI.writeMetadata.mockClear()
+      store.clearAllFilters()
+      expect(mockElectronAPI.writeMetadata).toHaveBeenCalled()
+    })
   })
 
   describe('editTag', () => {

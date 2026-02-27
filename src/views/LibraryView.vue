@@ -12,12 +12,12 @@
 					</button>
 					<div v-if="formatDropdownOpen" class="format-dropdown">
 						<label v-for="ext in EXTENSIONS" :key="ext" class="format-option">
-							<input type="checkbox" :value="ext" v-model="library.filterExtension" />
+							<input type="checkbox" :value="ext" v-model="library.filterExtension" @change="library.saveMetadata()" />
 							{{ ext }}
 						</label>
 					</div>
 				</div>
-				<select v-model="library.filterTagged" class="filter-select">
+				<select v-model="library.filterTagged" @change="library.saveMetadata()" class="filter-select">
 					<option value="all">All files</option>
 					<option value="tagged">Tagged</option>
 					<option value="untagged">Untagged</option>

@@ -356,6 +356,48 @@ describe('dateFilters', () => {
       expect(store.filterExtension).toHaveLength(0)
       expect(store.filterTagged).toBe('all')
     })
+
+    it('getProfileSnapshot captures sort state', () => {
+      const store = useLibraryStore()
+      store.setSort('duration')
+      store.setSort('duration') // toggle to desc
+
+      const snapshot = store.getProfileSnapshot()
+      expect(snapshot.sortColumn).toBe('duration')
+      expect(snapshot.sortDirection).toBe('desc')
+    })
+
+    it('applyProfileData restores sort state from snapshot', () => {
+      const store = useLibraryStore()
+      expect(store.sortColumn).toBe('name')
+      expect(store.sortDirection).toBe('asc')
+
+      const snapshot: ProfileSnapshot = {
+        files: {},
+        tags: {},
+        sortColumn: 'modifiedAt',
+        sortDirection: 'desc',
+      }
+
+      store.applyProfileData(snapshot)
+      expect(store.sortColumn).toBe('modifiedAt')
+      expect(store.sortDirection).toBe('desc')
+    })
+
+    it('applyProfileData resets sort state when absent (backward compat)', () => {
+      const store = useLibraryStore()
+      store.setSort('duration')
+
+      const snapshot: ProfileSnapshot = {
+        files: {},
+        tags: {},
+        // no sortColumn/sortDirection
+      }
+
+      store.applyProfileData(snapshot)
+      expect(store.sortColumn).toBe('name')
+      expect(store.sortDirection).toBe('asc')
+    })
   })
 
   describe('reset', () => {
