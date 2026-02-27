@@ -93,6 +93,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onContextMenuQuickTag: (callback: (data: { filePath: string; tag: string }) => void) =>
     ipcRenderer.on('context-menu:quickTag', (_event, data) => callback(data)),
 
+  // Date context menu
+  showDateContextMenu: (params: { field: string; date: string }) =>
+    ipcRenderer.send('context-menu:showDateMenu', params),
+  onContextMenuAddDateFilter: (callback: (data: { field: string; operator: string; date: string }) => void) =>
+    ipcRenderer.on('context-menu:addDateFilter', (_event, data) => callback(data)),
+
   // Soundboard item context menu
   showSoundboardItemMenu: (params: { soundboardId: string; itemId: string; itemName: string }) =>
     ipcRenderer.send('context-menu:showSoundboardItem', params),

@@ -25,10 +25,10 @@ describe('FilterHelpModal', () => {
     expect(overlay.attributes('aria-label')).toBe('Search Filters')
   })
 
-  it('renders a table with 4 data rows', () => {
+  it('renders a table with 5 data rows', () => {
     const wrapper = mountModal()
     const rows = wrapper.findAll('tbody tr')
-    expect(rows).toHaveLength(4)
+    expect(rows).toHaveLength(5)
   })
 
   it('table has Syntax, Type, Action, Description headers', () => {
@@ -73,10 +73,19 @@ describe('FilterHelpModal', () => {
     expect(cells[2].text()).toBe('Exclude')
   })
 
+  it('fifth row shows "$date" syntax for date filter', () => {
+    const wrapper = mountModal()
+    const row = wrapper.findAll('tbody tr')[4]
+    const cells = row.findAll('td')
+    expect(cells[0].find('code').text()).toBe('$date')
+    expect(cells[1].text()).toBe('Date')
+    expect(cells[2].text()).toBe('Filter')
+  })
+
   it('each syntax cell uses <code> element', () => {
     const wrapper = mountModal()
     const syntaxCells = wrapper.findAll('tbody td:first-child code')
-    expect(syntaxCells).toHaveLength(4)
+    expect(syntaxCells).toHaveLength(5)
   })
 
   it('has a tips section', () => {
@@ -88,7 +97,7 @@ describe('FilterHelpModal', () => {
   it('tips section has bullet points', () => {
     const wrapper = mountModal()
     const items = wrapper.findAll('.tips li')
-    expect(items.length).toBeGreaterThanOrEqual(3)
+    expect(items.length).toBeGreaterThanOrEqual(4)
   })
 
   it('emits close when BaseModal emits close', async () => {

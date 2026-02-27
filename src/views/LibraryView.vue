@@ -314,6 +314,15 @@ onMounted(() => {
 		window.electronAPI.onContextMenuQuickTag(async (data: { filePath: string; tag: string }) => {
 			library.addTagToFile(data.filePath, data.tag)
 		})
+		window.electronAPI.onContextMenuAddDateFilter((data: { field: string; operator: string; date: string }) => {
+			const filter = {
+				id: `df_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+				field: data.field as "createdAt" | "modifiedAt",
+				operator: data.operator as "on" | "before" | "after",
+				date: data.date,
+			}
+			library.addDateFilter(filter)
+		})
 		window.electronAPI.onContextMenuQuickAddToSoundboard(async (data: { filePath: string; soundboardId: string }) => {
 			const file = library.files.find((f) => f.path === data.filePath)
 			const duration = file?.duration ?? (await window.electronAPI.getAudioDuration(data.filePath)) ?? 0

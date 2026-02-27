@@ -62,6 +62,9 @@
 			<div class="col col-date" :style="{ width: widths.modifiedAt + 'px' }">
 				{{ formatDate(file.modifiedAt) }}
 			</div>
+			<div class="col col-date" :style="{ width: widths.lastPlayed + 'px' }">
+				{{ formatDate(file.lastPlayed) }}
+			</div>
 		</div>
 
 		<div v-if="expanded" class="row-detail">
@@ -97,11 +100,15 @@
 				</div>
 				<div class="detail-row">
 					<dt>Created</dt>
-					<dd>{{ formatDate(file.createdAt) }}</dd>
+					<dd class="clickable-date" @contextmenu.prevent.stop="onDateContextMenu('createdAt', file.createdAt)">
+						{{ formatDate(file.createdAt) }}
+					</dd>
 				</div>
 				<div class="detail-row">
 					<dt>Modified</dt>
-					<dd>{{ formatDate(file.modifiedAt) }}</dd>
+					<dd class="clickable-date" @contextmenu.prevent.stop="onDateContextMenu('modifiedAt', file.modifiedAt)">
+						{{ formatDate(file.modifiedAt) }}
+					</dd>
 				</div>
 				<div class="detail-row">
 					<dt>Last Played</dt>
@@ -120,7 +127,7 @@ import { formatSeconds } from "@/utils/formatSeconds"
 import { formatBytes } from "@/utils/formatBytes"
 import TagChip from "./TagChip.vue"
 
-type ColKey = "play" | "name" | "tags" | "duration" | "type" | "createdAt" | "modifiedAt"
+type ColKey = "play" | "name" | "tags" | "duration" | "type" | "createdAt" | "modifiedAt" | "lastPlayed"
 
 const props = defineProps<{
 	file: AudioFile
@@ -167,6 +174,11 @@ function onContextMenu() {
 		recentSoundboardName,
 		lastUsedTag: library.lastUsedTag,
 	})
+}
+
+function onDateContextMenu(field: "createdAt" | "modifiedAt", date: string | null) {
+	if (!date) return
+	window.electronAPI.showDateContextMenu({ field, date })
 }
 
 function onDragStart(e: DragEvent) {
@@ -383,5 +395,16 @@ function formatDate(iso: string | null): string {
 	display: inline-flex;
 	gap: 4px;
 	flex-wrap: wrap;
+}
+
+.clickable-date {
+	cursor: context-menu;
+	border-radius: 3px;
+	padding: 0 2px;
+	transition: background 0.15s;
+}
+
+.clickable-date:hover {
+	background: var(--bg-hover);
 }
 </style>

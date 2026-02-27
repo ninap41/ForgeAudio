@@ -49,6 +49,8 @@ interface ElectronAPI {
   onContextMenuAddToSoundboard: (callback: (filePath: string) => void) => void
   onContextMenuQuickAddToSoundboard: (callback: (data: { filePath: string; soundboardId: string }) => void) => void
   onContextMenuQuickTag: (callback: (data: { filePath: string; tag: string }) => void) => void
+  showDateContextMenu: (params: { field: string; date: string }) => void
+  onContextMenuAddDateFilter: (callback: (data: { field: string; operator: string; date: string }) => void) => void
   showSoundboardItemMenu: (params: { soundboardId: string; itemId: string; itemName: string }) => void
   onSbItemPlay: (callback: (data: { soundboardId: string; itemId: string }) => void) => void
   onSbItemEdit: (callback: (data: { soundboardId: string; itemId: string }) => void) => void

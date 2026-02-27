@@ -17,7 +17,7 @@
 				ref="inputRef"
 				v-model="library.searchQuery"
 				type="text"
-				placeholder="Search… Enter = filter, ! = exclude, # = tag, !# = exclude tag"
+				placeholder="Search… Enter = filter, ! = exclude, # = tag, !# = exclude tag, $date"
 				class="search-input"
 				@keydown.enter.prevent="onEnter"
 				@keydown.escape="onEscape"
@@ -65,6 +65,22 @@
 			</button>
 		</div>
 
+		<!-- Date filter dropdown — shown when input starts with $date -->
+		<div
+			v-if="showDropdown && isDateMode && dateSuggestions.length > 0"
+			class="tag-dropdown"
+		>
+			<button
+				v-for="(opt, i) in dateSuggestions"
+				:key="opt.label"
+				class="tag-option"
+				:class="{ highlighted: i === highlightedIndex }"
+				@mousedown.prevent="selectDateOption(opt)"
+			>
+				{{ opt.label }}
+			</button>
+		</div>
+
 		<div v-if="hasFilters" class="filter-chips">
 			<span>
 				<span v-for="tag in library.selectedTags" :key="'tag:' + tag" class="filter-chip chip-tag">
@@ -88,17 +104,33 @@
 				!{{ desc }}
 				<button class="chip-remove" @click="library.removeExcludeDescriptionFilter(desc)">&times;</button>
 			</span>
+			<span
+				v-for="df in library.dateFilters"
+				:key="'date:' + df.id"
+				class="filter-chip chip-date"
+			>
+				{{ formatDateChipLabel(df) }}
+				<button class="chip-remove" @click="library.removeDateFilter(df.id)">&times;</button>
+			</span>
 		</div>
 
 		<FilterHelpModal v-if="showHelpModal" @close="showHelpModal = false" />
+		<DateFilterModal
+			v-if="showDateFilterModal"
+			:field="dateFilterField"
+			:operator="dateFilterOperator"
+			@close="showDateFilterModal = false"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import { useLibraryStore } from "@/stores/libraryStore"
+import { useLibraryStore, type DateFilter } from "@/stores/libraryStore"
 import { useTagStore } from "@/stores/tagStore"
+import { formatDateOrdinal } from "@/utils/formatDateOrdinal"
 import FilterHelpModal from "@/components/FilterHelpModal.vue"
+import DateFilterModal from "@/components/DateFilterModal.vue"
 
 const library = useLibraryStore()
 const tagStore = useTagStore()
@@ -109,12 +141,18 @@ const showDropdown = ref(false)
 const highlightedIndex = ref(-1)
 const showHelpModal = ref(false)
 
+// Date filter modal state
+const showDateFilterModal = ref(false)
+const dateFilterField = ref<"createdAt" | "modifiedAt">("createdAt")
+const dateFilterOperator = ref<"on" | "before" | "after">("after")
+
 const hasFilters = computed(
 	() =>
 		library.selectedTags.length > 0 ||
 		library.excludedTags.length > 0 ||
 		library.descriptionFilters.length > 0 ||
-		library.excludedDescriptionFilters.length > 0,
+		library.excludedDescriptionFilters.length > 0 ||
+		library.dateFilters.length > 0,
 )
 
 // True when the user has typed # at the start of the query
@@ -123,11 +161,50 @@ const isTagMode = computed(() => library.searchQuery.trimStart().startsWith("#")
 // True when the user has typed !# at the start of the query
 const isExcludeTagMode = computed(() => library.searchQuery.trimStart().startsWith("!#"))
 
+// True when the user has typed $date at the start of the query
+const isDateMode = computed(() => {
+	const q = library.searchQuery.trimStart().toLowerCase()
+	return q.startsWith("$date") && !isTagMode.value && !isExcludeTagMode.value
+})
+
 // True when the user has typed ! (but not !#) at the start — exclude description mode
 const isExcludeDescMode = computed(() => {
 	const q = library.searchQuery.trimStart()
 	return q.startsWith("!") && !q.startsWith("!#")
 })
+
+// Static date filter options
+const allDateOptions = [
+	{ label: "created on", field: "createdAt" as const, operator: "on" as const },
+	{ label: "created before", field: "createdAt" as const, operator: "before" as const },
+	{ label: "created after", field: "createdAt" as const, operator: "after" as const },
+	{ label: "modified on", field: "modifiedAt" as const, operator: "on" as const },
+	{ label: "modified before", field: "modifiedAt" as const, operator: "before" as const },
+	{ label: "modified after", field: "modifiedAt" as const, operator: "after" as const },
+]
+
+const dateSuggestions = computed(() => {
+	if (!isDateMode.value) return []
+	const raw = library.searchQuery.trimStart().toLowerCase()
+	const query = raw.slice(5).trim() // strip "$date"
+	if (!query) return allDateOptions
+	return allDateOptions.filter((opt) => opt.label.toLowerCase().includes(query))
+})
+
+function formatDateChipLabel(df: DateFilter): string {
+	const fieldLabel = df.field === "createdAt" ? "created" : "modified"
+	const dateStr = formatDateOrdinal(new Date(df.date))
+	return `${fieldLabel} ${df.operator} ${dateStr}`
+}
+
+function selectDateOption(opt: (typeof allDateOptions)[0]) {
+	library.searchQuery = ""
+	showDropdown.value = false
+	highlightedIndex.value = -1
+	dateFilterField.value = opt.field
+	dateFilterOperator.value = opt.operator
+	showDateFilterModal.value = true
+}
 
 // Tags that match the text after the # or !# prefix
 const tagSuggestions = computed(() => {
@@ -142,7 +219,7 @@ const tagSuggestions = computed(() => {
 })
 
 // Reset highlight when suggestions list changes
-watch(tagSuggestions, () => {
+watch([tagSuggestions, dateSuggestions], () => {
 	highlightedIndex.value = -1
 })
 
@@ -163,6 +240,15 @@ function selectExcludeTag(tag: string) {
 }
 
 function onEnter() {
+	// Date mode: select highlighted or first option
+	if (isDateMode.value && dateSuggestions.value.length > 0) {
+		const idx = highlightedIndex.value >= 0 ? highlightedIndex.value : 0
+		if (dateSuggestions.value[idx]) {
+			selectDateOption(dateSuggestions.value[idx])
+		}
+		return
+	}
+
 	// If a dropdown item is highlighted in exclude mode, select it
 	if (isExcludeTagMode.value && highlightedIndex.value >= 0 && tagSuggestions.value[highlightedIndex.value]) {
 		selectExcludeTag(tagSuggestions.value[highlightedIndex.value])
@@ -205,18 +291,27 @@ function onEnter() {
 }
 
 function onArrowDown() {
+	if (isDateMode.value && dateSuggestions.value.length > 0) {
+		showDropdown.value = true
+		highlightedIndex.value = Math.min(highlightedIndex.value + 1, dateSuggestions.value.length - 1)
+		return
+	}
 	if ((!isTagMode.value && !isExcludeTagMode.value) || tagSuggestions.value.length === 0) return
 	showDropdown.value = true
 	highlightedIndex.value = Math.min(highlightedIndex.value + 1, tagSuggestions.value.length - 1)
 }
 
 function onArrowUp() {
+	if (isDateMode.value && dateSuggestions.value.length > 0) {
+		highlightedIndex.value = Math.max(highlightedIndex.value - 1, -1)
+		return
+	}
 	if (!isTagMode.value && !isExcludeTagMode.value) return
 	highlightedIndex.value = Math.max(highlightedIndex.value - 1, -1)
 }
 
 function onEscape() {
-	if (showDropdown.value && (isTagMode.value || isExcludeTagMode.value)) {
+	if (showDropdown.value && (isTagMode.value || isExcludeTagMode.value || isDateMode.value)) {
 		showDropdown.value = false
 	} else {
 		library.searchQuery = ""
@@ -398,6 +493,13 @@ function onClearAll() {
 	background: color-mix(in srgb, var(--accent) 10%, transparent);
 	color: var(--text-secondary);
 	border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.chip-date {
+	background: color-mix(in srgb, var(--accent) 8%, transparent);
+	color: var(--text-muted);
+	border-color: color-mix(in srgb, var(--accent) 20%, transparent);
+	font-style: italic;
 }
 
 .chip-remove {

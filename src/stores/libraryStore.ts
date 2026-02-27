@@ -7,6 +7,13 @@ import type { Soundboard, SoundboardItem } from "./soundboardStore"
 
 export type SortColumn = "name" | "tags" | "duration" | "type" | "createdAt" | "modifiedAt"
 
+export interface DateFilter {
+	id: string
+	field: "createdAt" | "modifiedAt"
+	operator: "on" | "before" | "after"
+	date: string // ISO 8601
+}
+
 export interface AudioFile {
 	path: string
 	name: string
@@ -56,6 +63,15 @@ export interface ProfileSnapshot {
 	}
 	rootDirectory?: string | null
 	soundboards?: Record<string, Soundboard>
+	filters?: {
+		selectedTags: string[]
+		excludedTags: string[]
+		descriptionFilters: string[]
+		excludedDescriptionFilters: string[]
+		dateFilters: DateFilter[]
+		filterExtension: string[]
+		filterTagged: "all" | "tagged" | "untagged"
+	}
 }
 
 export interface ProfileEntry {
@@ -79,6 +95,7 @@ const selectedTags = ref<string[]>([])
 const excludedTags = ref<string[]>([])
 const descriptionFilters = ref<string[]>([])
 const excludedDescriptionFilters = ref<string[]>([])
+const dateFilters = ref<DateFilter[]>([])
 
 // Last metadata read from disk — used as a base when saving to avoid erasing
 // tags for files that haven't arrived in the scan yet (partial-scan data loss).
@@ -146,6 +163,31 @@ const filteredFiles = computed(() => {
 					const lq = q.toLowerCase()
 					return f.name.toLowerCase().includes(lq) || f.description.toLowerCase().includes(lq)
 				}),
+		)
+	}
+
+	// Date filters — file must satisfy ALL date filters (AND)
+	// Normalize to UTC calendar day to avoid timezone-dependent comparisons
+	if (dateFilters.value.length > 0) {
+		result = result.filter((f) =>
+			dateFilters.value.every((df) => {
+				const raw = f[df.field]
+				if (!raw) return false
+				const fd = new Date(raw)
+				const ft = Date.UTC(fd.getUTCFullYear(), fd.getUTCMonth(), fd.getUTCDate())
+				const dd = new Date(df.date)
+				const dt = Date.UTC(dd.getUTCFullYear(), dd.getUTCMonth(), dd.getUTCDate())
+				switch (df.operator) {
+					case "on":
+						return ft === dt
+					case "before":
+						return ft < dt
+					case "after":
+						return ft > dt
+					default:
+						return true
+				}
+			}),
 		)
 	}
 
@@ -490,11 +532,26 @@ export function useLibraryStore() {
 		excludedDescriptionFilters.value = excludedDescriptionFilters.value.filter((t) => t !== text)
 	}
 
+	function addDateFilter(filter: DateFilter) {
+		// Deduplicate on field+operator+date
+		const exists = dateFilters.value.some(
+			(df) => df.field === filter.field && df.operator === filter.operator && df.date === filter.date,
+		)
+		if (!exists) {
+			dateFilters.value = [...dateFilters.value, filter]
+		}
+	}
+
+	function removeDateFilter(id: string) {
+		dateFilters.value = dateFilters.value.filter((df) => df.id !== id)
+	}
+
 	function clearAllFilters() {
 		selectedTags.value = []
 		excludedTags.value = []
 		descriptionFilters.value = []
 		excludedDescriptionFilters.value = []
+		dateFilters.value = []
 	}
 
 	async function editTag(oldName: string, newName: string, newColor: string): Promise<{ error?: string }> {
@@ -644,6 +701,15 @@ export function useLibraryStore() {
 			settings: settingsStore.getSettingsSnapshot(),
 			rootDirectory: rootDirectory.value,
 			soundboards: soundboardStore.getSoundboardSnapshot(),
+			filters: {
+				selectedTags: [...selectedTags.value],
+				excludedTags: [...excludedTags.value],
+				descriptionFilters: [...descriptionFilters.value],
+				excludedDescriptionFilters: [...excludedDescriptionFilters.value],
+				dateFilters: dateFilters.value.map((df) => ({ ...df })),
+				filterExtension: [...filterExtension.value],
+				filterTagged: filterTagged.value,
+			},
 		}
 	}
 
@@ -674,7 +740,26 @@ export function useLibraryStore() {
 		// 5. Replace soundboards
 		soundboardStore.replaceSoundboards(snapshot.soundboards || {})
 
-		// 6. Update lastReadMeta so saveMetadata() merges correctly
+		// 6. Restore filters (clear all if absent for backward compat)
+		if (snapshot.filters) {
+			selectedTags.value = [...snapshot.filters.selectedTags]
+			excludedTags.value = [...snapshot.filters.excludedTags]
+			descriptionFilters.value = [...snapshot.filters.descriptionFilters]
+			excludedDescriptionFilters.value = [...snapshot.filters.excludedDescriptionFilters]
+			dateFilters.value = snapshot.filters.dateFilters.map((df) => ({ ...df }))
+			filterExtension.value = [...snapshot.filters.filterExtension]
+			filterTagged.value = snapshot.filters.filterTagged
+		} else {
+			selectedTags.value = []
+			excludedTags.value = []
+			descriptionFilters.value = []
+			excludedDescriptionFilters.value = []
+			dateFilters.value = []
+			filterExtension.value = []
+			filterTagged.value = "all"
+		}
+
+		// 7. Update lastReadMeta so saveMetadata() merges correctly
 		lastReadMeta = {
 			version: 1,
 			files: snapshot.files,
@@ -843,6 +928,7 @@ export function useLibraryStore() {
 		excludedTags,
 		descriptionFilters,
 		excludedDescriptionFilters,
+		dateFilters,
 		lastUsedTag,
 		currentFile,
 		isPlaying,
@@ -872,6 +958,8 @@ export function useLibraryStore() {
 		removeDescriptionFilter,
 		addExcludeDescriptionFilter,
 		removeExcludeDescriptionFilter,
+		addDateFilter,
+		removeDateFilter,
 		clearAllFilters,
 		editTag,
 		mergeTag,
@@ -913,6 +1001,7 @@ export function _resetLibraryStore() {
 	excludedTags.value = []
 	descriptionFilters.value = []
 	excludedDescriptionFilters.value = []
+	dateFilters.value = []
 	lastReadMeta = null
 	lastUsedTag.value = null
 	currentFile.value = null
