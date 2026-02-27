@@ -5,7 +5,7 @@ import { useSettingsStore } from "./settingsStore"
 import { useSoundboardStore } from "./soundboardStore"
 import type { Soundboard, SoundboardItem } from "./soundboardStore"
 
-export type SortColumn = "name" | "tags" | "duration" | "type" | "createdAt" | "modifiedAt"
+export type SortColumn = "name" | "tags" | "duration" | "type" | "createdAt" | "modifiedAt" | "lastPlayed"
 
 export interface DateFilter {
 	id: string
@@ -218,6 +218,12 @@ const filteredFiles = computed(() => {
 				if (!a.modifiedAt) return 1
 				if (!b.modifiedAt) return -1
 				return dir * (new Date(a.modifiedAt).getTime() - new Date(b.modifiedAt).getTime())
+			}
+			case "lastPlayed": {
+				if (!a.lastPlayed && !b.lastPlayed) return 0
+				if (!a.lastPlayed) return 1
+				if (!b.lastPlayed) return -1
+				return dir * (new Date(a.lastPlayed).getTime() - new Date(b.lastPlayed).getTime())
 			}
 			default:
 				return 0

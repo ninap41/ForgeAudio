@@ -80,6 +80,19 @@
 				}}</span>
 				<div class="resize-handle" @mousedown.stop="startResize($event, 'modifiedAt')" @click.stop />
 			</div>
+
+			<div
+				class="col col-date sortable"
+				:class="{ 'sort-active': library.sortColumn === 'lastPlayed' }"
+				:style="{ width: widths.lastPlayed + 'px' }"
+				@click="library.setSort('lastPlayed')"
+			>
+				Last Played
+				<span v-if="library.sortColumn === 'lastPlayed'" class="sort-arrow">{{
+					library.sortDirection === "asc" ? "↑" : "↓"
+				}}</span>
+				<div class="resize-handle" @mousedown.stop="startResize($event, 'lastPlayed')" @click.stop />
+			</div>
 		</div>
 
 		<div
@@ -164,7 +177,7 @@ function onDrop(e: DragEvent) {
 	if (paths.length) emit("filesDropped", paths)
 }
 
-type ColKey = "play" | "name" | "tags" | "duration" | "type" | "createdAt" | "modifiedAt"
+type ColKey = "play" | "name" | "tags" | "duration" | "type" | "createdAt" | "modifiedAt" | "lastPlayed"
 
 const widths = reactive<Record<ColKey, number>>({
 	play: 36,
@@ -174,6 +187,7 @@ const widths = reactive<Record<ColKey, number>>({
 	type: 70,
 	createdAt: 130,
 	modifiedAt: 130,
+	lastPlayed: 130,
 })
 
 let resizingCol: ColKey | null = null
@@ -187,6 +201,7 @@ const MIN_WIDTH: Partial<Record<ColKey, number>> = {
 	type: 60,
 	createdAt: 90,
 	modifiedAt: 90,
+	lastPlayed: 90,
 }
 
 const onMouseMove = (e: MouseEvent) => {

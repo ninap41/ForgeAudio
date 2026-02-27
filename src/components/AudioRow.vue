@@ -55,11 +55,11 @@
 				{{ file.extension }}
 			</div>
 
-			<div class="col col-date" :style="{ width: widths.createdAt + 'px' }">
+			<div class="col col-date clickable-date" :style="{ width: widths.createdAt + 'px' }" @contextmenu.prevent.stop="onDateContextMenu('createdAt', file.createdAt)">
 				{{ formatDate(file.createdAt) }}
 			</div>
 
-			<div class="col col-date" :style="{ width: widths.modifiedAt + 'px' }">
+			<div class="col col-date clickable-date" :style="{ width: widths.modifiedAt + 'px' }" @contextmenu.prevent.stop="onDateContextMenu('modifiedAt', file.modifiedAt)">
 				{{ formatDate(file.modifiedAt) }}
 			</div>
 			<div class="col col-date" :style="{ width: widths.lastPlayed + 'px' }">
