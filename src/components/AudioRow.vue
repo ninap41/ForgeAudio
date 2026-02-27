@@ -22,16 +22,17 @@
 			</div>
 
 			<div class="col col-name" :style="{ width: widths.name + 'px' }" :title="file.path">
+				<button class="expand-btn" :title="expanded ? 'Collapse' : 'Expand'" @click.stop="emit('toggle-expand', file.path)">
+					<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+						<polygon v-if="expanded" points="6,9 12,15 18,9" />
+
+						<polygon v-else points="9,6 15,12 9,18" />
+					</svg>
+				</button>
 				<div class="name-content">
 					<span class="file-name">{{ file.name }}</span>
 					<span v-if="file.description" class="file-description">{{ file.description }}</span>
 				</div>
-				<button class="expand-btn" :title="expanded ? 'Collapse' : 'Expand'" @click.stop="emit('toggle-expand', file.path)">
-					<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-						<polygon v-if="expanded" points="6,9 12,15 18,9" />
-						<polygon v-else points="9,6 15,12 9,18" />
-					</svg>
-				</button>
 			</div>
 
 			<div class="col col-tags" :style="{ width: widths.tags + 'px' }">
@@ -92,7 +93,7 @@
 				</div>
 				<div class="detail-row">
 					<dt>Description</dt>
-					<dd>{{ file.description || '—' }}</dd>
+					<dd>{{ file.description || "—" }}</dd>
 				</div>
 				<div class="detail-row">
 					<dt>Created</dt>
@@ -104,7 +105,7 @@
 				</div>
 				<div class="detail-row">
 					<dt>Last Played</dt>
-					<dd>{{ file.lastPlayed ? formatDate(file.lastPlayed) : '—' }}</dd>
+					<dd>{{ file.lastPlayed ? formatDate(file.lastPlayed) : "—" }}</dd>
 				</div>
 			</dl>
 		</div>
@@ -229,8 +230,8 @@ function formatDate(iso: string | null): string {
 	align-items: center;
 	justify-content: center;
 	border-radius: 4px;
-	color: var(--text-secondary);
-	background: var(--bg-hover);
+	color: var(--text-accent);
+	background: var(--bg-secondary);
 	transition:
 		color 0.15s,
 		background 0.15s;
@@ -318,14 +319,14 @@ function formatDate(iso: string | null): string {
 	width: 20px;
 	height: 20px;
 	border-radius: 3px;
-	color: var(--text-muted);
+	color: var(--text-accent);
 	background: none;
 	border: none;
+	font-size: 20px;
 	cursor: pointer;
 	padding: 0;
 	flex-shrink: 0;
 	margin-left: auto;
-	opacity: 0;
 	transition:
 		color 0.15s,
 		opacity 0.15s;

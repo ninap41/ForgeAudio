@@ -1,7 +1,11 @@
 <template>
 	<span
 		class="tag-chip"
-		:style="{ backgroundColor: color + '22', color: color, borderColor: color + '44' }"
+		:style="{
+			backgroundColor: tagStore.getColor(props.tag) + '22',
+			color: color,
+			borderColor: tagStore.getColor(props.tag) + '44',
+		}"
 		@click="$emit('click')"
 	>
 		{{ tag }}

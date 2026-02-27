@@ -81,8 +81,17 @@
 		<DeleteConfirmModal v-if="deleteFilePath" :filePath="deleteFilePath" @close="deleteFilePath = null" />
 		<RenameModal v-if="renameFilePath" :filePath="renameFilePath" @close="renameFilePath = null" @renamed="onRenamed" />
 		<CreateDirectoryModal v-if="showCreateDirectoryModal" @close="showCreateDirectoryModal = false" />
-		<ImportConflictModal v-if="importConflicts" :conflicts="importConflicts" @resolved="onConflictsResolved" @cancelled="onConflictsCancelled" />
-		<AddToSoundboardModal v-if="addToSoundboardFilePath" :filePath="addToSoundboardFilePath" @close="addToSoundboardFilePath = null" />
+		<ImportConflictModal
+			v-if="importConflicts"
+			:conflicts="importConflicts"
+			@resolved="onConflictsResolved"
+			@cancelled="onConflictsCancelled"
+		/>
+		<AddToSoundboardModal
+			v-if="addToSoundboardFilePath"
+			:filePath="addToSoundboardFilePath"
+			@close="addToSoundboardFilePath = null"
+		/>
 	</div>
 </template>
 
@@ -126,7 +135,9 @@ const importConflicts = ref<Array<{ sourcePath: string; destPath: string; fileNa
 const importReadyToCopy = ref<Array<{ sourcePath: string; destPath: string; fileName: string }>>([])
 const importSkippedCount = ref(0)
 const isImporting = ref(false)
-const importAlert = ref<{ type: "info" | "success" | "warning" | "error"; message: string; details?: string } | null>(null)
+const importAlert = ref<{ type: "info" | "success" | "warning" | "error"; message: string; details?: string } | null>(
+	null,
+)
 
 watch(
 	() => library.isScanning,
@@ -219,7 +230,9 @@ async function handleDroppedPaths(paths: string[]) {
 	}
 }
 
-function onConflictsResolved(results: Array<{ sourcePath: string; fileName: string; resolution: "overwrite" | "rename" }>) {
+function onConflictsResolved(
+	results: Array<{ sourcePath: string; fileName: string; resolution: "overwrite" | "rename" }>,
+) {
 	const ready = importReadyToCopy.value
 	const skipped = importSkippedCount.value
 	importConflicts.value = null
@@ -330,7 +343,7 @@ onBeforeUnmount(() => {
 
 .toolbar {
 	display: flex;
-	align-items: center;
+	align-items: baseline;
 	gap: 8px;
 	padding: 10px 16px;
 	border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);

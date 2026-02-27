@@ -253,7 +253,7 @@ watch(
 	() => {
 		if (!ws || isLoading.value) return
 		setupRegions()
-	}
+	},
 )
 
 // Sync offset prop → marker position
@@ -269,26 +269,23 @@ watch(
 			marker.setOptions({ start: target, end: target })
 			updatingFromProps = false
 		}
-	}
+	},
 )
 
 // Sync range props → region position
-watch(
-	[() => props.rangeStart, () => props.rangeEnd],
-	([newStart, newEnd]) => {
-		if (!regions || props.mode !== "range" || isLoading.value) return
-		const region = regions.getRegions().find((r) => r.id === "range-region")
-		if (!region) return
-		const dur = ws?.getDuration() || props.duration || 0
-		const start = clampTime(newStart ?? 0)
-		const end = clampTime(newEnd ?? dur)
-		if (Math.abs(region.start - start) > 0.05 || Math.abs(region.end - end) > 0.05) {
-			updatingFromProps = true
-			region.setOptions({ start, end })
-			updatingFromProps = false
-		}
+watch([() => props.rangeStart, () => props.rangeEnd], ([newStart, newEnd]) => {
+	if (!regions || props.mode !== "range" || isLoading.value) return
+	const region = regions.getRegions().find((r) => r.id === "range-region")
+	if (!region) return
+	const dur = ws?.getDuration() || props.duration || 0
+	const start = clampTime(newStart ?? 0)
+	const end = clampTime(newEnd ?? dur)
+	if (Math.abs(region.start - start) > 0.05 || Math.abs(region.end - end) > 0.05) {
+		updatingFromProps = true
+		region.setOptions({ start, end })
+		updatingFromProps = false
 	}
-)
+})
 
 // Theme reactivity: update wavesurfer colors when theme changes
 themeInterval = setInterval(() => {
