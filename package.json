@@ -1,5 +1,6 @@
 {
 	"name": "fuck-the-finder",
+	"author": "Nina Palumbo",
 	"productName": "ForgeAudio",
 	"version": "0.1.0",
 	"description": "Audio Library Manager — fast search, tagging, and playback for local audio files",

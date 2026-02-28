@@ -76,6 +76,26 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+	// Application menu with Edit roles so copy/paste/cut/select-all work in text inputs
+	const appMenu = Menu.buildFromTemplate([
+		...(process.platform === "darwin"
+			? [{ role: "appMenu" as const }]
+			: []),
+		{
+			label: "Edit",
+			submenu: [
+				{ role: "undo" as const },
+				{ role: "redo" as const },
+				{ type: "separator" as const },
+				{ role: "cut" as const },
+				{ role: "copy" as const },
+				{ role: "paste" as const },
+				{ role: "selectAll" as const },
+			],
+		},
+	])
+	Menu.setApplicationMenu(appMenu)
+
 	protocol.handle("atom", async (request) => {
 		let filePath = decodeURIComponent(request.url.replace("atom://localfile", ""))
 		// On Windows, the URL produces "/C:/Users/..." — strip the leading slash before a drive letter
