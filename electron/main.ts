@@ -59,6 +59,13 @@ function createWindow() {
 
 	mainWindow.setTitle("ForgeAudio")
 
+	// F12 toggles DevTools on all platforms (works even in production builds)
+	mainWindow.webContents.on("before-input-event", (_event, input) => {
+		if (input.key === "F12" && input.type === "keyDown") {
+			mainWindow!.webContents.toggleDevTools()
+		}
+	})
+
 	if (process.env.VITE_DEV_SERVER_URL) {
 		mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
 	} else {
@@ -70,7 +77,11 @@ function createWindow() {
 
 app.whenReady().then(() => {
 	protocol.handle("atom", async (request) => {
-		const filePath = decodeURIComponent(request.url.replace("atom://localfile", ""))
+		let filePath = decodeURIComponent(request.url.replace("atom://localfile", ""))
+		// On Windows, the URL produces "/C:/Users/..." — strip the leading slash before a drive letter
+		if (process.platform === "win32" && /^\/[A-Za-z]:/.test(filePath)) {
+			filePath = filePath.slice(1)
+		}
 		const ext = extname(filePath).toLowerCase()
 		const mime = AUDIO_MIME[ext] || "application/octet-stream"
 

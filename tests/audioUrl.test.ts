@@ -7,7 +7,9 @@ import { describe, it, expect } from 'vitest'
  */
 
 function buildAudioUrl(filePath: string): string {
-  return 'atom://localfile' + filePath
+  const normalized = filePath.replace(/\\/g, '/')
+  const prefixed = normalized.startsWith('/') ? normalized : '/' + normalized
+  return 'atom://localfile' + prefixed
     .split('/')
     .map(s => encodeURIComponent(s).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase()))
     .join('/')
@@ -45,5 +47,17 @@ describe('audio URL construction', () => {
     const url = buildAudioUrl(original)
     const decoded = decodeURIComponent(url.replace('atom://localfile', ''))
     expect(decoded).toBe(original)
+  })
+
+  it('handles Windows backslash paths', () => {
+    expect(buildAudioUrl('C:\\Users\\d-roc\\Documents\\sfx\\bonk.mp3'))
+      .toBe('atom://localfile/C%3A/Users/d-roc/Documents/sfx/bonk.mp3')
+  })
+
+  it('round-trips Windows path through decodeURIComponent', () => {
+    const original = 'C:\\Users\\d-roc\\Documents\\sfx\\bonk.mp3'
+    const url = buildAudioUrl(original)
+    const decoded = decodeURIComponent(url.replace('atom://localfile/', ''))
+    expect(decoded).toBe('C:/Users/d-roc/Documents/sfx/bonk.mp3')
   })
 })

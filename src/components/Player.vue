@@ -66,7 +66,11 @@ const scrubberEl = ref<HTMLInputElement>()
 
 const audioSrc = computed(() => {
 	if (!library.currentFile) return ""
-	return "atom://localfile" + library.currentFile.path
+	// Normalize Windows backslashes to forward slashes before splitting
+	const normalized = library.currentFile.path.replace(/\\/g, "/")
+	// Ensure path starts with / (Windows paths like C:/... need a leading slash)
+	const prefixed = normalized.startsWith("/") ? normalized : "/" + normalized
+	return "atom://localfile" + prefixed
 		.split("/")
 		.map(s => encodeURIComponent(s).replace(/[!'()*]/g, c => "%" + c.charCodeAt(0).toString(16).toUpperCase()))
 		.join("/")
