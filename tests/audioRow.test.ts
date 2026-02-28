@@ -29,10 +29,13 @@ const mockElectronAPI = {
   clearTagData: vi.fn(),
   toggleDevTools: vi.fn(),
   startDrag: vi.fn(),
+  startDragFiles: vi.fn(),
+  showBulkContextMenu: vi.fn(),
+  showDateContextMenu: vi.fn(),
 }
 ;(window as any).electronAPI = mockElectronAPI
 
-const DEFAULT_WIDTHS = { play: 36, name: 280, tags: 200, duration: 80, type: 70, createdAt: 130, modifiedAt: 130 }
+const DEFAULT_WIDTHS = { play: 36, name: 280, tags: 200, duration: 80, type: 70, createdAt: 130, modifiedAt: 130, lastPlayed: 130 }
 
 function makeFile(overrides: Partial<AudioFile> = {}): AudioFile {
   return {
@@ -167,12 +170,12 @@ describe('AudioRow', () => {
     })
     wrapper.find('.audio-row').element.dispatchEvent(dragEvent)
 
-    expect(library.dragPayload).toEqual({
+    expect(library.dragPayload).toEqual([{
       path: '/sounds/kick.wav',
       name: 'kick.wav',
       extension: '.wav',
       duration: 1.5,
-    })
+    }])
     expect(mockElectronAPI.startDrag).toHaveBeenCalledWith('/sounds/kick.wav')
   })
 

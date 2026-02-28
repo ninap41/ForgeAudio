@@ -46,6 +46,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Native drag
   startDrag: (filePath: string) => ipcRenderer.send('drag:startFile', filePath),
+  startDragFiles: (filePaths: string[]) => ipcRenderer.send('drag:startFiles', filePaths),
+
+  // Bulk context menu
+  showBulkContextMenu: (params: { filePaths: string[]; lastUsedTag?: string | null }) =>
+    ipcRenderer.send('context-menu:showBulk', params),
+  onContextMenuBulkAddTag: (callback: (filePaths: string[]) => void) =>
+    ipcRenderer.on('context-menu:bulkAddTag', (_e, fps) => callback(fps)),
+  onContextMenuBulkQuickTag: (callback: (data: { filePaths: string[]; tag: string }) => void) =>
+    ipcRenderer.on('context-menu:bulkQuickTag', (_e, data) => callback(data)),
+  onContextMenuBulkDelete: (callback: (filePaths: string[]) => void) =>
+    ipcRenderer.on('context-menu:bulkDelete', (_e, fps) => callback(fps)),
 
   // Config persistence
   getRootDirectory: () => ipcRenderer.invoke('config:getRootDirectory'),

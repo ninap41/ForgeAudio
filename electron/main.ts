@@ -559,6 +559,48 @@ ipcMain.on("drag:startFile", (event, filePath: string) => {
 	event.sender.startDrag({ file: filePath, icon })
 })
 
+// Native multi-file drag to external apps
+ipcMain.on("drag:startFiles", (event, filePaths: string[]) => {
+	let icon: Electron.NativeImage
+	try {
+		icon = nativeImage.createFromPath(join(__dirname, "../public/drag-icon.png"))
+		if (icon.isEmpty()) throw new Error("empty")
+	} catch {
+		icon = nativeImage.createEmpty()
+	}
+	event.sender.startDrag({ file: filePaths[0] || "", files: filePaths, icon })
+})
+
+// Bulk context menu for multi-selected files
+ipcMain.on(
+	"context-menu:showBulk",
+	(event, params: { filePaths: string[]; lastUsedTag?: string | null }) => {
+		const n = params.filePaths.length
+		const template: Electron.MenuItemConstructorOptions[] = [
+			{
+				label: `Add Tag to Selected (${n} files)`,
+				click: () => event.sender.send("context-menu:bulkAddTag", params.filePaths),
+			},
+		]
+		if (params.lastUsedTag) {
+			template.push({
+				label: `Add Tag '${params.lastUsedTag}' to Selected`,
+				click: () =>
+					event.sender.send("context-menu:bulkQuickTag", {
+						filePaths: params.filePaths,
+						tag: params.lastUsedTag,
+					}),
+			})
+		}
+		template.push({ type: "separator" })
+		template.push({
+			label: `Delete Selected (${n} files)`,
+			click: () => event.sender.send("context-menu:bulkDelete", params.filePaths),
+		})
+		Menu.buildFromTemplate(template).popup()
+	},
+)
+
 // Context menu triggered from renderer
 ipcMain.on(
 	"context-menu:show",

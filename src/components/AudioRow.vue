@@ -2,9 +2,9 @@
 	<div class="audio-row-wrapper" :data-path="file.path">
 		<div
 			class="audio-row"
-			:class="{ active: isActive, playing: isActive && library.isPlaying }"
+			:class="{ active: isActive, playing: isActive && library.isPlaying, selected: library.isSelected(file.path) }"
 			draggable="true"
-			@click="library.playFile(file)"
+			@click="handleRowClick($event)"
 			@contextmenu.prevent="onContextMenu"
 			@dragstart="onDragStart"
 			@dragend="onDragEnd"
@@ -144,6 +144,19 @@ const soundboardStore = useSoundboardStore()
 
 const isActive = computed(() => library.currentFile?.path === props.file.path)
 
+function handleRowClick(e: MouseEvent) {
+	if (e.shiftKey) {
+		e.preventDefault()
+		library.shiftSelectFile(props.file.path)
+	} else if (e.metaKey || e.ctrlKey) {
+		e.preventDefault()
+		library.toggleSelectFile(props.file.path)
+	} else {
+		library.clearSelection()
+		library.playFile(props.file)
+	}
+}
+
 function togglePlay() {
 	if (isActive.value && library.isPlaying) {
 		library.stopPlayback()
@@ -153,6 +166,16 @@ function togglePlay() {
 }
 
 function onContextMenu() {
+	// If right-clicking within a multi-selection, show bulk menu
+	if (library.selectedPaths.size > 1 && library.isSelected(props.file.path)) {
+		const filePaths = library.filteredFiles
+			.filter((f: { path: string }) => library.isSelected(f.path))
+			.map((f: { path: string }) => f.path)
+		window.electronAPI.showBulkContextMenu({ filePaths, lastUsedTag: library.lastUsedTag })
+		return
+	}
+	library.clearSelection()
+
 	const profileSoundboards = soundboardStore.getSoundboardsForProfile(library.activeProfileName)
 	const soundboards = profileSoundboards.map((sb) => ({ id: sb.id, name: sb.name }))
 
@@ -187,13 +210,26 @@ function onDragStart(e: DragEvent) {
 	// Prevent HTML5 drag — native Electron startDrag handles the OS-level drag session.
 	// Internal soundboard drops use library.dragPayload instead of dataTransfer MIME types.
 	e.preventDefault()
-	library.dragPayload = {
-		path: props.file.path,
-		name: props.file.name,
-		extension: props.file.extension,
-		duration: props.file.duration ?? 0,
+	if (library.selectedPaths.size > 1 && library.isSelected(props.file.path)) {
+		// Multi-file drag: drag all selected files
+		const selected = library.filteredFiles.filter((f: { path: string }) => library.isSelected(f.path))
+		library.dragPayload = selected.map((f: { path: string; name: string; extension: string; duration: number | null }) => ({
+			path: f.path,
+			name: f.name,
+			extension: f.extension,
+			duration: f.duration ?? 0,
+		}))
+		window.electronAPI.startDragFiles(selected.map((f: { path: string }) => f.path))
+	} else {
+		// Single-file drag
+		library.dragPayload = [{
+			path: props.file.path,
+			name: props.file.name,
+			extension: props.file.extension,
+			duration: props.file.duration ?? 0,
+		}]
+		window.electronAPI.startDrag(props.file.path)
 	}
-	window.electronAPI.startDrag(props.file.path)
 }
 
 function onDragEnd() {
@@ -226,6 +262,10 @@ function formatDate(iso: string | null): string {
 
 .audio-row:hover {
 	background: var(--bg-hover);
+}
+
+.audio-row.selected {
+	background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .audio-row.active {

@@ -133,7 +133,11 @@ const playbackRange = ref<[number, number] | null>(null)
 const playbackRestartCounter = ref(0)
 
 // Drag payload for native file drag (shared between AudioRow and drop targets)
-const dragPayload = ref<{ path: string; name: string; extension: string; duration: number } | null>(null)
+const dragPayload = ref<Array<{ path: string; name: string; extension: string; duration: number }> | null>(null)
+
+// Multi-row selection state
+const selectedPaths = ref<Set<string>>(new Set())
+const lastClickedPath = ref<string | null>(null)
 
 const filteredFiles = computed(() => {
 	let result = files.value
@@ -329,6 +333,8 @@ export function useLibraryStore() {
 
 		isScanning.value = true
 		files.value = []
+		selectedPaths.value = new Set()
+		lastClickedPath.value = null
 
 		try {
 			// Read metadata first (fast local file read) so it's ready when batches arrive
@@ -738,6 +744,74 @@ export function useLibraryStore() {
 		isPlaying.value = true
 	}
 
+	function selectFile(path: string) {
+		selectedPaths.value = new Set([path])
+		lastClickedPath.value = path
+	}
+
+	function shiftSelectFile(path: string) {
+		if (!lastClickedPath.value) {
+			selectedPaths.value = new Set([path])
+			lastClickedPath.value = path
+			return
+		}
+		const list = filteredFiles.value
+		const anchorIdx = list.findIndex((f) => f.path === lastClickedPath.value)
+		const targetIdx = list.findIndex((f) => f.path === path)
+		if (anchorIdx === -1 || targetIdx === -1) {
+			selectedPaths.value = new Set([path])
+			lastClickedPath.value = path
+			return
+		}
+		const start = Math.min(anchorIdx, targetIdx)
+		const end = Math.max(anchorIdx, targetIdx)
+		const newSet = new Set<string>()
+		for (let i = start; i <= end; i++) {
+			newSet.add(list[i].path)
+		}
+		selectedPaths.value = newSet
+		// Do NOT update lastClickedPath — matches OS behavior for consecutive shift-clicks
+	}
+
+	function toggleSelectFile(path: string) {
+		const newSet = new Set(selectedPaths.value)
+		if (newSet.has(path)) {
+			newSet.delete(path)
+		} else {
+			newSet.add(path)
+		}
+		selectedPaths.value = newSet
+		lastClickedPath.value = path
+	}
+
+	function clearSelection() {
+		selectedPaths.value = new Set()
+		lastClickedPath.value = null
+	}
+
+	function isSelected(path: string): boolean {
+		return selectedPaths.value.has(path)
+	}
+
+	async function deleteFiles(paths: string[]): Promise<{ errors: string[] }> {
+		const errors: string[] = []
+		for (const p of paths) {
+			const result = await window.electronAPI.deleteFile(p)
+			if (!result.success) {
+				errors.push(`${p.split("/").pop()}: ${result.error}`)
+			} else {
+				files.value = files.value.filter((f) => f.path !== p)
+				selectedPaths.value.delete(p)
+				if (currentFile.value?.path === p) {
+					currentFile.value = null
+					isPlaying.value = false
+				}
+			}
+		}
+		await saveMetadata()
+		return { errors }
+	}
+
 	function getProfileSnapshot(): ProfileSnapshot {
 		const snapshotFiles: ProfileSnapshot["files"] = {}
 
@@ -1018,6 +1092,8 @@ export function useLibraryStore() {
 		playbackRange,
 		playbackRestartCounter,
 		dragPayload,
+		selectedPaths,
+		lastClickedPath,
 		filteredFiles,
 		initFromPersistedDirectory,
 		selectAndScanDirectory,
@@ -1032,6 +1108,12 @@ export function useLibraryStore() {
 		playFile,
 		stopPlayback,
 		restartPlayback,
+		selectFile,
+		shiftSelectFile,
+		toggleSelectFile,
+		clearSelection,
+		isSelected,
+		deleteFiles,
 		addTagFilter,
 		removeTagFilter,
 		addExcludeTagFilter,
@@ -1091,6 +1173,8 @@ export function _resetLibraryStore() {
 	playbackOffset.value = null
 	playbackRange.value = null
 	dragPayload.value = null
+	selectedPaths.value = new Set()
+	lastClickedPath.value = null
 	activeProfileName.value = "Default"
 	profiles.value = {}
 }

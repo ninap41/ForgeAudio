@@ -87,6 +87,16 @@
 			:filePath="addToSoundboardFilePath"
 			@close="addToSoundboardFilePath = null"
 		/>
+		<BulkDeleteConfirmModal
+			v-if="bulkDeleteFilePaths"
+			:filePaths="bulkDeleteFilePaths"
+			@close="bulkDeleteFilePaths = null"
+		/>
+		<BulkAddTagModal
+			v-if="bulkAddTagFilePaths"
+			:filePaths="bulkAddTagFilePaths"
+			@close="bulkAddTagFilePaths = null"
+		/>
 	</div>
 </template>
 
@@ -104,6 +114,8 @@ import AlertBanner from "@/components/AlertBanner.vue"
 import CreateDirectoryModal from "@/components/CreateDirectoryModal.vue"
 import ImportConflictModal from "@/components/ImportConflictModal.vue"
 import AddToSoundboardModal from "@/components/AddToSoundboardModal.vue"
+import BulkDeleteConfirmModal from "@/components/BulkDeleteConfirmModal.vue"
+import BulkAddTagModal from "@/components/BulkAddTagModal.vue"
 import { useSoundboardStore } from "@/stores/soundboardStore"
 import type { SoundboardItem } from "@/stores/soundboardStore"
 
@@ -118,6 +130,8 @@ const deleteFilePath = ref<string | null>(null)
 const renameFilePath = ref<string | null>(null)
 const showCreateDirectoryModal = ref(false)
 const addToSoundboardFilePath = ref<string | null>(null)
+const bulkDeleteFilePaths = ref<string[] | null>(null)
+const bulkAddTagFilePaths = ref<string[] | null>(null)
 const formatDropdownOpen = ref(false)
 const formatDropdownRef = ref<HTMLElement | null>(null)
 const scanStartTime = ref<number | null>(null)
@@ -317,6 +331,16 @@ onMounted(() => {
 				date: data.date,
 			}
 			library.addDateFilter(filter)
+		})
+		window.electronAPI.onContextMenuBulkAddTag((filePaths: string[]) => {
+			bulkAddTagFilePaths.value = filePaths
+		})
+		window.electronAPI.onContextMenuBulkQuickTag((data: { filePaths: string[]; tag: string }) => {
+			library.addTagToFiles(data.filePaths, data.tag)
+			library.lastUsedTag = data.tag
+		})
+		window.electronAPI.onContextMenuBulkDelete((filePaths: string[]) => {
+			bulkDeleteFilePaths.value = filePaths
 		})
 		window.electronAPI.onContextMenuQuickAddToSoundboard(async (data: { filePath: string; soundboardId: string }) => {
 			const file = library.files.find((f) => f.path === data.filePath)

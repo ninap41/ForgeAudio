@@ -59,6 +59,11 @@ interface ElectronAPI {
   showGridColumnsMenu: (params: { soundboardId: string; currentColumns: number }) => void
   onSetGridColumns: (callback: (data: { soundboardId: string; columns: number }) => void) => void
   startDrag: (filePath: string) => void
+  startDragFiles: (filePaths: string[]) => void
+  showBulkContextMenu: (params: { filePaths: string[]; lastUsedTag?: string | null }) => void
+  onContextMenuBulkAddTag: (callback: (filePaths: string[]) => void) => void
+  onContextMenuBulkQuickTag: (callback: (data: { filePaths: string[]; tag: string }) => void) => void
+  onContextMenuBulkDelete: (callback: (filePaths: string[]) => void) => void
   getRootDirectory: () => Promise<string | null>
   setRootDirectory: (dir: string | null) => Promise<void>
   getStorePath: () => Promise<string>

@@ -136,15 +136,17 @@ function onDrop(e: DragEvent) {
 	dragCounter = 0
 	isDragOver.value = false
 	if (e.dataTransfer?.types.includes("application/x-forgeaudio-reorder")) return
-	const data = library.dragPayload
-	if (!data) return
-	const item: SoundboardItem = {
-		id: `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-		name: data.name,
-		filePath: data.path,
-		duration: data.duration ?? 0,
+	const dataList = library.dragPayload
+	if (!dataList || dataList.length === 0) return
+	for (const data of dataList) {
+		const item: SoundboardItem = {
+			id: `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+			name: data.name,
+			filePath: data.path,
+			duration: data.duration ?? 0,
+		}
+		library.addSoundboardItem(props.soundboard.id, item)
 	}
-	library.addSoundboardItem(props.soundboard.id, item)
 	library.dragPayload = null
 }
 
@@ -215,15 +217,17 @@ function onDropEndDrop(e: DragEvent) {
 		}
 		return
 	}
-	const data = library.dragPayload
-	if (!data) return
-	const item: SoundboardItem = {
-		id: `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-		name: data.name,
-		filePath: data.path,
-		duration: data.duration ?? 0,
+	const dataList = library.dragPayload
+	if (!dataList || dataList.length === 0) return
+	for (const data of dataList) {
+		const item: SoundboardItem = {
+			id: `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+			name: data.name,
+			filePath: data.path,
+			duration: data.duration ?? 0,
+		}
+		library.addSoundboardItem(props.soundboard.id, item)
 	}
-	library.addSoundboardItem(props.soundboard.id, item)
 	library.dragPayload = null
 }
 

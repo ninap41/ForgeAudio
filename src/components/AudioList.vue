@@ -121,6 +121,9 @@
 			{{ library.filteredFiles.length }}
 			<template v-if="library.filteredFiles.length !== library.files.length"> of {{ library.files.length }} </template>
 			file{{ library.filteredFiles.length !== 1 ? "s" : "" }}
+			<template v-if="library.selectedPaths.size > 0">
+				<span class="selection-count"> · {{ library.selectedPaths.size }} selected</span>
+			</template>
 		</div>
 	</div>
 </template>
@@ -289,6 +292,11 @@ defineExpose({ scrollToPath })
 	background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
 	font-size: 11px;
 	color: var(--text-muted);
+}
+
+.selection-count {
+	color: var(--accent);
+	font-weight: 500;
 }
 
 .col {
