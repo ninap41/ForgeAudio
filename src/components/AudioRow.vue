@@ -207,9 +207,12 @@ function onDateContextMenu(field: "createdAt" | "modifiedAt" | "lastPlayed", dat
 }
 
 function onDragStart(e: DragEvent) {
-	// Prevent HTML5 drag — native Electron startDrag handles the OS-level drag session.
-	// Internal soundboard drops use library.dragPayload instead of dataTransfer MIME types.
-	e.preventDefault()
+	// Set MIME type so internal soundboard drop zones accept the drag.
+	// Electron's startDrag handles the OS-level drag session in parallel.
+	if (e.dataTransfer) {
+		e.dataTransfer.effectAllowed = "copy"
+		e.dataTransfer.setData("application/x-forgeaudio-file", "1")
+	}
 	if (library.selectedPaths.size > 1 && library.isSelected(props.file.path)) {
 		// Multi-file drag: drag all selected files
 		const selected = library.filteredFiles.filter((f: { path: string }) => library.isSelected(f.path))

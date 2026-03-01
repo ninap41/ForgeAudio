@@ -61,9 +61,6 @@
 			"buildResources": "build",
 			"output": "release"
 		},
-		"electronLanguages": [
-			"en"
-		],
 		"mac": {
 			"icon": "build/icon.icns"
 		},

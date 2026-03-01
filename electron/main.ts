@@ -35,6 +35,17 @@ import { getAudioDuration } from "./ipc/audioInfo"
 // Register custom protocol for serving local audio files
 protocol.registerSchemesAsPrivileged([{ scheme: "atom", privileges: { stream: true, bypassCSP: true } }])
 
+// Prevent main process crashes from killing the app silently
+process.on("uncaughtException", (err) => {
+	console.error("[main] Uncaught exception:", err)
+})
+process.on("unhandledRejection", (reason) => {
+	console.error("[main] Unhandled rejection:", reason)
+})
+
+// Force a locale so Chromium's Intl.Locale doesn't crash on misconfigured Windows systems
+app.commandLine.appendSwitch("lang", "en-US")
+
 let mainWindow: BrowserWindow | null = null
 
 function createWindow() {
@@ -50,6 +61,7 @@ function createWindow() {
 			height: 30,
 		},
 		backgroundColor: "#1e1e1e",
+		autoHideMenuBar: true,
 		webPreferences: {
 			preload: join(__dirname, "preload.js"),
 			contextIsolation: true,
@@ -66,6 +78,18 @@ function createWindow() {
 		}
 	})
 
+	// Auto-recover from renderer crashes (gray screen) by reloading the page
+	mainWindow.webContents.on("render-process-gone", (_event, details) => {
+		console.error("[crash] Renderer process gone:", details.reason, details.exitCode)
+		if (mainWindow && !mainWindow.isDestroyed()) {
+			if (process.env.VITE_DEV_SERVER_URL) {
+				mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
+			} else {
+				mainWindow.loadFile(join(app.getAppPath(), "dist", "index.html"))
+			}
+		}
+	})
+
 	if (process.env.VITE_DEV_SERVER_URL) {
 		mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
 	} else {
@@ -76,7 +100,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-	// Application menu with Edit roles so copy/paste/cut/select-all work in text inputs
+	// Application menu with Edit roles so copy/paste/cut/select-all work in text inputs.
+	// Menu bar is hidden — the menu only exists to register keyboard accelerators.
 	const appMenu = Menu.buildFromTemplate([
 		...(process.platform === "darwin"
 			? [{ role: "appMenu" as const }]
@@ -97,64 +122,78 @@ app.whenReady().then(() => {
 	Menu.setApplicationMenu(appMenu)
 
 	protocol.handle("atom", async (request) => {
-		let filePath = decodeURIComponent(request.url.replace("atom://localfile", ""))
-		// On Windows, the URL produces "/C:/Users/..." — strip the leading slash before a drive letter
-		if (process.platform === "win32" && /^\/[A-Za-z]:/.test(filePath)) {
-			filePath = filePath.slice(1)
-		}
-		const ext = extname(filePath).toLowerCase()
-		const mime = AUDIO_MIME[ext] || "application/octet-stream"
-
-		let fileSize: number
 		try {
-			fileSize = (await stat(filePath)).size
-		} catch {
-			return new Response("Not Found", { status: 404 })
-		}
-
-		const rangeHeader = request.headers.get("range")
-
-		if (rangeHeader) {
-			const match = rangeHeader.match(/bytes=(\d+)-(\d*)/)
-			if (match) {
-				const start = parseInt(match[1], 10)
-				if (start >= fileSize) {
-					return new Response("Range Not Satisfiable", {
-						status: 416,
-						headers: { "Content-Range": `bytes */${fileSize}` },
-					})
-				}
-				const end = match[2] ? Math.min(parseInt(match[2], 10), fileSize - 1) : fileSize - 1
-				const chunkSize = end - start + 1
-
-				const fh = await fsOpen(filePath, "r")
-				const buffer = Buffer.alloc(chunkSize)
-				await fh.read(buffer, 0, chunkSize, start)
-				await fh.close()
-
-				return new Response(buffer, {
-					status: 206,
-					statusText: "Partial Content",
-					headers: {
-						"Content-Type": mime,
-						"Content-Range": `bytes ${start}-${end}/${fileSize}`,
-						"Content-Length": String(chunkSize),
-						"Accept-Ranges": "bytes",
-					},
-				})
+			let filePath: string
+			try {
+				filePath = decodeURIComponent(request.url.replace("atom://localfile", ""))
+			} catch {
+				console.error("[atom] Bad URL:", request.url)
+				return new Response("Bad Request", { status: 400 })
 			}
-		}
+			// On Windows, the URL produces "/C:/Users/..." — strip the leading slash before a drive letter
+			if (process.platform === "win32" && /^\/[A-Za-z]:/.test(filePath)) {
+				filePath = filePath.slice(1)
+			}
+			const ext = extname(filePath).toLowerCase()
+			const mime = AUDIO_MIME[ext] || "application/octet-stream"
 
-		// No Range — serve full file, advertise Range support
-		const data = await fsReadFile(filePath)
-		return new Response(data, {
-			status: 200,
-			headers: {
-				"Content-Type": mime,
-				"Content-Length": String(fileSize),
-				"Accept-Ranges": "bytes",
-			},
-		})
+			let fileSize: number
+			try {
+				fileSize = (await stat(filePath)).size
+			} catch {
+				console.error("[atom] File not found:", filePath)
+				return new Response("Not Found", { status: 404 })
+			}
+
+			const rangeHeader = request.headers.get("range")
+
+			if (rangeHeader) {
+				const match = rangeHeader.match(/bytes=(\d+)-(\d*)/)
+				if (match) {
+					const start = parseInt(match[1], 10)
+					if (start >= fileSize) {
+						return new Response("Range Not Satisfiable", {
+							status: 416,
+							headers: { "Content-Range": `bytes */${fileSize}` },
+						})
+					}
+					const end = match[2] ? Math.min(parseInt(match[2], 10), fileSize - 1) : fileSize - 1
+					const chunkSize = end - start + 1
+
+					const fh = await fsOpen(filePath, "r")
+					try {
+						const buffer = Buffer.alloc(chunkSize)
+						await fh.read(buffer, 0, chunkSize, start)
+						return new Response(buffer, {
+							status: 206,
+							statusText: "Partial Content",
+							headers: {
+								"Content-Type": mime,
+								"Content-Range": `bytes ${start}-${end}/${fileSize}`,
+								"Content-Length": String(chunkSize),
+								"Accept-Ranges": "bytes",
+							},
+						})
+					} finally {
+						await fh.close()
+					}
+				}
+			}
+
+			// No Range — serve full file, advertise Range support
+			const data = await fsReadFile(filePath)
+			return new Response(data, {
+				status: 200,
+				headers: {
+					"Content-Type": mime,
+					"Content-Length": String(fileSize),
+					"Accept-Ranges": "bytes",
+				},
+			})
+		} catch (err) {
+			console.error("[atom] Protocol handler error:", err)
+			return new Response("Internal Server Error", { status: 500 })
+		}
 	})
 
 	createWindow()

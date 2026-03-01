@@ -38,21 +38,6 @@
 					<span v-else-if="item.partial && item.range" class="sb-pad-partial sb-partial-glow"
 						>{{ formatSeconds(item.range[0]) }}–{{ formatSeconds(item.range[1]) }}</span
 					>
-					<button class="sb-pad-restart" title="Restart" @click.stop="restartItem(item)">
-						<svg
-							width="10"
-							height="10"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<polyline points="1 4 1 10 7 10" />
-							<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-						</svg>
-					</button>
 					<button class="sb-pad-remove" title="Remove" @click.stop="handleRemove(item.id)">
 						<svg
 							width="10"
@@ -235,50 +220,37 @@ function onDropEndDrop(e: DragEvent) {
 	library.dragPayload = null
 }
 
-function restartItem(item: SoundboardItem) {
-	if (library.currentFile?.path !== item.filePath) {
-		playItem(item)
-	} else {
-		const options: { offset?: number; range?: [number, number] } = {}
-		if (item.partial) {
-			if (item.offset != null && item.offset > 0) options.offset = item.offset
-			if (item.range) options.range = item.range
-		}
-		library.playbackOffset = options.offset ?? null
-		library.playbackRange = options.range ?? null
-		library.restartPlayback()
-	}
-}
-
 function isItemPlaying(item: SoundboardItem): boolean {
 	return library.isPlaying && library.currentFile?.path === item.filePath
 }
 
 function playItem(item: SoundboardItem) {
-	if (isItemPlaying(item)) {
-		library.stopPlayback()
-		return
-	}
 	const options: { offset?: number; range?: [number, number] } = {}
 	if (item.partial) {
 		if (item.offset != null && item.offset > 0) options.offset = item.offset
 		if (item.range) options.range = item.range
 	}
-	library.playFile(
-		{
-			path: item.filePath,
-			name: item.name,
-			extension: item.filePath.split(".").pop() || "",
-			size: 0,
-			duration: item.duration,
-			tags: [],
-			description: "",
-			lastPlayed: null,
-			createdAt: null,
-			modifiedAt: null,
-		},
-		options,
-	)
+	if (library.currentFile?.path === item.filePath) {
+		library.playbackOffset = options.offset ?? null
+		library.playbackRange = options.range ?? null
+		library.restartPlayback()
+	} else {
+		library.playFile(
+			{
+				path: item.filePath,
+				name: item.name,
+				extension: item.filePath.split(".").pop() || "",
+				size: 0,
+				duration: item.duration,
+				tags: [],
+				description: "",
+				lastPlayed: null,
+				createdAt: null,
+				modifiedAt: null,
+			},
+			options,
+		)
+	}
 }
 
 async function handleRemove(itemId: string) {
@@ -395,35 +367,6 @@ function onItemContextMenu(item: SoundboardItem) {
 .sb-partial-glow {
 	text-shadow: 0 0 6px var(--accent);
 	box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 40%, transparent);
-}
-
-.sb-pad-restart {
-	position: absolute;
-	top: 2px;
-	left: 2px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 14px;
-	height: 14px;
-	border-radius: 3px;
-	color: var(--text-muted);
-	background: none;
-	border: none;
-	cursor: pointer;
-	padding: 0;
-	opacity: 0;
-	transition:
-		color 0.15s,
-		opacity 0.15s;
-}
-
-.sb-pad:hover .sb-pad-restart {
-	opacity: 1;
-}
-
-.sb-pad-restart:hover {
-	color: var(--accent);
 }
 
 .sb-pad-remove {

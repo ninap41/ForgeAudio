@@ -26,28 +26,9 @@
 				@dragend="onReorderEnd"
 				@contextmenu.prevent="onItemContextMenu(item)"
 			>
-				<button class="sb-play-btn" :title="isItemPlaying(item) ? 'Stop' : 'Play'" @click="playItem(item)">
-					<svg v-if="!isItemPlaying(item)" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+				<button class="sb-play-btn" title="Play" @click="playItem(item)">
+					<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
 						<polygon points="5 3 19 12 5 21" />
-					</svg>
-					<svg v-else width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-						<rect x="6" y="4" width="4" height="16" />
-						<rect x="14" y="4" width="4" height="16" />
-					</svg>
-				</button>
-				<button class="sb-restart-btn" title="Restart" @click.stop="restartItem(item)">
-					<svg
-						width="11"
-						height="11"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<polyline points="1 4 1 10 7 10" />
-						<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
 					</svg>
 				</button>
 				<span class="sb-item-name">{{ item.name }}</span>
@@ -231,47 +212,33 @@ function onDropEndDrop(e: DragEvent) {
 	library.dragPayload = null
 }
 
-function restartItem(item: SoundboardItem) {
-	if (library.currentFile?.path !== item.filePath) {
-		playItem(item)
-	} else {
-		const options: { offset?: number; range?: [number, number] } = {}
-		if (item.partial) {
-			if (item.offset != null && item.offset > 0) options.offset = item.offset
-			if (item.range) options.range = item.range
-		}
-		library.playbackOffset = options.offset ?? null
-		library.playbackRange = options.range ?? null
-		library.restartPlayback()
-	}
-}
-
-function isItemPlaying(item: SoundboardItem): boolean {
-	return library.isPlaying && library.currentFile?.path === item.filePath
-}
-
 function playItem(item: SoundboardItem) {
-	library.stopPlayback()
 	const options: { offset?: number; range?: [number, number] } = {}
 	if (item.partial) {
 		if (item.offset != null && item.offset > 0) options.offset = item.offset
 		if (item.range) options.range = item.range
 	}
-	library.playFile(
-		{
-			path: item.filePath,
-			name: item.name,
-			extension: item.filePath.split(".").pop() || "",
-			size: 0,
-			duration: item.duration,
-			tags: [],
-			description: "",
-			lastPlayed: null,
-			createdAt: null,
-			modifiedAt: null,
-		},
-		options,
-	)
+	if (library.currentFile?.path === item.filePath) {
+		library.playbackOffset = options.offset ?? null
+		library.playbackRange = options.range ?? null
+		library.restartPlayback()
+	} else {
+		library.playFile(
+			{
+				path: item.filePath,
+				name: item.name,
+				extension: item.filePath.split(".").pop() || "",
+				size: 0,
+				duration: item.duration,
+				tags: [],
+				description: "",
+				lastPlayed: null,
+				createdAt: null,
+				modifiedAt: null,
+			},
+			options,
+		)
+	}
 }
 
 async function handleRemove(itemId: string) {
@@ -354,33 +321,6 @@ function onItemContextMenu(item: SoundboardItem) {
 .sb-play-btn:hover {
 	color: var(--accent);
 	background: var(--bg-primary);
-}
-
-.sb-restart-btn {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 18px;
-	height: 18px;
-	border-radius: 3px;
-	color: var(--text-muted);
-	background: none;
-	border: none;
-	cursor: pointer;
-	padding: 0;
-	flex-shrink: 0;
-	opacity: 0;
-	transition:
-		color 0.15s,
-		opacity 0.15s;
-}
-
-.sb-list-item:hover .sb-restart-btn {
-	opacity: 1;
-}
-
-.sb-restart-btn:hover {
-	color: var(--accent);
 }
 
 .sb-item-name {
