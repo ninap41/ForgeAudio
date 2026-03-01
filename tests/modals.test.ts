@@ -349,6 +349,27 @@ describe('RenameModal', () => {
     expect(wrapper.emitted('close')).toBeFalsy()
   })
 
+  it('shows duplicate filename error from IPC handler', async () => {
+    const library = useLibraryStore()
+    library.files = [{
+      path: '/sounds/kick.wav', name: 'kick.wav', extension: '.wav',
+      size: 1024, duration: 2.5, tags: [], description: '', lastPlayed: null,
+    }]
+    mockAPI.renameFile.mockResolvedValue({ success: false, error: 'A file with this name already exists' })
+
+    const wrapper = mount(RenameModal, {
+      props: { filePath: '/sounds/kick.wav' },
+    })
+
+    await wrapper.find('.modal-input').setValue('existing_file.wav')
+    await wrapper.find('.btn-accent').trigger('click')
+    await new Promise(r => setTimeout(r, 0))
+
+    expect(wrapper.find('.modal-error').text()).toBe('A file with this name already exists')
+    expect(wrapper.emitted('close')).toBeFalsy()
+    expect(wrapper.emitted('renamed')).toBeFalsy()
+  })
+
   it('disables rename button when name is unchanged', () => {
     const wrapper = mount(RenameModal, {
       props: { filePath: '/sounds/kick.wav' },

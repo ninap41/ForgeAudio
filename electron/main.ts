@@ -277,6 +277,10 @@ ipcMain.handle("fs:deleteFile", async (_event, filePath: string) => {
 ipcMain.handle("fs:renameFile", async (_event, oldPath: string, newName: string) => {
 	try {
 		const newPath = join(dirname(oldPath), newName)
+		try {
+			await stat(newPath)
+			return { success: false, error: "A file with this name already exists" }
+		} catch {}
 		await rename(oldPath, newPath)
 		return { success: true, newPath }
 	} catch (err) {
