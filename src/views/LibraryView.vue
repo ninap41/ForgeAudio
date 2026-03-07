@@ -58,6 +58,15 @@
 				@dismiss="importAlert = null"
 			/>
 
+			<AlertBanner
+				v-if="stemAlert"
+				:type="stemAlert.type"
+				:message="stemAlert.message"
+				:details="stemAlert.details"
+				:duration="6000"
+				@dismiss="stemAlert = null"
+			/>
+
 			<div v-if="!library.rootDirectory" class="empty-state">
 				<p>No folder selected.</p>
 				<div class="empty-state-actions">
@@ -102,6 +111,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue"
+import { useRouter } from "vue-router"
 import { useLibraryStore } from "@/stores/libraryStore"
 import SearchBar from "@/components/SearchBar.vue"
 import AudioList from "@/components/AudioList.vue"
@@ -121,6 +131,7 @@ import type { SoundboardItem } from "@/stores/soundboardStore"
 
 const EXTENSIONS = [".wav", ".mp3", ".aiff", ".flac", ".ogg", ".m4a"]
 
+const router = useRouter()
 const library = useLibraryStore()
 const soundboardStore = useSoundboardStore()
 const audioListRef = ref<InstanceType<typeof AudioList>>()
@@ -145,6 +156,9 @@ const importReadyToCopy = ref<Array<{ sourcePath: string; destPath: string; file
 const importSkippedCount = ref(0)
 const isImporting = ref(false)
 const importAlert = ref<{ type: "info" | "success" | "warning" | "error"; message: string; details?: string } | null>(
+	null,
+)
+const stemAlert = ref<{ type: "info" | "success" | "warning" | "error"; message: string; details?: string } | null>(
 	null,
 )
 
@@ -341,6 +355,17 @@ onMounted(() => {
 		})
 		window.electronAPI.onContextMenuBulkDelete((filePaths: string[]) => {
 			bulkDeleteFilePaths.value = filePaths
+		})
+		window.electronAPI.onContextMenuSeparateStems(async (filePath: string) => {
+			const file = library.files.find((f) => f.path === filePath)
+			if (!file) return
+			stemAlert.value = null
+			const result = await library.startStemSeparation(file)
+			if (result.error) {
+				stemAlert.value = { type: "error", message: "Stem separation failed", details: result.error }
+			} else {
+				router.push("/midi")
+			}
 		})
 		window.electronAPI.onContextMenuQuickAddToSoundboard(async (data: { filePath: string; soundboardId: string }) => {
 			const file = library.files.find((f) => f.path === data.filePath)

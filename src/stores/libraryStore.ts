@@ -14,6 +14,23 @@ export interface DateFilter {
 	date: string // ISO 8601
 }
 
+export interface StemInfo {
+	status: "processing" | "completed" | "failed" | "cancelled"
+	model: string
+	createdAt: string
+	tracks: string[]
+	outputDir: string
+}
+
+export interface StemFile {
+	sourceFileName: string
+	sourcePath: string
+	stemType: string
+	displayName: string
+	path: string
+	duration: number | null
+}
+
 export interface AudioFile {
 	path: string
 	name: string
@@ -25,6 +42,7 @@ export interface AudioFile {
 	lastPlayed: string | null
 	createdAt: string | null
 	modifiedAt: string | null
+	stems?: StemInfo
 }
 
 export interface LibraryMetadata {
@@ -35,6 +53,7 @@ export interface LibraryMetadata {
 			tags: string[]
 			description: string
 			lastPlayed: string | null
+			stems?: StemInfo
 		}
 	>
 	tags: Record<string, { color: string }>
@@ -64,7 +83,7 @@ export interface LibraryMetadata {
 }
 
 export interface ProfileSnapshot {
-	files: Record<string, { tags: string[]; description: string; lastPlayed: string | null }>
+	files: Record<string, { tags: string[]; description: string; lastPlayed: string | null; stems?: StemInfo }>
 	tags: Record<string, { color: string }>
 	theme?: Record<string, string>
 	settings?: {
@@ -138,6 +157,12 @@ const dragPayload = ref<Array<{ path: string; name: string; extension: string; d
 // Multi-row selection state
 const selectedPaths = ref<Set<string>>(new Set())
 const lastClickedPath = ref<string | null>(null)
+
+// Stem separation state
+const separatingFile = ref<string | null>(null) // file path currently being separated
+const separatingFileName = ref<string | null>(null) // display name of the file being separated
+const separationProgress = ref<number>(0)
+const separationMessage = ref<string>("")
 
 const filteredFiles = computed(() => {
 	let result = files.value
@@ -252,6 +277,26 @@ const filteredFiles = computed(() => {
 				return 0
 		}
 	})
+})
+
+const allStemFiles = computed(() => {
+	const result: StemFile[] = []
+	for (const file of files.value) {
+		if (file.stems?.status === "completed") {
+			const baseName = file.name.replace(/\.[^.]+$/, "")
+			for (const track of file.stems.tracks) {
+				result.push({
+					sourceFileName: file.name,
+					sourcePath: file.path,
+					stemType: track,
+					displayName: `${baseName}_${track}.wav`,
+					path: `${file.stems.outputDir}/${track}.wav`,
+					duration: file.duration,
+				})
+			}
+		}
+	}
+	return result
 })
 
 export function useLibraryStore() {
@@ -369,6 +414,7 @@ export function useLibraryStore() {
 								tags: fileMeta?.tags ?? [],
 								description: fileMeta?.description ?? "",
 								lastPlayed: fileMeta?.lastPlayed ?? null,
+								stems: fileMeta?.stems,
 							} as AudioFile
 						}),
 					)
@@ -425,11 +471,12 @@ export function useLibraryStore() {
 		// Overlay with the current in-memory state for every file we do have loaded.
 		// Files with no data are explicitly removed so stale entries don't accumulate.
 		for (const file of files.value) {
-			if (file.tags.length > 0 || file.description || file.lastPlayed) {
+			if (file.tags.length > 0 || file.description || file.lastPlayed || file.stems) {
 				meta.files[file.name] = {
 					tags: file.tags,
 					description: file.description,
 					lastPlayed: file.lastPlayed,
+					stems: file.stems,
 				}
 			} else {
 				delete meta.files[file.name]
@@ -828,11 +875,12 @@ export function useLibraryStore() {
 
 		// Overlay current in-memory files
 		for (const file of files.value) {
-			if (file.tags.length > 0 || file.description || file.lastPlayed) {
+			if (file.tags.length > 0 || file.description || file.lastPlayed || file.stems) {
 				snapshotFiles[file.name] = {
 					tags: [...file.tags],
 					description: file.description,
 					lastPlayed: file.lastPlayed,
+					stems: file.stems,
 				}
 			} else {
 				delete snapshotFiles[file.name]
@@ -877,10 +925,12 @@ export function useLibraryStore() {
 				file.tags = [...meta.tags]
 				file.description = meta.description
 				file.lastPlayed = meta.lastPlayed
+				file.stems = meta.stems
 			} else {
 				file.tags = []
 				file.description = ""
 				file.lastPlayed = null
+				file.stems = undefined
 			}
 		}
 
@@ -1021,6 +1071,110 @@ export function useLibraryStore() {
 		return {}
 	}
 
+	// --- Stem separation methods ---
+
+	async function startStemSeparation(file: AudioFile): Promise<{ error?: string }> {
+		if (separatingFile.value) {
+			return { error: "A stem separation is already in progress" }
+		}
+		if (!rootDirectory.value) {
+			return { error: "No library directory set" }
+		}
+
+		const check = await window.electronAPI.checkStemsAvailable()
+		if (!check.available) {
+			return { error: check.error || "Demucs is not available" }
+		}
+
+		// Set status on file
+		file.stems = {
+			status: "processing",
+			model: "htdemucs",
+			createdAt: new Date().toISOString(),
+			tracks: [],
+			outputDir: "",
+		}
+
+		separatingFile.value = file.path
+		separatingFileName.value = file.name
+		separationProgress.value = 0
+		separationMessage.value = `Separating stems for ${file.name}...`
+
+		await saveMetadata()
+
+		// Fire-and-forget: main process will stream progress back
+		window.electronAPI.startStemSeparation(file.path, rootDirectory.value)
+		return {}
+	}
+
+	function cancelStemSeparation() {
+		if (separatingFile.value) {
+			window.electronAPI.cancelStemSeparation(separatingFile.value)
+			const file = files.value.find((f) => f.path === separatingFile.value)
+			if (file && file.stems) {
+				file.stems.status = "cancelled"
+			}
+			separatingFile.value = null
+			separatingFileName.value = null
+			separationProgress.value = 0
+			separationMessage.value = ""
+			saveMetadata()
+		}
+	}
+
+	function handleStemsProgress(data: { inputPath: string; percent: number; message: string }) {
+		if (data.inputPath === separatingFile.value) {
+			separationProgress.value = data.percent
+			separationMessage.value = `Separating stems for ${separatingFileName.value}... ${data.percent}%`
+		}
+	}
+
+	function handleStemsComplete(data: { inputPath: string; tracks: string[]; outputDir: string }) {
+		const file = files.value.find((f) => f.path === data.inputPath)
+		if (file) {
+			file.stems = {
+				status: "completed",
+				model: "htdemucs",
+				createdAt: file.stems?.createdAt || new Date().toISOString(),
+				tracks: data.tracks,
+				outputDir: data.outputDir,
+			}
+		}
+		separatingFile.value = null
+		separatingFileName.value = null
+		separationProgress.value = 100
+		separationMessage.value = "Stem separation complete"
+		saveMetadata()
+	}
+
+	function handleStemsError(data: { inputPath: string; error: string }) {
+		const file = files.value.find((f) => f.path === data.inputPath)
+		if (file && file.stems) {
+			file.stems.status = "failed"
+		}
+		separatingFile.value = null
+		separatingFileName.value = null
+		separationProgress.value = 0
+		separationMessage.value = data.error
+		saveMetadata()
+	}
+
+	function playStem(stem: StemFile) {
+		const virtualFile: AudioFile = {
+			path: stem.path,
+			name: stem.displayName,
+			extension: ".wav",
+			size: 0,
+			duration: stem.duration,
+			tags: [],
+			description: `Stem: ${stem.stemType} from ${stem.sourceFileName}`,
+			lastPlayed: null,
+			createdAt: null,
+			modifiedAt: null,
+		}
+		playFile(virtualFile)
+	}
+
 	// Soundboard wrapper methods (thin — delegate to soundboardStore + persist)
 	async function createSoundboardWrapper(name: string, description: string, layoutType: "LIST" | "GRID" | "TABLE") {
 		const id = soundboardStore.createSoundboard(name, description, layoutType, activeProfileName.value)
@@ -1095,6 +1249,11 @@ export function useLibraryStore() {
 		selectedPaths,
 		lastClickedPath,
 		filteredFiles,
+		allStemFiles,
+		separatingFile,
+		separatingFileName,
+		separationProgress,
+		separationMessage,
 		initFromPersistedDirectory,
 		selectAndScanDirectory,
 		createAndSetDirectory,
@@ -1140,6 +1299,12 @@ export function useLibraryStore() {
 		switchProfile,
 		deleteProfile,
 		renameProfile,
+		startStemSeparation,
+		cancelStemSeparation,
+		handleStemsProgress,
+		handleStemsComplete,
+		handleStemsError,
+		playStem,
 		createSoundboard: createSoundboardWrapper,
 		deleteSoundboard: deleteSoundboardWrapper,
 		updateSoundboard: updateSoundboardWrapper,
@@ -1177,4 +1342,8 @@ export function _resetLibraryStore() {
 	lastClickedPath.value = null
 	activeProfileName.value = "Default"
 	profiles.value = {}
+	separatingFile.value = null
+	separatingFileName.value = null
+	separationProgress.value = 0
+	separationMessage.value = ""
 }

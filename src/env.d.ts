@@ -12,6 +12,11 @@ interface BackupEntry {
   size: number
 }
 
+interface StemCheckResult {
+  available: boolean
+  error?: string
+}
+
 interface ElectronAPI {
   selectDirectory: () => Promise<string | null>
   startScan: (dirPath: string, batchSize?: number) => void
@@ -80,6 +85,18 @@ interface ElectronAPI {
   backupList: () => Promise<BackupEntry[]>
   backupRestore: (filename: string) => Promise<string>
   backupDelete: (filename: string) => Promise<void>
+
+  // Stem separation
+  checkStemsAvailable: () => Promise<StemCheckResult>
+  startStemSeparation: (inputPath: string, libraryRoot: string) => void
+  cancelStemSeparation: (inputPath: string) => Promise<boolean>
+  listStems: (outputDir: string) => Promise<Array<{ track: string; path: string }>>
+  getStemOutputDir: (libraryRoot: string, fileName: string) => Promise<string>
+  onStemsProgress: (callback: (data: { inputPath: string; percent: number; message: string }) => void) => void
+  onStemsComplete: (callback: (data: { inputPath: string; tracks: string[]; outputDir: string }) => void) => void
+  onStemsError: (callback: (data: { inputPath: string; error: string }) => void) => void
+  removeStemsListeners: () => void
+  onContextMenuSeparateStems: (callback: (filePath: string) => void) => void
 }
 
 interface Window {

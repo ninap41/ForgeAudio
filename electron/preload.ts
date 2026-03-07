@@ -127,4 +127,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.send('context-menu:showGridColumns', params),
   onSetGridColumns: (callback: (data: { soundboardId: string; columns: number }) => void) =>
     ipcRenderer.on('context-menu:setGridColumns', (_event, data) => callback(data)),
+
+  // Stem separation
+  checkStemsAvailable: () => ipcRenderer.invoke('stems:checkAvailable'),
+  startStemSeparation: (inputPath: string, libraryRoot: string) =>
+    ipcRenderer.send('stems:separate', inputPath, libraryRoot),
+  cancelStemSeparation: (inputPath: string) => ipcRenderer.invoke('stems:cancel', inputPath),
+  listStems: (outputDir: string) => ipcRenderer.invoke('stems:list', outputDir),
+  getStemOutputDir: (libraryRoot: string, fileName: string) =>
+    ipcRenderer.invoke('stems:getOutputDir', libraryRoot, fileName),
+  onStemsProgress: (callback: (data: { inputPath: string; percent: number; message: string }) => void) =>
+    ipcRenderer.on('stems:progress', (_event, data) => callback(data)),
+  onStemsComplete: (callback: (data: { inputPath: string; tracks: string[]; outputDir: string }) => void) =>
+    ipcRenderer.on('stems:complete', (_event, data) => callback(data)),
+  onStemsError: (callback: (data: { inputPath: string; error: string }) => void) =>
+    ipcRenderer.on('stems:error', (_event, data) => callback(data)),
+  removeStemsListeners: () => {
+    ipcRenderer.removeAllListeners('stems:progress')
+    ipcRenderer.removeAllListeners('stems:complete')
+    ipcRenderer.removeAllListeners('stems:error')
+  },
+  onContextMenuSeparateStems: (callback: (filePath: string) => void) =>
+    ipcRenderer.on('context-menu:separateStems', (_event, filePath) => callback(filePath)),
 })

@@ -31,6 +31,13 @@ import {
 	clearTagData,
 } from "./ipc/metadata"
 import { getAudioDuration } from "./ipc/audioInfo"
+import {
+	checkDemucsAvailable,
+	separateStems,
+	cancelSeparation,
+	listStemFiles,
+	getStemOutputDir,
+} from "./ipc/stems"
 
 // Register custom protocol for serving local audio files
 protocol.registerSchemesAsPrivileged([{ scheme: "atom", privileges: { stream: true, bypassCSP: true } }])
@@ -505,6 +512,38 @@ ipcMain.handle("backup:delete", async (_event, filename: string) => {
 	}
 })
 
+// --- Stem separation IPC handlers ---
+
+ipcMain.handle("stems:checkAvailable", async () => {
+	return checkDemucsAvailable()
+})
+
+ipcMain.on("stems:separate", async (event, inputPath: string, libraryRoot: string) => {
+	console.log("[stems] Starting separation:", inputPath, "→", libraryRoot)
+	try {
+		const result = await separateStems(inputPath, libraryRoot, (percent, message) => {
+			event.sender.send("stems:progress", { inputPath, percent, message })
+		})
+		console.log("[stems] Complete:", result.outputDir, result.tracks)
+		event.sender.send("stems:complete", { inputPath, tracks: result.tracks, outputDir: result.outputDir })
+	} catch (err) {
+		console.error("[stems] Error:", (err as Error).message)
+		event.sender.send("stems:error", { inputPath, error: (err as Error).message })
+	}
+})
+
+ipcMain.handle("stems:cancel", async (_event, inputPath: string) => {
+	return cancelSeparation(inputPath)
+})
+
+ipcMain.handle("stems:list", async (_event, outputDir: string) => {
+	return listStemFiles(outputDir)
+})
+
+ipcMain.handle("stems:getOutputDir", async (_event, libraryRoot: string, fileName: string) => {
+	return getStemOutputDir(libraryRoot, fileName)
+})
+
 // Drag-and-drop import: resolve dropped paths
 const SUPPORTED_EXTENSIONS = new Set([".wav", ".mp3", ".aiff", ".aif", ".flac", ".ogg", ".m4a"])
 
@@ -739,6 +778,13 @@ ipcMain.on(
 				})
 			}
 		}
+
+		// Stem separation
+		template.push({ type: "separator" })
+		template.push({
+			label: "Separate Stems\u2026",
+			click: () => event.sender.send("context-menu:separateStems", params.filePath),
+		})
 
 		template.push({ type: "separator" })
 		template.push({
