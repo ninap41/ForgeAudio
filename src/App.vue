@@ -53,6 +53,7 @@
 			</div>
 			<nav class="nav-tabs">
 				<router-link to="/" class="nav-tab" active-class="active">Library</router-link>
+				<router-link to="/midi" class="nav-tab" active-class="active">Midi</router-link>
 				<router-link to="/settings" class="nav-tab" active-class="active">Settings</router-link>
 				<div class="header-info">
 					<span class="header-info-item">
@@ -134,12 +135,16 @@ function handleKeydown(e: KeyboardEvent) {
 		e.preventDefault()
 		router.push("/settings")
 	}
-	// Cmd+1 → Library, Cmd+2 → Settings
+	// Cmd+1 → Library, Cmd+2 → Midi, Cmd+3 → Settings
 	if ((e.metaKey || e.ctrlKey) && e.key === "1") {
 		e.preventDefault()
 		router.push("/")
 	}
 	if ((e.metaKey || e.ctrlKey) && e.key === "2") {
+		e.preventDefault()
+		router.push("/midi")
+	}
+	if ((e.metaKey || e.ctrlKey) && e.key === "3") {
 		e.preventDefault()
 		router.push("/settings")
 	}

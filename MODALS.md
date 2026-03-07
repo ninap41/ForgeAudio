@@ -1,56 +1,34 @@
-# BaseModal — Reusable Modal System for Electron + Vite + Vue 3
+# BaseModal — Modal System Reference
 
-A drop-in shared modal component for any Electron + Vite + Vue 3 project. Provides the overlay, ARIA accessibility, keyboard/click dismiss, and a full set of pre-styled CSS classes via slots — so every modal in your app is consistent with zero duplicated boilerplate.
+All modals use `BaseModal.vue` — a shared component providing the overlay, ARIA attributes, configurable close behavior, and common CSS classes via `:deep()` scoped styles. Child modals keep only their unique logic and modal-specific scoped styles.
 
 ---
 
-## Setup
+## Modal Inventory
 
-### 1. Copy `BaseModal.vue` into your project
+| Component | Purpose |
+|---|---|
+| `BaseModal.vue` | Shared modal shell (overlay, ARIA, slots, common CSS) |
+| `AddTagModal.vue` | Add tag to file (creates tag if new) |
+| `EditDescriptionModal.vue` | Edit file description |
+| `DeleteConfirmModal.vue` | Confirm before deleting file from disk |
+| `RenameModal.vue` | Rename file on disk; duplicate name validation; scrolls list to new name |
+| `CreateDirectoryModal.vue` | Create new folder and set as library root |
+| `DateFilterModal.vue` | Date filter picker (month/day/year inputs) |
+| `FilterHelpModal.vue` | Search filter syntax help (text, !text, #tag, !#tag, $date) |
+| `ImportConflictModal.vue` | Drag-and-drop duplicate filename conflict resolution |
+| `AddToSoundboardModal.vue` | Select soundboard + optional name/offset/range to add file |
+| `ClearTagModal.vue` | Clear tags confirmation |
+| `EditTagModal.vue` | Edit tag name/color |
+| `TagStoreDebugModal.vue` | Debug: view library.json path + data, clear tags |
+| `BulkDeleteConfirmModal.vue` | Bulk delete confirmation with scrollable file list |
+| `BulkAddTagModal.vue` | Add tag to multiple selected files |
+| `EditSoundboardItemModal.vue` | Edit soundboard item name/offset/range |
 
-Place `src/components/BaseModal.vue` in your components directory. No external dependencies — it's a single `.vue` SFC using only Vue 3 Composition API.
+### Close Mode Variants
 
-### 2. Define the required CSS custom properties
-
-BaseModal styles reference these CSS variables. Define them on `:root` in your global stylesheet (e.g. `global.css`, `main.css`, or your theme system):
-
-```css
-:root {
-  /* Backgrounds */
-  --bg-primary: #1a1a1a;      /* Input/button background */
-  --bg-secondary: #252525;    /* Modal panel background */
-  --bg-hover: #333333;        /* Button hover state */
-
-  /* Borders */
-  --border: #3a3a3a;          /* Input/modal/button borders */
-
-  /* Text */
-  --text-primary: #e0e0e0;    /* Primary text, input text */
-  --text-secondary: #a0a0a0;  /* Labels, body text */
-  --text-muted: #707070;      /* Subtitles, hints */
-
-  /* Accent (primary action color) */
-  --accent: #4da6ff;          /* Accent button bg + input focus border */
-  --accent-hover: #3d96ef;    /* Accent button hover */
-}
-```
-
-All values are fully customizable — swap them for your own palette or wire them into a theme system. BaseModal has no hardcoded colors except for `.modal-error` (`#ff4d4d`) and `.btn-danger` (`#7f1d1d` / `#991b1b` / `#fca5a5`), which you can override with scoped styles or additional CSS variables if needed.
-
-### 3. Use it
-
-```vue
-<template>
-  <BaseModal title="My Modal" @close="$emit('close')">
-    <p class="modal-body">Hello from a modal.</p>
-  </BaseModal>
-</template>
-
-<script setup lang="ts">
-import BaseModal from '@/components/BaseModal.vue'
-defineEmits<{ close: [] }>()
-</script>
-```
+- **Default** (most modals): `closeOnOverlay=true`, `closeOnEscape=true` — overlay click or Escape dismisses
+- **X-only close** (`AddToSoundboardModal`, `EditSoundboardItemModal`): `closeOnOverlay=false`, `closeOnEscape=false`, `showCloseButton=true`, `width="80%"` — prevents accidental dismissal of complex forms
 
 ---
 
@@ -114,6 +92,35 @@ BaseModal exposes these classes to slotted content via `:deep()` scoped styles. 
 
 ---
 
+## Required CSS Custom Properties
+
+BaseModal styles reference these CSS variables. Define them on `:root` in your global stylesheet:
+
+```css
+:root {
+  /* Backgrounds */
+  --bg-primary: #1a1a1a;      /* Input/button background */
+  --bg-secondary: #252525;    /* Modal panel background */
+  --bg-hover: #333333;        /* Button hover state */
+
+  /* Borders */
+  --border: #3a3a3a;          /* Input/modal/button borders */
+
+  /* Text */
+  --text-primary: #e0e0e0;    /* Primary text, input text */
+  --text-secondary: #a0a0a0;  /* Labels, body text */
+  --text-muted: #707070;      /* Subtitles, hints */
+
+  /* Accent (primary action color) */
+  --accent: #4da6ff;          /* Accent button bg + input focus border */
+  --accent-hover: #3d96ef;    /* Accent button hover */
+}
+```
+
+BaseModal has no hardcoded colors except for `.modal-error` (`#ff4d4d`) and `.btn-danger` (`#7f1d1d` / `#991b1b` / `#fca5a5`), which you can override with scoped styles or additional CSS variables if needed.
+
+---
+
 ## Conventions
 
 ### ARIA & Accessibility
@@ -155,9 +162,9 @@ onMounted(() => inputEl.value?.focus())
 
 ---
 
-## Full Template Example
+## Template Examples
 
-A complete modal with labeled input, error handling, loading state, and auto-focus:
+### Standard modal with input
 
 ```vue
 <template>
@@ -213,7 +220,6 @@ async function submit() {
   error.value = ''
 
   try {
-    // Replace with your IPC call or API request
     await window.electronAPI.renameItem(name)
     emit('close')
   } catch (err) {
@@ -257,7 +263,6 @@ async function submit() {
     show-close-button
     @close="$emit('close')"
   >
-    <!-- Complex form content — users won't accidentally lose work -->
     <label class="field-label">Name</label>
     <input v-model="name" class="modal-input" />
     <template #actions>
@@ -304,8 +309,8 @@ Modal-specific elements (color pickers, file browsers, code viewers, etc.) shoul
 ## Porting to a New Project
 
 1. Copy `src/components/BaseModal.vue` into the new project
-2. Define the CSS custom properties listed in [Setup](#2-define-the-required-css-custom-properties) in your global styles
+2. Define the CSS custom properties listed in [Required CSS Custom Properties](#required-css-custom-properties) in your global styles
 3. Adjust the `@` path alias if your Vite config uses a different alias (or use relative imports)
 4. Optionally copy `tests/baseModal.test.ts` — it uses Vitest + `@vue/test-utils` with no project-specific dependencies
 
-That's it. No stores, no plugins, no external packages.
+No stores, no plugins, no external packages.
