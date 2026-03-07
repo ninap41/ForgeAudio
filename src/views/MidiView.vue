@@ -68,6 +68,13 @@
 			</div>
 		</div>
 
+		<!-- Stem directory path -->
+		<div v-if="stemsRootDir" class="stems-dir-bar">
+			<span class="stems-dir-path" :title="stemsRootDir">{{ stemsRootDir }}</span>
+			<button class="stems-dir-btn" @click="copyPath(stemsRootDir)" title="Copy path">&#x1F4CB;</button>
+			<button class="stems-dir-btn" @click="revealStem(stemsRootDir)" title="Open in Finder">&#x1F4C2;</button>
+		</div>
+
 		<!-- Grouped stems list -->
 		<div v-if="library.stemGroups.length > 0" class="stems-list">
 			<div class="stems-header">
@@ -96,7 +103,7 @@
 							@contextmenu.prevent="showStemContextMenu(stem)"
 						>
 							<span class="col-play">
-								<button class="play-btn" @click="library.playStem(stem)" :title="isPlayingStem(stem) ? 'Pause' : 'Play'">
+								<button class="play-btn" @click="toggleStemPlay(stem)" :title="isPlayingStem(stem) && library.isPlaying ? 'Pause' : 'Play'">
 									{{ isPlayingStem(stem) && library.isPlaying ? "\u23F8" : "\u25B6" }}
 								</button>
 							</span>
@@ -157,6 +164,11 @@ const exportGroupOutputDir = ref("")
 const showExportStemModal = ref(false)
 const exportStemPath = ref("")
 const exportStemDisplayName = ref("")
+
+const stemsRootDir = computed(() => {
+	if (!library.rootDirectory) return null
+	return `${library.rootDirectory}/.forgeaudio/stems`
+})
 
 const totalStemCount = computed(() => {
 	return library.stemGroups.reduce((sum: number, g: { stemCount: number }) => sum + g.stemCount, 0)
@@ -239,13 +251,31 @@ function isPlayingStem(stem: StemFile): boolean {
 	return library.currentFile?.path === stem.path
 }
 
+function toggleStemPlay(stem: StemFile) {
+	if (isPlayingStem(stem) && library.isPlaying) {
+		library.stopPlayback()
+	} else {
+		library.playStem(stem)
+	}
+}
+
 function revealStem(path: string) {
 	window.electronAPI?.showInFinder(path)
+}
+
+function copyPath(path: string) {
+	window.electronAPI?.copyPath(path)
 }
 
 onMounted(() => {
 	if (window.electronAPI) {
 		checkDemucs()
+
+		// Ensure the stems directory exists
+		if (library.rootDirectory) {
+			window.electronAPI.ensureStemsDir(library.rootDirectory)
+		}
+
 		window.electronAPI.onStemsProgress((data) => {
 			stemError.value = null
 			library.handleStemsProgress(data)
@@ -515,6 +545,48 @@ onBeforeUnmount(() => {
 	background: var(--accent);
 	border-radius: 2px;
 	transition: width 0.3s ease;
+}
+
+.stems-dir-bar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 16px;
+	background: var(--bg-secondary);
+	border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+	flex-shrink: 0;
+}
+
+.stems-dir-path {
+	flex: 1;
+	min-width: 0;
+	font-size: 11px;
+	font-family: monospace;
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.stems-dir-btn {
+	flex-shrink: 0;
+	width: 24px;
+	height: 24px;
+	border: none;
+	background: none;
+	cursor: pointer;
+	font-size: 13px;
+	border-radius: 3px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0.6;
+	transition: opacity 0.1s, background 0.1s;
+}
+
+.stems-dir-btn:hover {
+	opacity: 1;
+	background: var(--bg-hover);
 }
 
 .stems-list {

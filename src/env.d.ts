@@ -108,6 +108,7 @@ interface ElectronAPI {
   onStemItemExport: (callback: (data: { stemPath: string; displayName: string }) => void) => void
   onStemItemDelete: (callback: (data: { stemPath: string; sourcePath: string; stemType: string }) => void) => void
   removeStemMenuListeners: () => void
+  ensureStemsDir: (libraryRoot: string) => Promise<{ path: string; created: boolean; error?: string }>
   exportStemGroup: (outputDir: string, destDir: string, folderName: string) => Promise<{ success: boolean; copiedCount: number; error?: string }>
   exportStem: (stemPath: string, destDir: string, fileName: string) => Promise<{ success: boolean; error?: string }>
 }

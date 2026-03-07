@@ -5,8 +5,15 @@
       <span class="path-value">{{ storePath }}</span>
     </div>
 
+    <input
+      v-model="searchQuery"
+      class="debug-search"
+      type="text"
+      placeholder="Search JSON…"
+    />
+
     <div class="json-container">
-      <pre><code>{{ storeJson }}</code></pre>
+      <pre><code>{{ filteredJson }}</code></pre>
     </div>
 
     <template #actions>
@@ -39,6 +46,7 @@ const library = useLibraryStore()
 const storePath = ref('')
 const storeData = ref('')
 const confirmDelete = ref(false)
+const searchQuery = ref('')
 
 const storeJson = computed(() => {
   try {
@@ -47,6 +55,43 @@ const storeJson = computed(() => {
     return storeData.value || '{}'
   }
 })
+
+const filteredJson = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query) return storeJson.value
+
+  try {
+    const parsed = JSON.parse(storeData.value)
+    const filtered = filterObject(parsed, query)
+    return JSON.stringify(filtered, null, 2)
+  } catch {
+    return storeJson.value
+  }
+})
+
+function filterObject(obj: unknown, query: string): unknown {
+  if (obj === null || obj === undefined) return obj
+  if (typeof obj !== 'object') return obj
+
+  if (Array.isArray(obj)) {
+    return obj.filter(item => JSON.stringify(item).toLowerCase().includes(query))
+  }
+
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (key.toLowerCase().includes(query)) {
+      result[key] = value
+    } else if (typeof value === 'object' && value !== null) {
+      const nested = filterObject(value, query)
+      if (typeof nested === 'object' && nested !== null && Object.keys(nested).length > 0) {
+        result[key] = nested
+      }
+    } else if (String(value).toLowerCase().includes(query)) {
+      result[key] = value
+    }
+  }
+  return result
+}
 
 const dirName = computed(() => {
   if (!library.rootDirectory) return 'Tag'
@@ -92,6 +137,27 @@ onMounted(loadData)
   word-break: break-all;
   font-family: monospace;
   font-size: 11px;
+}
+
+.debug-search {
+  width: 100%;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.debug-search:focus {
+  border-color: var(--accent);
+}
+
+.debug-search::placeholder {
+  color: var(--text-muted);
 }
 
 .json-container {

@@ -149,4 +149,56 @@ describe('TagStoreDebugModal', () => {
     const code = pre.find('code')
     expect(code.exists()).toBe(true)
   })
+
+  it('renders a search input', async () => {
+    const wrapper = mount(TagStoreDebugModal)
+    await new Promise(r => setTimeout(r, 0))
+    await wrapper.vm.$nextTick()
+
+    const input = wrapper.find('.debug-search')
+    expect(input.exists()).toBe(true)
+    expect(input.attributes('placeholder')).toContain('Search')
+  })
+
+  it('filters JSON by search query', async () => {
+    const wrapper = mount(TagStoreDebugModal)
+    await new Promise(r => setTimeout(r, 0))
+    await wrapper.vm.$nextTick()
+
+    // Before search, "kick.wav" is in the output
+    expect(wrapper.find('pre').text()).toContain('kick.wav')
+
+    // Type a search query that won't match
+    await wrapper.find('.debug-search').setValue('zzzzz_no_match')
+    await wrapper.vm.$nextTick()
+
+    // "kick.wav" should be filtered out
+    expect(wrapper.find('pre').text()).not.toContain('kick.wav')
+  })
+
+  it('search is case-insensitive', async () => {
+    const wrapper = mount(TagStoreDebugModal)
+    await new Promise(r => setTimeout(r, 0))
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.debug-search').setValue('IMPACT')
+    await wrapper.vm.$nextTick()
+
+    // Should still find "impact" tag (case-insensitive)
+    expect(wrapper.find('pre').text()).toContain('impact')
+  })
+
+  it('shows full JSON when search is cleared', async () => {
+    const wrapper = mount(TagStoreDebugModal)
+    await new Promise(r => setTimeout(r, 0))
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.debug-search').setValue('zzzzz')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('pre').text()).not.toContain('kick.wav')
+
+    await wrapper.find('.debug-search').setValue('')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('pre').text()).toContain('kick.wav')
+  })
 })

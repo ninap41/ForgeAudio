@@ -53,7 +53,7 @@
 			</div>
 			<nav class="nav-tabs">
 				<router-link to="/" class="nav-tab" active-class="active">Library</router-link>
-				<router-link to="/midi" class="nav-tab" active-class="active">Midi</router-link>
+				<router-link to="/midi" class="nav-tab" active-class="active">Midi / Stems <i>(Alpha)</i></router-link>
 				<router-link to="/settings" class="nav-tab" active-class="active">Settings</router-link>
 				<div class="header-info">
 					<span class="header-info-item">
@@ -64,7 +64,9 @@
 					</span>
 					<span v-if="library.rootDirectory" class="header-info-item">
 						<span class="header-info-label">Directory:</span>
-						<span class="header-info-value glow clickable-path" @click="openDirectory" title="Open in Finder">{{ library.rootDirectory }}</span>
+						<span class="header-info-value glow clickable-path" @click="openDirectory" title="Open in Finder">{{
+							library.rootDirectory
+						}}</span>
 					</span>
 				</div>
 			</nav>

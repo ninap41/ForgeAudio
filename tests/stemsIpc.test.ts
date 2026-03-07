@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { getStemOutputDir, listStemFiles, cancelSeparation, isProcessRunning, deleteStems, exportStemGroup, exportStem } from '../electron/ipc/stems'
+import { getStemOutputDir, listStemFiles, cancelSeparation, isProcessRunning, deleteStems, exportStemGroup, exportStem, ensureStemsDirectory } from '../electron/ipc/stems'
 
 const TEST_DIR = join(tmpdir(), 'ftf-stems-test-' + Date.now())
 
@@ -118,6 +118,39 @@ describe('stems IPC', () => {
     it('succeeds even if directory does not exist (force flag)', async () => {
       const result = await deleteStems(join(TEST_DIR, 'nonexistent-dir'))
       expect(result.success).toBe(true)
+    })
+  })
+
+  describe('ensureStemsDirectory', () => {
+    it('creates the stems directory if it does not exist', async () => {
+      const freshRoot = join(TEST_DIR, 'fresh-root')
+      mkdirSync(freshRoot, { recursive: true })
+
+      const result = await ensureStemsDirectory(freshRoot)
+
+      expect(result.path).toBe(join(freshRoot, '.forgeaudio', 'stems'))
+      expect(result.error).toBeUndefined()
+      expect(existsSync(result.path)).toBe(true)
+    })
+
+    it('succeeds when stems directory already exists', async () => {
+      // TEST_DIR already has .forgeaudio/stems from beforeAll
+      const result = await ensureStemsDirectory(TEST_DIR)
+
+      expect(result.path).toBe(join(TEST_DIR, '.forgeaudio', 'stems'))
+      expect(result.error).toBeUndefined()
+      expect(existsSync(result.path)).toBe(true)
+    })
+
+    it('creates parent .forgeaudio directory as needed', async () => {
+      const emptyRoot = join(TEST_DIR, 'empty-root')
+      mkdirSync(emptyRoot, { recursive: true })
+
+      const result = await ensureStemsDirectory(emptyRoot)
+
+      expect(existsSync(join(emptyRoot, '.forgeaudio'))).toBe(true)
+      expect(existsSync(join(emptyRoot, '.forgeaudio', 'stems'))).toBe(true)
+      expect(result.error).toBeUndefined()
     })
   })
 

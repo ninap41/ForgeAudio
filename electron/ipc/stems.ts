@@ -222,6 +222,23 @@ export async function listStemFiles(
 }
 
 /**
+ * Ensure the .forgeaudio/stems directory exists for a given library root.
+ * Creates it (and parent dirs) if missing. Returns the path.
+ */
+export async function ensureStemsDirectory(
+	libraryRoot: string,
+): Promise<{ path: string; created: boolean; error?: string }> {
+	const stemsDir = join(libraryRoot, ".forgeaudio", "stems")
+	try {
+		const result = await mkdir(stemsDir, { recursive: true })
+		// mkdir with recursive returns the first directory created, or undefined if it already existed
+		return { path: stemsDir, created: result !== undefined }
+	} catch (err) {
+		return { path: stemsDir, created: false, error: (err as Error).message }
+	}
+}
+
+/**
  * Export all audio stems from an output directory to a new folder.
  * Creates destDir/folderName/ and copies all audio files into it.
  */

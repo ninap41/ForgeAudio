@@ -177,6 +177,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Stem export operations
+  ensureStemsDir: (libraryRoot: string) =>
+    ipcRenderer.invoke('stems:ensureDir', libraryRoot),
   exportStemGroup: (outputDir: string, destDir: string, folderName: string) =>
     ipcRenderer.invoke('stems:exportGroup', outputDir, destDir, folderName),
   exportStem: (stemPath: string, destDir: string, fileName: string) =>

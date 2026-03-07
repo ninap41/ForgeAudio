@@ -40,6 +40,7 @@ import {
 	deleteStems,
 	exportStemGroup,
 	exportStem,
+	ensureStemsDirectory,
 } from "./ipc/stems"
 
 // Register custom protocol for serving local audio files
@@ -549,6 +550,10 @@ ipcMain.handle("stems:getOutputDir", async (_event, libraryRoot: string, fileNam
 
 ipcMain.handle("stems:delete", async (_event, outputDir: string) => {
 	return deleteStems(outputDir)
+})
+
+ipcMain.handle("stems:ensureDir", async (_event, libraryRoot: string) => {
+	return ensureStemsDirectory(libraryRoot)
 })
 
 ipcMain.handle("stems:exportGroup", async (_event, outputDir: string, destDir: string, folderName: string) => {
