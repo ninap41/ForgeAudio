@@ -136,6 +136,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listStems: (outputDir: string) => ipcRenderer.invoke('stems:list', outputDir),
   getStemOutputDir: (libraryRoot: string, fileName: string) =>
     ipcRenderer.invoke('stems:getOutputDir', libraryRoot, fileName),
+  deleteStems: (outputDir: string) => ipcRenderer.invoke('stems:delete', outputDir),
   onStemsProgress: (callback: (data: { inputPath: string; percent: number; message: string }) => void) =>
     ipcRenderer.on('stems:progress', (_event, data) => callback(data)),
   onStemsComplete: (callback: (data: { inputPath: string; tracks: string[]; outputDir: string }) => void) =>
@@ -149,4 +150,35 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   onContextMenuSeparateStems: (callback: (filePath: string) => void) =>
     ipcRenderer.on('context-menu:separateStems', (_event, filePath) => callback(filePath)),
+
+  // Stem context menus
+  showStemGroupMenu: (params: { sourcePath: string; outputDir: string; sourceFileName: string }) =>
+    ipcRenderer.send('context-menu:showStemGroup', params),
+  showStemItemMenu: (params: { stemPath: string; displayName: string; sourcePath: string; stemType: string }) =>
+    ipcRenderer.send('context-menu:showStemItem', params),
+
+  // Stem context menu action listeners
+  onStemGroupExport: (callback: (data: { sourcePath: string; outputDir: string; sourceFileName: string }) => void) =>
+    ipcRenderer.on('context-menu:stemGroupExport', (_e, data) => callback(data)),
+  onStemGroupDelete: (callback: (data: { sourcePath: string }) => void) =>
+    ipcRenderer.on('context-menu:stemGroupDelete', (_e, data) => callback(data)),
+  onStemItemPlay: (callback: (data: { stemPath: string; displayName: string; sourcePath: string; stemType: string }) => void) =>
+    ipcRenderer.on('context-menu:stemItemPlay', (_e, data) => callback(data)),
+  onStemItemExport: (callback: (data: { stemPath: string; displayName: string }) => void) =>
+    ipcRenderer.on('context-menu:stemItemExport', (_e, data) => callback(data)),
+  onStemItemDelete: (callback: (data: { stemPath: string; sourcePath: string; stemType: string }) => void) =>
+    ipcRenderer.on('context-menu:stemItemDelete', (_e, data) => callback(data)),
+  removeStemMenuListeners: () => {
+    ipcRenderer.removeAllListeners('context-menu:stemGroupExport')
+    ipcRenderer.removeAllListeners('context-menu:stemGroupDelete')
+    ipcRenderer.removeAllListeners('context-menu:stemItemPlay')
+    ipcRenderer.removeAllListeners('context-menu:stemItemExport')
+    ipcRenderer.removeAllListeners('context-menu:stemItemDelete')
+  },
+
+  // Stem export operations
+  exportStemGroup: (outputDir: string, destDir: string, folderName: string) =>
+    ipcRenderer.invoke('stems:exportGroup', outputDir, destDir, folderName),
+  exportStem: (stemPath: string, destDir: string, fileName: string) =>
+    ipcRenderer.invoke('stems:exportStem', stemPath, destDir, fileName),
 })

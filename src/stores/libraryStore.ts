@@ -31,6 +31,16 @@ export interface StemFile {
 	duration: number | null
 }
 
+export interface StemGroup {
+	sourceFileName: string
+	sourcePath: string
+	createdAt: string
+	stemCount: number
+	outputDir: string
+	model: string
+	stems: StemFile[]
+}
+
 export interface AudioFile {
 	path: string
 	name: string
@@ -297,6 +307,35 @@ const allStemFiles = computed(() => {
 		}
 	}
 	return result
+})
+
+const stemGroups = computed(() => {
+	const groups: StemGroup[] = []
+	for (const file of files.value) {
+		if (file.stems?.status === "completed") {
+			const baseName = file.name.replace(/\.[^.]+$/, "")
+			const stemFiles: StemFile[] = file.stems.tracks.map((track) => ({
+				sourceFileName: file.name,
+				sourcePath: file.path,
+				stemType: track,
+				displayName: `${baseName}_${track}.wav`,
+				path: `${file.stems!.outputDir}/${track}.wav`,
+				duration: file.duration,
+			}))
+			groups.push({
+				sourceFileName: file.name,
+				sourcePath: file.path,
+				createdAt: file.stems.createdAt,
+				stemCount: stemFiles.length,
+				outputDir: file.stems.outputDir,
+				model: file.stems.model,
+				stems: stemFiles,
+			})
+		}
+	}
+	// Sort newest first
+	groups.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+	return groups
 })
 
 export function useLibraryStore() {
@@ -1175,6 +1214,53 @@ export function useLibraryStore() {
 		playFile(virtualFile)
 	}
 
+	async function deleteStemGroup(filePath: string): Promise<{ error?: string }> {
+		const file = files.value.find((f) => f.path === filePath)
+		if (!file) return { error: "File not found" }
+		if (!file.stems || !file.stems.outputDir) return { error: "No stems to delete" }
+
+		const outputDir = file.stems.outputDir
+		const result = await window.electronAPI.deleteStems(outputDir)
+		if (!result.success) return { error: result.error || "Failed to delete stems" }
+
+		// Stop playback if currently playing a stem from this group
+		if (currentFile.value?.path?.startsWith(outputDir)) {
+			currentFile.value = null
+			isPlaying.value = false
+		}
+
+		file.stems = undefined
+		await saveMetadata()
+		return {}
+	}
+
+	async function deleteIndividualStem(filePath: string, stemType: string): Promise<{ error?: string }> {
+		const file = files.value.find((f) => f.path === filePath)
+		if (!file) return { error: "File not found" }
+		if (!file.stems || file.stems.status !== "completed") return { error: "No completed stems" }
+
+		const stemPath = `${file.stems.outputDir}/${stemType}.wav`
+		const result = await window.electronAPI.deleteFile(stemPath)
+		if (!result.success) return { error: result.error || "Failed to delete stem file" }
+
+		// Stop playback if currently playing this exact stem
+		if (currentFile.value?.path === stemPath) {
+			currentFile.value = null
+			isPlaying.value = false
+		}
+
+		// Remove track from tracks array
+		file.stems.tracks = file.stems.tracks.filter((t) => t !== stemType)
+
+		// If no tracks remain, clear stems entirely
+		if (file.stems.tracks.length === 0) {
+			file.stems = undefined
+		}
+
+		await saveMetadata()
+		return {}
+	}
+
 	// Soundboard wrapper methods (thin — delegate to soundboardStore + persist)
 	async function createSoundboardWrapper(name: string, description: string, layoutType: "LIST" | "GRID" | "TABLE") {
 		const id = soundboardStore.createSoundboard(name, description, layoutType, activeProfileName.value)
@@ -1250,6 +1336,7 @@ export function useLibraryStore() {
 		lastClickedPath,
 		filteredFiles,
 		allStemFiles,
+		stemGroups,
 		separatingFile,
 		separatingFileName,
 		separationProgress,
@@ -1305,6 +1392,8 @@ export function useLibraryStore() {
 		handleStemsComplete,
 		handleStemsError,
 		playStem,
+		deleteStemGroup,
+		deleteIndividualStem,
 		createSoundboard: createSoundboardWrapper,
 		deleteSoundboard: deleteSoundboardWrapper,
 		updateSoundboard: updateSoundboardWrapper,

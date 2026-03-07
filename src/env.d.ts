@@ -92,11 +92,24 @@ interface ElectronAPI {
   cancelStemSeparation: (inputPath: string) => Promise<boolean>
   listStems: (outputDir: string) => Promise<Array<{ track: string; path: string }>>
   getStemOutputDir: (libraryRoot: string, fileName: string) => Promise<string>
+  deleteStems: (outputDir: string) => Promise<{ success: boolean; error?: string }>
   onStemsProgress: (callback: (data: { inputPath: string; percent: number; message: string }) => void) => void
   onStemsComplete: (callback: (data: { inputPath: string; tracks: string[]; outputDir: string }) => void) => void
   onStemsError: (callback: (data: { inputPath: string; error: string }) => void) => void
   removeStemsListeners: () => void
   onContextMenuSeparateStems: (callback: (filePath: string) => void) => void
+
+  // Stem context menus
+  showStemGroupMenu: (params: { sourcePath: string; outputDir: string; sourceFileName: string }) => void
+  showStemItemMenu: (params: { stemPath: string; displayName: string; sourcePath: string; stemType: string }) => void
+  onStemGroupExport: (callback: (data: { sourcePath: string; outputDir: string; sourceFileName: string }) => void) => void
+  onStemGroupDelete: (callback: (data: { sourcePath: string }) => void) => void
+  onStemItemPlay: (callback: (data: { stemPath: string; displayName: string; sourcePath: string; stemType: string }) => void) => void
+  onStemItemExport: (callback: (data: { stemPath: string; displayName: string }) => void) => void
+  onStemItemDelete: (callback: (data: { stemPath: string; sourcePath: string; stemType: string }) => void) => void
+  removeStemMenuListeners: () => void
+  exportStemGroup: (outputDir: string, destDir: string, folderName: string) => Promise<{ success: boolean; copiedCount: number; error?: string }>
+  exportStem: (stemPath: string, destDir: string, fileName: string) => Promise<{ success: boolean; error?: string }>
 }
 
 interface Window {

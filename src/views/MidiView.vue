@@ -68,44 +68,49 @@
 			</div>
 		</div>
 
-		<!-- Stems list -->
-		<div v-if="library.allStemFiles.length > 0" class="stems-list">
+		<!-- Grouped stems list -->
+		<div v-if="library.stemGroups.length > 0" class="stems-list">
 			<div class="stems-header">
 				<span class="stems-title">Stems</span>
-				<span class="stems-count">{{ library.allStemFiles.length }} stem{{ library.allStemFiles.length !== 1 ? "s" : "" }}</span>
-			</div>
-
-			<div class="stems-table-header">
-				<span class="col-play"></span>
-				<span class="col-name">Name</span>
-				<span class="col-type">Type</span>
-				<span class="col-source">Source</span>
-				<span class="col-duration">Duration</span>
-				<span class="col-actions">Actions</span>
+				<span class="stems-count">{{ library.stemGroups.length }} source{{ library.stemGroups.length !== 1 ? "s" : "" }} &middot; {{ totalStemCount }} stem{{ totalStemCount !== 1 ? "s" : "" }}</span>
 			</div>
 
 			<div class="stems-body">
-				<div
-					v-for="stem in library.allStemFiles"
-					:key="stem.path"
-					class="stem-row"
-					:class="{ playing: isPlayingStem(stem) }"
-				>
-					<span class="col-play">
-						<button class="play-btn" @click="library.playStem(stem)" :title="isPlayingStem(stem) ? 'Pause' : 'Play'">
-							{{ isPlayingStem(stem) && library.isPlaying ? "⏸" : "▶" }}
-						</button>
-					</span>
-					<span class="col-name" :title="stem.displayName">{{ stem.displayName }}</span>
-					<span class="col-type">
-						<span class="stem-badge" :class="'badge-' + stem.stemType">{{ stem.stemType }}</span>
-					</span>
-					<span class="col-source" :title="stem.sourceFileName">{{ stem.sourceFileName }}</span>
-					<span class="col-duration">{{ formatDuration(stem.duration) }}</span>
-					<span class="col-actions">
-						<button class="action-btn" @click="revealStem(stem.path)" title="Reveal in Finder">📂</button>
-					</span>
-				</div>
+				<template v-for="group in library.stemGroups" :key="group.sourcePath">
+					<!-- Group header row -->
+					<div class="group-row" @click="toggleGroup(group.sourcePath)" @contextmenu.prevent="showGroupContextMenu(group)">
+						<span class="group-chevron">{{ expandedGroups.has(group.sourcePath) ? "\u25BE" : "\u25B8" }}</span>
+						<span class="group-name" :title="group.sourceFileName">
+							{{ group.sourceFileName.replace(/\.[^.]+$/, '') }} <span class="group-date">&mdash; {{ formatGroupDate(group.createdAt) }}</span>
+						</span>
+						<span class="group-stem-count">{{ group.stemCount }} stem{{ group.stemCount !== 1 ? "s" : "" }}</span>
+					</div>
+
+					<!-- Child stem rows (when expanded) -->
+					<template v-if="expandedGroups.has(group.sourcePath)">
+						<div
+							v-for="stem in group.stems"
+							:key="stem.path"
+							class="stem-row"
+							:class="{ playing: isPlayingStem(stem) }"
+							@contextmenu.prevent="showStemContextMenu(stem)"
+						>
+							<span class="col-play">
+								<button class="play-btn" @click="library.playStem(stem)" :title="isPlayingStem(stem) ? 'Pause' : 'Play'">
+									{{ isPlayingStem(stem) && library.isPlaying ? "\u23F8" : "\u25B6" }}
+								</button>
+							</span>
+							<span class="col-name" :title="stem.displayName">{{ stem.displayName }}</span>
+							<span class="col-type">
+								<span class="stem-badge" :class="'badge-' + stem.stemType">{{ stem.stemType }}</span>
+							</span>
+							<span class="col-duration">{{ formatDuration(stem.duration) }}</span>
+							<span class="col-actions">
+								<button class="action-btn" @click="revealStem(stem.path)" title="Reveal in Finder">&#x1F4C2;</button>
+							</span>
+						</div>
+					</template>
+				</template>
 			</div>
 		</div>
 
@@ -113,20 +118,108 @@
 		<div v-else-if="!library.separatingFile" class="midi-empty">
 			<p class="midi-placeholder">No stems yet. Right-click an audio file in the Library and choose "Separate Stems" to get started.</p>
 		</div>
+
+		<!-- Export modals -->
+		<ExportStemGroupModal
+			v-if="showExportGroupModal"
+			:source-file-name="exportGroupFileName"
+			:output-dir="exportGroupOutputDir"
+			@close="showExportGroupModal = false"
+		/>
+		<ExportStemModal
+			v-if="showExportStemModal"
+			:stem-path="exportStemPath"
+			:display-name="exportStemDisplayName"
+			@close="showExportStemModal = false"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from "vue"
+import { ref, computed, onMounted, onBeforeUnmount } from "vue"
 import { useLibraryStore } from "@/stores/libraryStore"
-import type { StemFile } from "@/stores/libraryStore"
+import type { StemFile, StemGroup } from "@/stores/libraryStore"
 import { formatSeconds } from "@/utils/formatSeconds"
+import ExportStemGroupModal from "@/components/ExportStemGroupModal.vue"
+import ExportStemModal from "@/components/ExportStemModal.vue"
 
 const library = useLibraryStore()
 
 const setupCollapsed = ref(true)
 const demucsStatus = ref<"unknown" | "checking" | "available" | "unavailable">("unknown")
 const stemError = ref<string | null>(null)
+const expandedGroups = ref(new Set<string>())
+
+// Export modal state
+const showExportGroupModal = ref(false)
+const exportGroupFileName = ref("")
+const exportGroupOutputDir = ref("")
+const showExportStemModal = ref(false)
+const exportStemPath = ref("")
+const exportStemDisplayName = ref("")
+
+const totalStemCount = computed(() => {
+	return library.stemGroups.reduce((sum: number, g: { stemCount: number }) => sum + g.stemCount, 0)
+})
+
+function toggleGroup(sourcePath: string) {
+	const next = new Set(expandedGroups.value)
+	if (next.has(sourcePath)) {
+		next.delete(sourcePath)
+	} else {
+		next.add(sourcePath)
+	}
+	expandedGroups.value = next
+}
+
+function formatGroupDate(isoString: string): string {
+	const d = new Date(isoString)
+	const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+	const month = months[d.getMonth()]
+	const day = d.getDate()
+	const year = d.getFullYear()
+	let hours = d.getHours()
+	const minutes = d.getMinutes().toString().padStart(2, "0")
+	const ampm = hours >= 12 ? "PM" : "AM"
+	hours = hours % 12 || 12
+	return `${month} ${day}, ${year} ${hours}:${minutes} ${ampm}`
+}
+
+async function handleDeleteStems(sourcePath: string) {
+	const result = await library.deleteStemGroup(sourcePath)
+	if (result.error) {
+		stemError.value = `Failed to delete stems: ${result.error}`
+	} else {
+		// Clean up expanded state for deleted group
+		const next = new Set(expandedGroups.value)
+		next.delete(sourcePath)
+		expandedGroups.value = next
+	}
+}
+
+async function handleDeleteIndividualStem(sourcePath: string, stemType: string) {
+	const result = await library.deleteIndividualStem(sourcePath, stemType)
+	if (result.error) {
+		stemError.value = `Failed to delete stem: ${result.error}`
+	}
+}
+
+function showGroupContextMenu(group: StemGroup) {
+	window.electronAPI?.showStemGroupMenu({
+		sourcePath: group.sourcePath,
+		outputDir: group.outputDir,
+		sourceFileName: group.sourceFileName,
+	})
+}
+
+function showStemContextMenu(stem: StemFile) {
+	window.electronAPI?.showStemItemMenu({
+		stemPath: stem.path,
+		displayName: stem.displayName,
+		sourcePath: stem.sourcePath,
+		stemType: stem.stemType,
+	})
+}
 
 async function checkDemucs() {
 	demucsStatus.value = "checking"
@@ -165,12 +258,42 @@ onMounted(() => {
 			stemError.value = `Stem separation failed: ${data.error}`
 			library.handleStemsError(data)
 		})
+
+		// Stem context menu listeners
+		window.electronAPI.onStemGroupExport((data) => {
+			exportGroupFileName.value = data.sourceFileName
+			exportGroupOutputDir.value = data.outputDir
+			showExportGroupModal.value = true
+		})
+		window.electronAPI.onStemGroupDelete((data) => {
+			handleDeleteStems(data.sourcePath)
+		})
+		window.electronAPI.onStemItemPlay((data) => {
+			const stem: StemFile = {
+				sourceFileName: "",
+				sourcePath: data.sourcePath,
+				stemType: data.stemType,
+				displayName: data.displayName,
+				path: data.stemPath,
+				duration: null,
+			}
+			library.playStem(stem)
+		})
+		window.electronAPI.onStemItemExport((data) => {
+			exportStemPath.value = data.stemPath
+			exportStemDisplayName.value = data.displayName
+			showExportStemModal.value = true
+		})
+		window.electronAPI.onStemItemDelete((data) => {
+			handleDeleteIndividualStem(data.sourcePath, data.stemType)
+		})
 	}
 })
 
 onBeforeUnmount(() => {
 	if (window.electronAPI) {
 		window.electronAPI.removeStemsListeners()
+		window.electronAPI.removeStemMenuListeners()
 	}
 })
 </script>
@@ -421,31 +544,67 @@ onBeforeUnmount(() => {
 	color: var(--text-muted);
 }
 
-.stems-table-header {
-	display: flex;
-	align-items: center;
-	padding: 6px 16px;
-	font-size: 10px;
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.5px;
-	color: var(--text-muted);
-	border-bottom: 1px solid var(--border);
-	background: var(--bg-secondary);
-}
-
 .stems-body {
 	flex: 1;
 	overflow-y: auto;
 }
 
+/* Group row */
+.group-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 7px 16px;
+	font-size: 12px;
+	color: var(--text-primary);
+	border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+	background: var(--bg-secondary);
+	cursor: pointer;
+	user-select: none;
+}
+
+.group-row:hover {
+	background: var(--bg-hover);
+}
+
+.group-chevron {
+	width: 14px;
+	flex-shrink: 0;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.group-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 600;
+}
+
+.group-date {
+	font-weight: 400;
+	color: var(--text-secondary);
+}
+
+.group-stem-count {
+	flex-shrink: 0;
+	font-size: 10px;
+	color: var(--text-muted);
+	padding: 1px 6px;
+	border-radius: 3px;
+	background: color-mix(in srgb, var(--border) 40%, transparent);
+}
+
+/* Stem child rows */
 .stem-row {
 	display: flex;
 	align-items: center;
-	padding: 6px 16px;
+	padding: 5px 16px 5px 38px;
 	font-size: 12px;
 	color: var(--text-primary);
-	border-bottom: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
+	border-bottom: 1px solid color-mix(in srgb, var(--border) 20%, transparent);
 	transition: background 0.1s;
 }
 
@@ -473,15 +632,6 @@ onBeforeUnmount(() => {
 .col-type {
 	width: 80px;
 	flex-shrink: 0;
-}
-
-.col-source {
-	flex: 1;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	color: var(--text-secondary);
 }
 
 .col-duration {

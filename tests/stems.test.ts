@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useLibraryStore, _resetLibraryStore, type AudioFile, type StemInfo, type StemFile } from '../src/stores/libraryStore'
+import { useLibraryStore, _resetLibraryStore, type AudioFile, type StemInfo, type StemFile, type StemGroup } from '../src/stores/libraryStore'
 import { _resetTagStore } from '../src/stores/tagStore'
 import { _resetThemeStore } from '../src/stores/themeStore'
 import { _resetSoundboardStore } from '../src/stores/soundboardStore'
@@ -47,6 +47,7 @@ const mockElectronAPI = {
   onStemsError: vi.fn(),
   removeStemsListeners: vi.fn(),
   onContextMenuSeparateStems: vi.fn(),
+  deleteStems: vi.fn(),
 }
 
 vi.stubGlobal('window', { electronAPI: mockElectronAPI })
@@ -457,6 +458,282 @@ describe('stems', () => {
       const store = useLibraryStore()
       store.cancelStemSeparation()
       expect(mockElectronAPI.cancelStemSeparation).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('stemGroups computed', () => {
+    it('returns empty array when no files have completed stems', () => {
+      const store = useLibraryStore()
+      store.files = [makeFile(), makeFile({ path: '/sounds/b.wav', name: 'b.wav' })]
+      expect(store.stemGroups).toHaveLength(0)
+    })
+
+    it('returns one group per file with completed stems', () => {
+      const store = useLibraryStore()
+      store.files = [
+        makeFile({ name: 'a.wav', path: '/sounds/a.wav', stems: makeCompletedStems('a') }),
+        makeFile({ name: 'b.wav', path: '/sounds/b.wav', stems: makeCompletedStems('b') }),
+      ]
+      expect(store.stemGroups).toHaveLength(2)
+    })
+
+    it('includes correct metadata in each group', () => {
+      const store = useLibraryStore()
+      store.files = [makeFile({ name: 'mysong.wav', path: '/sounds/mysong.wav', stems: makeCompletedStems('mysong') })]
+
+      const group: StemGroup = store.stemGroups[0]
+      expect(group.sourceFileName).toBe('mysong.wav')
+      expect(group.sourcePath).toBe('/sounds/mysong.wav')
+      expect(group.createdAt).toBe('2026-03-01T00:00:00Z')
+      expect(group.stemCount).toBe(4)
+      expect(group.outputDir).toBe('/sounds/.forgeaudio/stems/htdemucs/mysong')
+      expect(group.model).toBe('htdemucs')
+    })
+
+    it('includes correct stems in each group', () => {
+      const store = useLibraryStore()
+      store.files = [makeFile({ name: 'mysong.wav', path: '/sounds/mysong.wav', stems: makeCompletedStems('mysong') })]
+
+      const group: StemGroup = store.stemGroups[0]
+      expect(group.stems).toHaveLength(4)
+      expect(group.stems.map((s: StemFile) => s.stemType)).toEqual(['drums', 'vocals', 'bass', 'other'])
+      expect(group.stems[0].displayName).toBe('mysong_drums.wav')
+    })
+
+    it('ignores files with non-completed stems', () => {
+      const store = useLibraryStore()
+      store.files = [
+        makeFile({ stems: { ...makeCompletedStems(), status: 'processing' } }),
+        makeFile({ path: '/sounds/b.wav', name: 'b.wav', stems: { ...makeCompletedStems(), status: 'failed' } }),
+      ]
+      expect(store.stemGroups).toHaveLength(0)
+    })
+
+    it('sorts groups newest first', () => {
+      const store = useLibraryStore()
+      const olderStems = { ...makeCompletedStems('a'), createdAt: '2026-01-01T00:00:00Z' }
+      const newerStems = { ...makeCompletedStems('b'), createdAt: '2026-03-01T00:00:00Z' }
+      store.files = [
+        makeFile({ name: 'a.wav', path: '/sounds/a.wav', stems: olderStems }),
+        makeFile({ name: 'b.wav', path: '/sounds/b.wav', stems: newerStems }),
+      ]
+
+      expect(store.stemGroups[0].sourceFileName).toBe('b.wav')
+      expect(store.stemGroups[1].sourceFileName).toBe('a.wav')
+    })
+  })
+
+  describe('deleteIndividualStem', () => {
+    it('removes a single track from stems', async () => {
+      const store = useLibraryStore()
+      mockElectronAPI.deleteFile.mockResolvedValue({ success: true })
+      store.files = [makeFile({ stems: makeCompletedStems() })]
+
+      const result = await store.deleteIndividualStem('/sounds/test.wav', 'drums')
+
+      expect(result.error).toBeUndefined()
+      expect(store.files[0].stems).toBeDefined()
+      expect(store.files[0].stems!.tracks).toEqual(['vocals', 'bass', 'other'])
+      expect(mockElectronAPI.deleteFile).toHaveBeenCalledWith('/sounds/.forgeaudio/stems/htdemucs/test/drums.wav')
+      expect(mockElectronAPI.writeMetadata).toHaveBeenCalled()
+    })
+
+    it('clears stems entirely when last track removed', async () => {
+      const store = useLibraryStore()
+      mockElectronAPI.deleteFile.mockResolvedValue({ success: true })
+      const stems = makeCompletedStems()
+      stems.tracks = ['drums']
+      store.files = [makeFile({ stems })]
+
+      await store.deleteIndividualStem('/sounds/test.wav', 'drums')
+
+      expect(store.files[0].stems).toBeUndefined()
+    })
+
+    it('returns error when file not found', async () => {
+      const store = useLibraryStore()
+      const result = await store.deleteIndividualStem('/sounds/nonexistent.wav', 'drums')
+      expect(result.error).toBe('File not found')
+    })
+
+    it('returns error when file has no stems', async () => {
+      const store = useLibraryStore()
+      store.files = [makeFile()]
+      const result = await store.deleteIndividualStem('/sounds/test.wav', 'drums')
+      expect(result.error).toBe('No completed stems')
+    })
+
+    it('preserves stems on IPC failure', async () => {
+      const store = useLibraryStore()
+      mockElectronAPI.deleteFile.mockResolvedValue({ success: false, error: 'Permission denied' })
+      store.files = [makeFile({ stems: makeCompletedStems() })]
+
+      const result = await store.deleteIndividualStem('/sounds/test.wav', 'drums')
+
+      expect(result.error).toBe('Permission denied')
+      expect(store.files[0].stems).toBeDefined()
+      expect(store.files[0].stems!.tracks).toHaveLength(4)
+    })
+
+    it('stops playback if playing the deleted stem', async () => {
+      const store = useLibraryStore()
+      mockElectronAPI.deleteFile.mockResolvedValue({ success: true })
+      const stems = makeCompletedStems()
+      store.files = [makeFile({ stems })]
+
+      store.currentFile = {
+        path: `${stems.outputDir}/drums.wav`,
+        name: 'test_drums.wav',
+        extension: '.wav',
+        size: 0,
+        duration: 2.5,
+        tags: [],
+        description: '',
+        lastPlayed: null,
+        createdAt: null,
+        modifiedAt: null,
+      }
+      store.isPlaying = true
+
+      await store.deleteIndividualStem('/sounds/test.wav', 'drums')
+
+      expect(store.currentFile).toBeNull()
+      expect(store.isPlaying).toBe(false)
+    })
+
+    it('does NOT stop playback if playing a different stem', async () => {
+      const store = useLibraryStore()
+      mockElectronAPI.deleteFile.mockResolvedValue({ success: true })
+      const stems = makeCompletedStems()
+      store.files = [makeFile({ stems })]
+
+      store.currentFile = {
+        path: `${stems.outputDir}/vocals.wav`,
+        name: 'test_vocals.wav',
+        extension: '.wav',
+        size: 0,
+        duration: 2.5,
+        tags: [],
+        description: '',
+        lastPlayed: null,
+        createdAt: null,
+        modifiedAt: null,
+      }
+      store.isPlaying = true
+
+      await store.deleteIndividualStem('/sounds/test.wav', 'drums')
+
+      expect(store.currentFile).not.toBeNull()
+      expect(store.isPlaying).toBe(true)
+    })
+
+    it('updates stemGroups computed (stemCount decreases)', async () => {
+      const store = useLibraryStore()
+      mockElectronAPI.deleteFile.mockResolvedValue({ success: true })
+      store.files = [makeFile({ stems: makeCompletedStems() })]
+
+      expect(store.stemGroups[0].stemCount).toBe(4)
+
+      await store.deleteIndividualStem('/sounds/test.wav', 'drums')
+
+      expect(store.stemGroups[0].stemCount).toBe(3)
+    })
+
+    it('removes group from stemGroups when last stem deleted', async () => {
+      const store = useLibraryStore()
+      mockElectronAPI.deleteFile.mockResolvedValue({ success: true })
+      const stems = makeCompletedStems()
+      stems.tracks = ['drums']
+      store.files = [makeFile({ stems })]
+
+      expect(store.stemGroups).toHaveLength(1)
+
+      await store.deleteIndividualStem('/sounds/test.wav', 'drums')
+
+      expect(store.stemGroups).toHaveLength(0)
+    })
+  })
+
+  describe('deleteStemGroup', () => {
+    it('clears stems from file and saves metadata', async () => {
+      const store = useLibraryStore()
+      mockElectronAPI.deleteStems.mockResolvedValue({ success: true })
+      store.files = [makeFile({ stems: makeCompletedStems() })]
+
+      const result = await store.deleteStemGroup('/sounds/test.wav')
+
+      expect(result.error).toBeUndefined()
+      expect(store.files[0].stems).toBeUndefined()
+      expect(mockElectronAPI.deleteStems).toHaveBeenCalledWith('/sounds/.forgeaudio/stems/htdemucs/test')
+      expect(mockElectronAPI.writeMetadata).toHaveBeenCalled()
+    })
+
+    it('returns error when file not found', async () => {
+      const store = useLibraryStore()
+      const result = await store.deleteStemGroup('/sounds/nonexistent.wav')
+      expect(result.error).toBe('File not found')
+    })
+
+    it('returns error when file has no stems', async () => {
+      const store = useLibraryStore()
+      store.files = [makeFile()]
+      const result = await store.deleteStemGroup('/sounds/test.wav')
+      expect(result.error).toBe('No stems to delete')
+    })
+
+    it('preserves stems when IPC deletion fails', async () => {
+      const store = useLibraryStore()
+      mockElectronAPI.deleteStems.mockResolvedValue({ success: false, error: 'Permission denied' })
+      store.files = [makeFile({ stems: makeCompletedStems() })]
+
+      const result = await store.deleteStemGroup('/sounds/test.wav')
+
+      expect(result.error).toBe('Permission denied')
+      expect(store.files[0].stems).toBeDefined()
+      expect(store.files[0].stems!.status).toBe('completed')
+    })
+
+    it('stops playback if playing a stem from the deleted group', async () => {
+      const store = useLibraryStore()
+      mockElectronAPI.deleteStems.mockResolvedValue({ success: true })
+      const stems = makeCompletedStems()
+      store.files = [makeFile({ stems })]
+
+      // Simulate playing a stem from this group
+      store.currentFile = {
+        path: `${stems.outputDir}/drums.wav`,
+        name: 'test_drums.wav',
+        extension: '.wav',
+        size: 0,
+        duration: 2.5,
+        tags: [],
+        description: '',
+        lastPlayed: null,
+        createdAt: null,
+        modifiedAt: null,
+      }
+      store.isPlaying = true
+
+      await store.deleteStemGroup('/sounds/test.wav')
+
+      expect(store.currentFile).toBeNull()
+      expect(store.isPlaying).toBe(false)
+    })
+
+    it('removes group from stemGroups computed', async () => {
+      const store = useLibraryStore()
+      mockElectronAPI.deleteStems.mockResolvedValue({ success: true })
+      store.files = [
+        makeFile({ name: 'a.wav', path: '/sounds/a.wav', stems: makeCompletedStems('a') }),
+        makeFile({ name: 'b.wav', path: '/sounds/b.wav', stems: makeCompletedStems('b') }),
+      ]
+
+      expect(store.stemGroups).toHaveLength(2)
+
+      await store.deleteStemGroup('/sounds/a.wav')
+
+      expect(store.stemGroups).toHaveLength(1)
+      expect(store.stemGroups[0].sourceFileName).toBe('b.wav')
     })
   })
 })

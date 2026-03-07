@@ -37,6 +37,9 @@ import {
 	cancelSeparation,
 	listStemFiles,
 	getStemOutputDir,
+	deleteStems,
+	exportStemGroup,
+	exportStem,
 } from "./ipc/stems"
 
 // Register custom protocol for serving local audio files
@@ -544,6 +547,18 @@ ipcMain.handle("stems:getOutputDir", async (_event, libraryRoot: string, fileNam
 	return getStemOutputDir(libraryRoot, fileName)
 })
 
+ipcMain.handle("stems:delete", async (_event, outputDir: string) => {
+	return deleteStems(outputDir)
+})
+
+ipcMain.handle("stems:exportGroup", async (_event, outputDir: string, destDir: string, folderName: string) => {
+	return exportStemGroup(outputDir, destDir, folderName)
+})
+
+ipcMain.handle("stems:exportStem", async (_event, stemPath: string, destDir: string, fileName: string) => {
+	return exportStem(stemPath, destDir, fileName)
+})
+
 // Drag-and-drop import: resolve dropped paths
 const SUPPORTED_EXTENSIONS = new Set([".wav", ".mp3", ".aiff", ".aif", ".flac", ".ogg", ".m4a"])
 
@@ -964,5 +979,90 @@ ipcMain.on(
 		]
 		const menu = Menu.buildFromTemplate(template)
 		menu.popup()
+	},
+)
+
+// Stem group context menu
+ipcMain.on(
+	"context-menu:showStemGroup",
+	(
+		event,
+		params: {
+			sourcePath: string
+			outputDir: string
+			sourceFileName: string
+		},
+	) => {
+		const template: Electron.MenuItemConstructorOptions[] = [
+			{
+				label: "Export Group\u2026",
+				click: () =>
+					event.sender.send("context-menu:stemGroupExport", {
+						sourcePath: params.sourcePath,
+						outputDir: params.outputDir,
+						sourceFileName: params.sourceFileName,
+					}),
+			},
+			{ type: "separator" },
+			{
+				label: "Delete Group\u2026",
+				click: () =>
+					event.sender.send("context-menu:stemGroupDelete", {
+						sourcePath: params.sourcePath,
+					}),
+			},
+		]
+		Menu.buildFromTemplate(template).popup()
+	},
+)
+
+// Stem item context menu
+ipcMain.on(
+	"context-menu:showStemItem",
+	(
+		event,
+		params: {
+			stemPath: string
+			displayName: string
+			sourcePath: string
+			stemType: string
+		},
+	) => {
+		const template: Electron.MenuItemConstructorOptions[] = [
+			{
+				label: "Play",
+				click: () =>
+					event.sender.send("context-menu:stemItemPlay", {
+						stemPath: params.stemPath,
+						displayName: params.displayName,
+						sourcePath: params.sourcePath,
+						stemType: params.stemType,
+					}),
+			},
+			{ type: "separator" },
+			{
+				label: "Export Stem\u2026",
+				click: () =>
+					event.sender.send("context-menu:stemItemExport", {
+						stemPath: params.stemPath,
+						displayName: params.displayName,
+					}),
+			},
+			{
+				label: process.platform === "darwin" ? "Reveal in Finder" : "Show in Explorer",
+				click: () => shell.showItemInFolder(params.stemPath),
+			},
+			{ type: "separator" },
+			{
+				label: "Delete Stem\u2026",
+				click: () =>
+					event.sender.send("context-menu:stemItemDelete", {
+						stemPath: params.stemPath,
+						sourcePath: params.sourcePath,
+						stemType: params.stemType,
+					}),
+			},
+		]
+		Menu.buildFromTemplate(template).popup()
 	},
 )

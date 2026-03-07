@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "child_process"
 import { join, basename, extname } from "path"
-import { readdir, stat, mkdir } from "fs/promises"
+import { readdir, stat, mkdir, rm, copyFile } from "fs/promises"
 
 // Active separation processes keyed by source file path
 const activeProcesses = new Map<string, ChildProcess>()
@@ -179,6 +179,18 @@ export function isProcessRunning(inputPath: string): boolean {
 }
 
 /**
+ * Delete stems output directory and all its contents.
+ */
+export async function deleteStems(outputDir: string): Promise<{ success: boolean; error?: string }> {
+	try {
+		await rm(outputDir, { recursive: true, force: true })
+		return { success: true }
+	} catch (err) {
+		return { success: false, error: (err as Error).message }
+	}
+}
+
+/**
  * List stem files in a given output directory.
  * Returns an array of { track, path } for each stem that exists on disk.
  */
@@ -206,5 +218,65 @@ export async function listStemFiles(
 		return results
 	} catch {
 		return []
+	}
+}
+
+/**
+ * Export all audio stems from an output directory to a new folder.
+ * Creates destDir/folderName/ and copies all audio files into it.
+ */
+export async function exportStemGroup(
+	outputDir: string,
+	destDir: string,
+	folderName: string,
+): Promise<{ success: boolean; copiedCount: number; error?: string }> {
+	try {
+		const targetDir = join(destDir, folderName)
+		await mkdir(targetDir, { recursive: true })
+
+		let entries: string[]
+		try {
+			entries = await readdir(outputDir)
+		} catch {
+			return { success: true, copiedCount: 0 }
+		}
+
+		let copiedCount = 0
+		for (const entry of entries) {
+			const ext = extname(entry).toLowerCase()
+			if (ext === ".wav" || ext === ".mp3" || ext === ".flac") {
+				const srcPath = join(outputDir, entry)
+				try {
+					const s = await stat(srcPath)
+					if (s.isFile()) {
+						await copyFile(srcPath, join(targetDir, entry))
+						copiedCount++
+					}
+				} catch {
+					// Skip inaccessible files
+				}
+			}
+		}
+
+		return { success: true, copiedCount }
+	} catch (err) {
+		return { success: false, copiedCount: 0, error: (err as Error).message }
+	}
+}
+
+/**
+ * Export a single stem file to a destination directory with a custom name.
+ */
+export async function exportStem(
+	stemPath: string,
+	destDir: string,
+	fileName: string,
+): Promise<{ success: boolean; error?: string }> {
+	try {
+		await stat(stemPath) // Verify source exists
+		await copyFile(stemPath, join(destDir, fileName))
+		return { success: true }
+	} catch (err) {
+		return { success: false, error: (err as Error).message }
 	}
 }

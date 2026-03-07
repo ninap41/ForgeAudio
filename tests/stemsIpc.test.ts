@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { mkdirSync, writeFileSync, rmSync } from 'fs'
+import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { getStemOutputDir, listStemFiles, cancelSeparation, isProcessRunning } from '../electron/ipc/stems'
+import { getStemOutputDir, listStemFiles, cancelSeparation, isProcessRunning, deleteStems, exportStemGroup, exportStem } from '../electron/ipc/stems'
 
 const TEST_DIR = join(tmpdir(), 'ftf-stems-test-' + Date.now())
 
@@ -92,6 +92,93 @@ describe('stems IPC', () => {
   describe('isProcessRunning', () => {
     it('returns false when no process running', () => {
       expect(isProcessRunning('/sounds/test.wav')).toBe(false)
+    })
+  })
+
+  describe('deleteStems', () => {
+    it('removes directory successfully', async () => {
+      // Create a temp directory to delete
+      const deleteDir = join(TEST_DIR, 'to-delete')
+      mkdirSync(deleteDir, { recursive: true })
+      writeFileSync(join(deleteDir, 'drums.wav'), 'fake')
+
+      const result = await deleteStems(deleteDir)
+      expect(result.success).toBe(true)
+
+      // Verify directory is gone
+      let exists = true
+      try {
+        await import('fs/promises').then(fs => fs.stat(deleteDir))
+      } catch {
+        exists = false
+      }
+      expect(exists).toBe(false)
+    })
+
+    it('succeeds even if directory does not exist (force flag)', async () => {
+      const result = await deleteStems(join(TEST_DIR, 'nonexistent-dir'))
+      expect(result.success).toBe(true)
+    })
+  })
+
+  describe('exportStemGroup', () => {
+    it('copies all audio files to new folder', async () => {
+      const stemsDir = join(TEST_DIR, '.forgeaudio', 'stems', 'htdemucs', 'mysong')
+      const destDir = join(TEST_DIR, 'export-dest-group')
+      mkdirSync(destDir, { recursive: true })
+
+      const result = await exportStemGroup(stemsDir, destDir, 'my_export')
+
+      expect(result.success).toBe(true)
+      expect(result.copiedCount).toBe(4)
+      const exported = readdirSync(join(destDir, 'my_export'))
+      expect(exported.sort()).toEqual(['bass.wav', 'drums.wav', 'other.wav', 'vocals.wav'])
+    })
+
+    it('skips non-audio files', async () => {
+      const mixedDir = join(TEST_DIR, '.forgeaudio', 'stems', 'htdemucs', 'mixed')
+      const destDir = join(TEST_DIR, 'export-dest-mixed')
+      mkdirSync(destDir, { recursive: true })
+
+      const result = await exportStemGroup(mixedDir, destDir, 'mixed_export')
+
+      expect(result.success).toBe(true)
+      expect(result.copiedCount).toBe(1)
+    })
+
+    it('returns success with 0 count for empty source', async () => {
+      const emptyDir = join(TEST_DIR, 'empty-stems')
+      mkdirSync(emptyDir, { recursive: true })
+      const destDir = join(TEST_DIR, 'export-dest-empty')
+      mkdirSync(destDir, { recursive: true })
+
+      const result = await exportStemGroup(emptyDir, destDir, 'empty_export')
+
+      expect(result.success).toBe(true)
+      expect(result.copiedCount).toBe(0)
+    })
+  })
+
+  describe('exportStem', () => {
+    it('copies single stem file with custom name', async () => {
+      const stemFile = join(TEST_DIR, '.forgeaudio', 'stems', 'htdemucs', 'mysong', 'drums.wav')
+      const destDir = join(TEST_DIR, 'export-dest-single')
+      mkdirSync(destDir, { recursive: true })
+
+      const result = await exportStem(stemFile, destDir, 'my_drums.wav')
+
+      expect(result.success).toBe(true)
+      expect(existsSync(join(destDir, 'my_drums.wav'))).toBe(true)
+    })
+
+    it('returns error for non-existent source', async () => {
+      const destDir = join(TEST_DIR, 'export-dest-err')
+      mkdirSync(destDir, { recursive: true })
+
+      const result = await exportStem(join(TEST_DIR, 'no-such-file.wav'), destDir, 'out.wav')
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBeDefined()
     })
   })
 })
