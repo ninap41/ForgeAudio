@@ -6,6 +6,7 @@
 				<span class="setup-toggle-icon">{{ setupCollapsed ? "+" : "\u2212" }}</span>
 				<span class="setup-toggle-label">Setup: Install Demucs for Stem Separation</span>
 				<span v-if="demucsStatus === 'available'" class="setup-status status-ok">Installed</span>
+				<span v-if="demucsStatus === 'available'" class="setup-status status-model">htdemucs</span>
 				<span v-else-if="demucsStatus === 'checking'" class="setup-status status-checking">Checking...</span>
 				<span v-else-if="demucsStatus === 'unavailable'" class="setup-status status-missing">Not found</span>
 			</button>
@@ -394,6 +395,13 @@ onBeforeUnmount(() => {
 .status-missing {
 	background: color-mix(in srgb, var(--danger) 20%, transparent);
 	color: var(--danger);
+}
+
+.status-model {
+	background: color-mix(in srgb, var(--accent) 15%, transparent);
+	color: var(--text-secondary, var(--accent));
+	font-style: italic;
+	text-transform: none;
 }
 
 .setup-body {
