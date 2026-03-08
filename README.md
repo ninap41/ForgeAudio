@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Electron-Desktop-blue" />
   <img src="https://img.shields.io/badge/Vue-3-brightgreen" />
   <img src="https://img.shields.io/badge/TypeScript-Strict-blue" />
-  <img src="https://img.shields.io/badge/Tests-641-success" />
+  <img src="https://img.shields.io/badge/Tests-968-success" />
   <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
 </p>
 
@@ -59,13 +59,18 @@ to be added (gifs)
 
 - **Tag autocomplete** — type `#` to open live tag dropdown with color swatches
 - **Filter chips** — press Enter to commit persistent filters
-  - `#metal` → tag filter
+  - `#metal` → tag filter (AND logic)
+  - `!#metal` → exclude tag filter
   - `impact` → description/name substring filter
+  - `!impact` → exclude description filter
+  - `$date` → date filter (created/modified/last played, on/before/after)
 
 - **AND-based logic** — all chips must match
 - **Multi-select format filter** — checkbox dropdown for `.wav`, `.mp3`, `.aiff`, `.flac`, `.ogg`, `.m4a`
-- **Tagged / Untagged toggle**
+- **#uncategorized virtual tag** — filter to show only untagged files, or exclude them
+- **Date filters** — right-click any date in columns or detail panel for quick date filter creation
 - **Keyboard navigation** — arrow keys + Enter support
+- **Filter help modal** — `?` icon shows syntax reference
 
 ---
 
@@ -99,15 +104,18 @@ The scrubber uses **display isolation** — a `displayCurrentTime` computed ref 
 - Remove tag via inline `×`
 - Right-click context menu:
   - Play
-  - Add Tag
+  - Add Tag (modal with autocomplete, creates tag if new)
   - Add Tag '${lastUsedTag}' (quick-tag with most recently used tag)
   - Edit Description
-  - Rename (on disk)
-  - Add to Soundboard... (opens modal with soundboard picker)
+  - Rename (on disk, with duplicate name validation)
+  - Separate Stems (Demucs AI stem separation)
+  - Add to Soundboard... (modal with soundboard picker)
   - Quick-add to most recently used soundboard
   - Delete (with confirmation)
   - Reveal in Finder
   - Copy Path
+- **Multi-select** — Shift-click range select, Cmd/Ctrl-click toggle; bulk context menu (Add Tag, Quick Tag, Delete Selected); multi-file drag to Finder/soundboards
+- **Expandable detail panel** — chevron toggle reveals path, size, duration, format, tags, description, created/modified/last played dates
 
 Metadata stored in portable JSON format — no database required.
 
@@ -183,6 +191,35 @@ Metadata stored in portable JSON format — no database required.
 
 ---
 
+## 🎸 Stem Separation (Demucs AI)
+
+- **AI-powered stem separation** — right-click any audio file and choose "Separate Stems" to split it into individual instrument tracks using Meta's Demucs
+- **Three models** with a dropdown selector on the Stems tab:
+
+| Model | Stems | Notes |
+|---|---|---|
+| **htdemucs** | Drums, Vocals, Bass, Other | Default. Best speed/quality balance. |
+| **htdemucs_6s** | Drums, Vocals, Bass, Other, Guitar, Piano | Experimental. Piano quality is limited. |
+| **htdemucs_ft** | Drums, Vocals, Bass, Other | Fine-tuned. ~1-3% better quality, 4x slower. |
+
+- **Streaming progress** — real-time progress bar with percentage during separation
+- **Cancel support** — stop a running separation at any time
+- **Stems tab** — grouped by source file with expandable stem rows; per-group model badge; play/pause toggle on each stem
+- **Context menus** — right-click groups (Export Group / Delete Group) or individual stems (Play / Export / Reveal in Finder / Delete)
+- **Export** — export individual stems or full groups to any directory with custom naming
+- **Persistence** — stem metadata stored in library.json and included in profile snapshots
+- **No cloud** — all processing runs locally via Python subprocess
+
+### Prerequisites
+
+1. Python 3.8+ (`brew install python` / download from python.org / `apt install python3`)
+2. FFmpeg (`brew install ffmpeg` / `choco install ffmpeg` / `apt install ffmpeg`)
+3. Demucs (`pip3 install demucs soundfile`)
+
+Model weights (~80 MB each) download automatically on first use.
+
+---
+
 # 🚀 Performance Characteristics
 
 - Parallel file system traversal
@@ -201,12 +238,13 @@ Main Process (Electron)
 ├── Scanner (parallel FS traversal)
 ├── Metadata (library.json I/O)
 ├── Audio Info (music-metadata)
-└── Context Menu (dynamic soundboard items)
+├── Stems (Demucs subprocess, model management)
+└── Context Menu (dynamic soundboard/stem items)
 │
 Renderer (Vue 3)
 │
 ├── Composable Stores (singleton pattern)
-│   ├── libraryStore (files, filters, profiles, soundboard wrappers)
+│   ├── libraryStore (files, filters, profiles, stems, soundboard wrappers)
 │   ├── tagStore
 │   ├── themeStore
 │   ├── settingsStore
@@ -215,6 +253,7 @@ Renderer (Vue 3)
 ├── Filter System (pure computed logic)
 ├── Playback Engine
 ├── Theme Engine
+├── Stem Separation (model selector, progress, grouped display)
 └── Soundboard System (drawer, docked panels, drag-and-drop)
 ```
 
@@ -240,7 +279,7 @@ Renderer (Vue 3)
 | **music-metadata** | Audio duration extraction              |
 | **chroma-js**      | Color math for theme generation        |
 | **TypeScript**     | Strict typing throughout               |
-| **Vitest**         | 641 unit tests across 34 files         |
+| **Vitest**         | 968 unit tests across 46 files         |
 
 ---
 
@@ -248,12 +287,15 @@ Renderer (Vue 3)
 
 ForgeAudio includes:
 
-- 641 unit tests across 34 files
+- 968 unit tests across 46 files
 - Store-level logic testing (library, tag, theme, settings, soundboard)
-- Filtering edge-case validation
+- Filtering edge-case validation (tag AND, description AND, date AND, exclude logic, #uncategorized virtual tag)
 - Metadata persistence coverage
-- Profile system coverage (create, switch, delete, export/import)
-- Soundboard CRUD (including updateItem, auto-expand, visibleColumns), drawer UI, docked panel rendering
+- Profile system coverage (create, switch, delete, rename, export/import, filter state persistence)
+- Soundboard CRUD (updateItem, auto-expand, visibleColumns, gridColumns, reorder, uniqueId), drawer UI, docked panel rendering
+- Stem separation (model switching, IPC, progress/complete/error, individual delete, export group/stem)
+- Multi-select and bulk operations (range select, toggle, bulk delete, bulk add tag)
+- Date filter logic (created/modified/last played, on/before/after, UTC calendar-day comparison)
 - Drag-and-drop import + conflict resolution
 - Modal rendering and ARIA compliance
 - IPC boundary mocking
@@ -314,17 +356,18 @@ electron/
 └── ipc/
     ├── scanner.ts     — Parallel recursive audio file scanner
     ├── metadata.ts    — library.json read/write
-    └── audioInfo.ts   — Audio duration extraction
+    ├── audioInfo.ts   — Audio duration extraction
+    └── stems.ts       — Demucs stem separation (spawn, progress, cancel, export, model management)
 
 src/
 ├── App.vue            — Shell layout (header, nav, player, soundboard drawer/panels)
-├── router.ts          — Routes: / → LibraryView, /settings → SettingsView
-├── components/        — 20+ components (modals, player, search, soundboard, etc.)
-├── views/             — LibraryView, SettingsView (with 9 settings sub-panels)
+├── router.ts          — Routes: / → LibraryView, /midi → MidiView, /settings → SettingsView
+├── components/        — 25+ components (modals, player, search, soundboard, stems, etc.)
+├── views/             — LibraryView, MidiView (stems), SettingsView (with 9 settings sub-panels)
 ├── stores/            — libraryStore, tagStore, themeStore, settingsStore, soundboardStore
 └── styles/            — Global CSS variables and resets
 
-tests/                 — 641 tests across 34 files
+tests/                 — 968 tests across 46 files
 ```
 
 ---
@@ -382,7 +425,6 @@ Metadata is keyed by **filename**, not full path — ensuring portability when m
 - Saved filter presets
 - Virtualized list for extremely large libraries
 - Indexed search engine
-- Soundboard offset/range playback support
 - MIDI controller mapping for soundboard pads
 
 ---
