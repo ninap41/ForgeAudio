@@ -130,12 +130,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Stem separation
   checkStemsAvailable: () => ipcRenderer.invoke('stems:checkAvailable'),
-  startStemSeparation: (inputPath: string, libraryRoot: string) =>
-    ipcRenderer.send('stems:separate', inputPath, libraryRoot),
+  startStemSeparation: (inputPath: string, libraryRoot: string, model?: string) =>
+    ipcRenderer.send('stems:separate', inputPath, libraryRoot, model),
   cancelStemSeparation: (inputPath: string) => ipcRenderer.invoke('stems:cancel', inputPath),
   listStems: (outputDir: string) => ipcRenderer.invoke('stems:list', outputDir),
-  getStemOutputDir: (libraryRoot: string, fileName: string) =>
-    ipcRenderer.invoke('stems:getOutputDir', libraryRoot, fileName),
+  getStemOutputDir: (libraryRoot: string, fileName: string, model?: string) =>
+    ipcRenderer.invoke('stems:getOutputDir', libraryRoot, fileName, model),
+  getStemModels: () => ipcRenderer.invoke('stems:getModels'),
   deleteStems: (outputDir: string) => ipcRenderer.invoke('stems:delete', outputDir),
   onStemsProgress: (callback: (data: { inputPath: string; percent: number; message: string }) => void) =>
     ipcRenderer.on('stems:progress', (_event, data) => callback(data)),

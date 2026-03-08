@@ -173,6 +173,7 @@ const separatingFile = ref<string | null>(null) // file path currently being sep
 const separatingFileName = ref<string | null>(null) // display name of the file being separated
 const separationProgress = ref<number>(0)
 const separationMessage = ref<string>("")
+const selectedStemModel = ref<string>("htdemucs")
 
 const filteredFiles = computed(() => {
 	let result = files.value
@@ -1112,7 +1113,7 @@ export function useLibraryStore() {
 
 	// --- Stem separation methods ---
 
-	async function startStemSeparation(file: AudioFile): Promise<{ error?: string }> {
+	async function startStemSeparation(file: AudioFile, model = "htdemucs"): Promise<{ error?: string }> {
 		if (separatingFile.value) {
 			return { error: "A stem separation is already in progress" }
 		}
@@ -1128,7 +1129,7 @@ export function useLibraryStore() {
 		// Set status on file
 		file.stems = {
 			status: "processing",
-			model: "htdemucs",
+			model,
 			createdAt: new Date().toISOString(),
 			tracks: [],
 			outputDir: "",
@@ -1142,7 +1143,7 @@ export function useLibraryStore() {
 		await saveMetadata()
 
 		// Fire-and-forget: main process will stream progress back
-		window.electronAPI.startStemSeparation(file.path, rootDirectory.value)
+		window.electronAPI.startStemSeparation(file.path, rootDirectory.value, model)
 		return {}
 	}
 
@@ -1173,7 +1174,7 @@ export function useLibraryStore() {
 		if (file) {
 			file.stems = {
 				status: "completed",
-				model: "htdemucs",
+				model: file.stems?.model || "htdemucs",
 				createdAt: file.stems?.createdAt || new Date().toISOString(),
 				tracks: data.tracks,
 				outputDir: data.outputDir,
@@ -1341,6 +1342,7 @@ export function useLibraryStore() {
 		separatingFileName,
 		separationProgress,
 		separationMessage,
+		selectedStemModel,
 		initFromPersistedDirectory,
 		selectAndScanDirectory,
 		createAndSetDirectory,

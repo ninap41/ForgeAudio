@@ -378,6 +378,37 @@ describe('stems', () => {
       expect(store.separatingFile).toBeNull()
       expect(store.separationProgress).toBe(100)
     })
+
+    it('preserves model from processing stems info', () => {
+      const store = useLibraryStore()
+      const file = makeFile({ stems: { status: 'processing', model: 'htdemucs_6s', createdAt: '2026-03-01T00:00:00Z', tracks: [], outputDir: '' } })
+      store.files = [file]
+      store.separatingFile = '/sounds/test.wav'
+
+      store.handleStemsComplete({
+        inputPath: '/sounds/test.wav',
+        tracks: ['drums', 'vocals', 'bass', 'other', 'guitar', 'piano'],
+        outputDir: '/sounds/.forgeaudio/stems/htdemucs_6s/test',
+      })
+
+      expect(store.files[0].stems!.model).toBe('htdemucs_6s')
+      expect(store.files[0].stems!.tracks).toEqual(['drums', 'vocals', 'bass', 'other', 'guitar', 'piano'])
+    })
+
+    it('preserves htdemucs_ft model', () => {
+      const store = useLibraryStore()
+      const file = makeFile({ stems: { status: 'processing', model: 'htdemucs_ft', createdAt: '2026-03-01T00:00:00Z', tracks: [], outputDir: '' } })
+      store.files = [file]
+      store.separatingFile = '/sounds/test.wav'
+
+      store.handleStemsComplete({
+        inputPath: '/sounds/test.wav',
+        tracks: ['drums', 'vocals', 'bass', 'other'],
+        outputDir: '/sounds/.forgeaudio/stems/htdemucs_ft/test',
+      })
+
+      expect(store.files[0].stems!.model).toBe('htdemucs_ft')
+    })
   })
 
   describe('handleStemsError', () => {
@@ -436,7 +467,54 @@ describe('stems', () => {
       expect(result.error).toBeUndefined()
       expect(store.separatingFile).toBe('/sounds/test.wav')
       expect(file.stems?.status).toBe('processing')
-      expect(mockElectronAPI.startStemSeparation).toHaveBeenCalledWith('/sounds/test.wav', '/sounds')
+      expect(mockElectronAPI.startStemSeparation).toHaveBeenCalledWith('/sounds/test.wav', '/sounds', 'htdemucs')
+    })
+
+    it('starts separation with htdemucs_6s model', async () => {
+      const store = useLibraryStore()
+      store.rootDirectory = '/sounds'
+      mockElectronAPI.checkStemsAvailable.mockResolvedValue({ available: true })
+
+      const file = makeFile()
+      store.files = [file]
+
+      const result = await store.startStemSeparation(file, 'htdemucs_6s')
+      expect(result.error).toBeUndefined()
+      expect(file.stems?.model).toBe('htdemucs_6s')
+      expect(mockElectronAPI.startStemSeparation).toHaveBeenCalledWith('/sounds/test.wav', '/sounds', 'htdemucs_6s')
+    })
+
+    it('starts separation with htdemucs_ft model', async () => {
+      const store = useLibraryStore()
+      store.rootDirectory = '/sounds'
+      mockElectronAPI.checkStemsAvailable.mockResolvedValue({ available: true })
+
+      const file = makeFile()
+      store.files = [file]
+
+      const result = await store.startStemSeparation(file, 'htdemucs_ft')
+      expect(result.error).toBeUndefined()
+      expect(file.stems?.model).toBe('htdemucs_ft')
+      expect(mockElectronAPI.startStemSeparation).toHaveBeenCalledWith('/sounds/test.wav', '/sounds', 'htdemucs_ft')
+    })
+  })
+
+  describe('selectedStemModel', () => {
+    it('defaults to htdemucs', () => {
+      const store = useLibraryStore()
+      expect(store.selectedStemModel).toBe('htdemucs')
+    })
+
+    it('can be changed to htdemucs_6s', () => {
+      const store = useLibraryStore()
+      store.selectedStemModel = 'htdemucs_6s'
+      expect(store.selectedStemModel).toBe('htdemucs_6s')
+    })
+
+    it('can be changed to htdemucs_ft', () => {
+      const store = useLibraryStore()
+      store.selectedStemModel = 'htdemucs_ft'
+      expect(store.selectedStemModel).toBe('htdemucs_ft')
     })
   })
 
@@ -498,6 +576,26 @@ describe('stems', () => {
       expect(group.stems).toHaveLength(4)
       expect(group.stems.map((s: StemFile) => s.stemType)).toEqual(['drums', 'vocals', 'bass', 'other'])
       expect(group.stems[0].displayName).toBe('mysong_drums.wav')
+    })
+
+    it('handles htdemucs_6s model with 6 stems', () => {
+      const store = useLibraryStore()
+      const stems6s: StemInfo = {
+        status: 'completed',
+        model: 'htdemucs_6s',
+        createdAt: '2026-03-01T00:00:00Z',
+        tracks: ['drums', 'vocals', 'bass', 'other', 'guitar', 'piano'],
+        outputDir: '/sounds/.forgeaudio/stems/htdemucs_6s/mysong',
+      }
+      store.files = [makeFile({ name: 'mysong.wav', path: '/sounds/mysong.wav', stems: stems6s })]
+
+      const group: StemGroup = store.stemGroups[0]
+      expect(group.model).toBe('htdemucs_6s')
+      expect(group.stemCount).toBe(6)
+      expect(group.stems.map((s: StemFile) => s.stemType)).toEqual(['drums', 'vocals', 'bass', 'other', 'guitar', 'piano'])
+      expect(group.stems[4].displayName).toBe('mysong_guitar.wav')
+      expect(group.stems[5].displayName).toBe('mysong_piano.wav')
+      expect(group.stems[4].path).toBe('/sounds/.forgeaudio/stems/htdemucs_6s/mysong/guitar.wav')
     })
 
     it('ignores files with non-completed stems', () => {

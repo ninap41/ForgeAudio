@@ -360,7 +360,7 @@ onMounted(() => {
 			const file = library.files.find((f) => f.path === filePath)
 			if (!file) return
 			stemAlert.value = null
-			const result = await library.startStemSeparation(file)
+			const result = await library.startStemSeparation(file, library.selectedStemModel)
 			if (result.error) {
 				stemAlert.value = { type: "error", message: "Stem separation failed", details: result.error }
 			} else {

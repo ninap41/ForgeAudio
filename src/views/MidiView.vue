@@ -6,7 +6,11 @@
 				<span class="setup-toggle-icon">{{ setupCollapsed ? "+" : "\u2212" }}</span>
 				<span class="setup-toggle-label">Setup: Install Demucs for Stem Separation</span>
 				<span v-if="demucsStatus === 'available'" class="setup-status status-ok">Installed</span>
-				<span v-if="demucsStatus === 'available'" class="setup-status status-model">htdemucs</span>
+				<select v-if="demucsStatus === 'available'" class="model-select" v-model="library.selectedStemModel" @click.stop title="Select Demucs model">
+					<option value="htdemucs">htdemucs (4 stems)</option>
+					<option value="htdemucs_6s">htdemucs_6s (6 stems)</option>
+					<option value="htdemucs_ft">htdemucs_ft (fine-tuned)</option>
+				</select>
 				<span v-else-if="demucsStatus === 'checking'" class="setup-status status-checking">Checking...</span>
 				<span v-else-if="demucsStatus === 'unavailable'" class="setup-status status-missing">Not found</span>
 			</button>
@@ -31,20 +35,39 @@
 					<li>
 						<strong>Install Demucs + SoundFile</strong>
 						<div class="step-detail">
-							<code>pip3 install demucs soundfile</code><br />
-							If permission errors: <code>pip3 install --user demucs soundfile</code><br />
+							macOS / Linux: <code>pip3 install demucs soundfile</code><br />
+							Windows: <code>pip install demucs soundfile</code><br />
+							If permission errors: add <code>--user</code> flag<br />
 							<em>soundfile</em> is required for torchaudio to save WAV output files.
 						</div>
 					</li>
 					<li>
 						<strong>Verify installation</strong>
 						<div class="step-detail">
-							<code>python3 -m demucs --help</code>
+							macOS / Linux: <code>python3 -m demucs --help</code><br />
+							Windows: <code>python -m demucs --help</code>
 						</div>
 					</li>
 				</ol>
+
+				<div class="models-info">
+					<div class="models-title">Available Models</div>
+					<div class="model-card">
+						<strong>htdemucs</strong> <span class="model-stems-badge">4 stems</span>
+						<div class="model-desc">Drums, Vocals, Bass, Other &mdash; Default model. Best speed/quality balance.</div>
+					</div>
+					<div class="model-card">
+						<strong>htdemucs_6s</strong> <span class="model-stems-badge">6 stems</span>
+						<div class="model-desc">Drums, Vocals, Bass, Other, Guitar, Piano &mdash; Experimental. Piano quality is limited.</div>
+					</div>
+					<div class="model-card">
+						<strong>htdemucs_ft</strong> <span class="model-stems-badge">4 stems</span>
+						<div class="model-desc">Drums, Vocals, Bass, Other &mdash; Fine-tuned for ~1-3% better quality, but 4x slower.</div>
+					</div>
+				</div>
+
 				<div class="setup-note">
-					The first separation downloads the model (~80 MB) and may take a few minutes. Subsequent runs are faster.
+					Each model downloads its weights (~80 MB) automatically on first use. Select a model from the dropdown above before running separation.
 				</div>
 				<button class="setup-check-btn" @click="checkDemucs" :disabled="demucsStatus === 'checking'">
 					{{ demucsStatus === 'checking' ? 'Checking...' : 'Check Installation' }}
@@ -91,6 +114,7 @@
 						<span class="group-name" :title="group.sourceFileName">
 							{{ group.sourceFileName.replace(/\.[^.]+$/, '') }} <span class="group-date">&mdash; {{ formatGroupDate(group.createdAt) }}</span>
 						</span>
+						<span class="group-model-badge">{{ group.model }}</span>
 						<span class="group-stem-count">{{ group.stemCount }} stem{{ group.stemCount !== 1 ? "s" : "" }}</span>
 					</div>
 
@@ -157,6 +181,7 @@ const setupCollapsed = ref(true)
 const demucsStatus = ref<"unknown" | "checking" | "available" | "unavailable">("unknown")
 const stemError = ref<string | null>(null)
 const expandedGroups = ref(new Set<string>())
+// Model selector is bound to library.selectedStemModel
 
 // Export modal state
 const showExportGroupModal = ref(false)
@@ -397,11 +422,26 @@ onBeforeUnmount(() => {
 	color: var(--danger);
 }
 
-.status-model {
-	background: color-mix(in srgb, var(--accent) 15%, transparent);
+.model-select {
+	margin-left: 8px;
+	padding: 1px 4px;
+	border-radius: 3px;
+	border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+	background: color-mix(in srgb, var(--accent) 10%, transparent);
 	color: var(--text-secondary, var(--accent));
-	font-style: italic;
-	text-transform: none;
+	font-size: 0.7rem;
+	font-family: inherit;
+	cursor: pointer;
+	outline: none;
+}
+
+.model-select:hover {
+	border-color: var(--accent);
+}
+
+.model-select option {
+	background: var(--bg-primary, #1a1a2e);
+	color: var(--text-primary, #e0e0e0);
 }
 
 .setup-body {
@@ -441,6 +481,48 @@ onBeforeUnmount(() => {
 
 .step-link {
 	color: var(--accent);
+}
+
+.models-info {
+	margin-top: 10px;
+	margin-bottom: 8px;
+}
+
+.models-title {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-secondary);
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	margin-bottom: 6px;
+}
+
+.model-card {
+	padding: 6px 10px;
+	margin-bottom: 4px;
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--accent) 5%, transparent);
+	border-left: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+	font-size: 12px;
+}
+
+.model-card strong {
+	color: var(--text-primary);
+}
+
+.model-stems-badge {
+	font-size: 10px;
+	padding: 1px 5px;
+	border-radius: 3px;
+	background: color-mix(in srgb, var(--accent) 15%, transparent);
+	color: var(--accent);
+	margin-left: 4px;
+}
+
+.model-desc {
+	font-size: 11px;
+	color: var(--text-muted);
+	margin-top: 2px;
 }
 
 .setup-note {
@@ -668,6 +750,16 @@ onBeforeUnmount(() => {
 	color: var(--text-secondary);
 }
 
+.group-model-badge {
+	flex-shrink: 0;
+	font-size: 9px;
+	color: var(--text-secondary);
+	padding: 1px 5px;
+	border-radius: 3px;
+	background: color-mix(in srgb, var(--accent) 12%, transparent);
+	font-style: italic;
+}
+
 .group-stem-count {
 	flex-shrink: 0;
 	font-size: 10px;
@@ -774,6 +866,16 @@ onBeforeUnmount(() => {
 .badge-other {
 	background: color-mix(in srgb, #a8a8a8 20%, transparent);
 	color: #a8a8a8;
+}
+
+.badge-guitar {
+	background: color-mix(in srgb, #ff9f43 20%, transparent);
+	color: #ff9f43;
+}
+
+.badge-piano {
+	background: color-mix(in srgb, #a29bfe 20%, transparent);
+	color: #a29bfe;
 }
 
 .action-btn {

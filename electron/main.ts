@@ -41,6 +41,7 @@ import {
 	exportStemGroup,
 	exportStem,
 	ensureStemsDirectory,
+	DEMUCS_MODELS,
 } from "./ipc/stems"
 
 // Register custom protocol for serving local audio files
@@ -522,12 +523,12 @@ ipcMain.handle("stems:checkAvailable", async () => {
 	return checkDemucsAvailable()
 })
 
-ipcMain.on("stems:separate", async (event, inputPath: string, libraryRoot: string) => {
-	console.log("[stems] Starting separation:", inputPath, "→", libraryRoot)
+ipcMain.on("stems:separate", async (event, inputPath: string, libraryRoot: string, model?: string) => {
+	console.log("[stems] Starting separation:", inputPath, "→", libraryRoot, "model:", model || "htdemucs")
 	try {
 		const result = await separateStems(inputPath, libraryRoot, (percent, message) => {
 			event.sender.send("stems:progress", { inputPath, percent, message })
-		})
+		}, model || "htdemucs")
 		console.log("[stems] Complete:", result.outputDir, result.tracks)
 		event.sender.send("stems:complete", { inputPath, tracks: result.tracks, outputDir: result.outputDir })
 	} catch (err) {
@@ -544,8 +545,12 @@ ipcMain.handle("stems:list", async (_event, outputDir: string) => {
 	return listStemFiles(outputDir)
 })
 
-ipcMain.handle("stems:getOutputDir", async (_event, libraryRoot: string, fileName: string) => {
-	return getStemOutputDir(libraryRoot, fileName)
+ipcMain.handle("stems:getOutputDir", async (_event, libraryRoot: string, fileName: string, model?: string) => {
+	return getStemOutputDir(libraryRoot, fileName, model)
+})
+
+ipcMain.handle("stems:getModels", async () => {
+	return DEMUCS_MODELS
 })
 
 ipcMain.handle("stems:delete", async (_event, outputDir: string) => {

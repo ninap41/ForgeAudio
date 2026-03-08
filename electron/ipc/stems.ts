@@ -15,6 +15,38 @@ export interface StemSeparationResult {
 	outputDir: string
 }
 
+export interface DemucsModel {
+	id: string
+	label: string
+	stems: string[]
+	description: string
+}
+
+export const DEMUCS_MODELS: DemucsModel[] = [
+	{
+		id: "htdemucs",
+		label: "htdemucs (4 stems)",
+		stems: ["drums", "vocals", "bass", "other"],
+		description: "Default model. Best speed/quality balance.",
+	},
+	{
+		id: "htdemucs_6s",
+		label: "htdemucs_6s (6 stems)",
+		stems: ["drums", "vocals", "bass", "other", "guitar", "piano"],
+		description: "Adds guitar + piano separation. Piano quality is experimental.",
+	},
+	{
+		id: "htdemucs_ft",
+		label: "htdemucs_ft (4 stems, fine-tuned)",
+		stems: ["drums", "vocals", "bass", "other"],
+		description: "~1-3% better quality, but 4x slower.",
+	},
+]
+
+export function getModelById(modelId: string): DemucsModel {
+	return DEMUCS_MODELS.find((m) => m.id === modelId) || DEMUCS_MODELS[0]
+}
+
 /**
  * Check if demucs is installed and available via Python.
  */
@@ -65,11 +97,11 @@ export async function checkDemucsAvailable(): Promise<StemCheckResult> {
 
 /**
  * Get the output directory for stems of a given file.
- * Structure: <libraryRoot>/.forgeaudio/stems/htdemucs/<filename-without-ext>/
+ * Structure: <libraryRoot>/.forgeaudio/stems/<model>/<filename-without-ext>/
  */
-export function getStemOutputDir(libraryRoot: string, fileName: string): string {
+export function getStemOutputDir(libraryRoot: string, fileName: string, model = "htdemucs"): string {
 	const baseName = basename(fileName, extname(fileName))
-	return join(libraryRoot, ".forgeaudio", "stems", "htdemucs", baseName)
+	return join(libraryRoot, ".forgeaudio", "stems", model, baseName)
 }
 
 /**
@@ -81,16 +113,19 @@ export async function separateStems(
 	inputPath: string,
 	libraryRoot: string,
 	onProgress: (percent: number, message: string) => void,
+	model = "htdemucs",
 ): Promise<StemSeparationResult> {
 	const stemsDir = join(libraryRoot, ".forgeaudio", "stems")
 
 	// Ensure the stems directory exists
 	await mkdir(stemsDir, { recursive: true })
 
+	const modelInfo = getModelById(model)
+
 	return new Promise((resolve, reject) => {
 		const proc = spawn(
 			"python3",
-			["-m", "demucs", "-n", "htdemucs", "-o", stemsDir, inputPath],
+			["-m", "demucs", "-n", model, "-o", stemsDir, inputPath],
 			{
 				stdio: ["ignore", "pipe", "pipe"],
 			},
@@ -138,8 +173,8 @@ export async function separateStems(
 
 			if (code === 0) {
 				const fileName = basename(inputPath)
-				const outputDir = getStemOutputDir(libraryRoot, fileName)
-				const tracks = ["drums", "vocals", "bass", "other"]
+				const outputDir = getStemOutputDir(libraryRoot, fileName, model)
+				const tracks = modelInfo.stems
 				resolve({ tracks, outputDir })
 			} else if (code === null) {
 				// Process was killed (cancelled)

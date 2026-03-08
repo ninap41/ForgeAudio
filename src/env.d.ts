@@ -17,6 +17,13 @@ interface StemCheckResult {
   error?: string
 }
 
+interface DemucsModel {
+  id: string
+  label: string
+  stems: string[]
+  description: string
+}
+
 interface ElectronAPI {
   selectDirectory: () => Promise<string | null>
   startScan: (dirPath: string, batchSize?: number) => void
@@ -88,10 +95,11 @@ interface ElectronAPI {
 
   // Stem separation
   checkStemsAvailable: () => Promise<StemCheckResult>
-  startStemSeparation: (inputPath: string, libraryRoot: string) => void
+  startStemSeparation: (inputPath: string, libraryRoot: string, model?: string) => void
+  getStemModels: () => Promise<DemucsModel[]>
   cancelStemSeparation: (inputPath: string) => Promise<boolean>
   listStems: (outputDir: string) => Promise<Array<{ track: string; path: string }>>
-  getStemOutputDir: (libraryRoot: string, fileName: string) => Promise<string>
+  getStemOutputDir: (libraryRoot: string, fileName: string, model?: string) => Promise<string>
   deleteStems: (outputDir: string) => Promise<{ success: boolean; error?: string }>
   onStemsProgress: (callback: (data: { inputPath: string; percent: number; message: string }) => void) => void
   onStemsComplete: (callback: (data: { inputPath: string; tracks: string[]; outputDir: string }) => void) => void

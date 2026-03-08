@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { getStemOutputDir, listStemFiles, cancelSeparation, isProcessRunning, deleteStems, exportStemGroup, exportStem, ensureStemsDirectory } from '../electron/ipc/stems'
+import { getStemOutputDir, listStemFiles, cancelSeparation, isProcessRunning, deleteStems, exportStemGroup, exportStem, ensureStemsDirectory, DEMUCS_MODELS, getModelById } from '../electron/ipc/stems'
 
 const TEST_DIR = join(tmpdir(), 'ftf-stems-test-' + Date.now())
 
@@ -49,6 +49,64 @@ describe('stems IPC', () => {
     it('handles nested library roots', () => {
       const result = getStemOutputDir('/Users/me/Music/library', 'kick.wav')
       expect(result).toBe('/Users/me/Music/library/.forgeaudio/stems/htdemucs/kick')
+    })
+
+    it('uses htdemucs_6s model in path', () => {
+      const result = getStemOutputDir('/sounds', 'mysong.wav', 'htdemucs_6s')
+      expect(result).toBe('/sounds/.forgeaudio/stems/htdemucs_6s/mysong')
+    })
+
+    it('uses htdemucs_ft model in path', () => {
+      const result = getStemOutputDir('/sounds', 'mysong.wav', 'htdemucs_ft')
+      expect(result).toBe('/sounds/.forgeaudio/stems/htdemucs_ft/mysong')
+    })
+
+    it('defaults to htdemucs when model omitted', () => {
+      const result = getStemOutputDir('/sounds', 'mysong.wav')
+      expect(result).toBe('/sounds/.forgeaudio/stems/htdemucs/mysong')
+    })
+  })
+
+  describe('DEMUCS_MODELS', () => {
+    it('has 3 models', () => {
+      expect(DEMUCS_MODELS).toHaveLength(3)
+    })
+
+    it('htdemucs has 4 stems', () => {
+      const model = DEMUCS_MODELS.find(m => m.id === 'htdemucs')!
+      expect(model.stems).toEqual(['drums', 'vocals', 'bass', 'other'])
+      expect(model.label).toContain('4 stems')
+    })
+
+    it('htdemucs_6s has 6 stems including guitar and piano', () => {
+      const model = DEMUCS_MODELS.find(m => m.id === 'htdemucs_6s')!
+      expect(model.stems).toEqual(['drums', 'vocals', 'bass', 'other', 'guitar', 'piano'])
+      expect(model.label).toContain('6 stems')
+    })
+
+    it('htdemucs_ft has 4 stems', () => {
+      const model = DEMUCS_MODELS.find(m => m.id === 'htdemucs_ft')!
+      expect(model.stems).toEqual(['drums', 'vocals', 'bass', 'other'])
+      expect(model.label).toContain('fine-tuned')
+    })
+
+    it('all models have required fields', () => {
+      for (const model of DEMUCS_MODELS) {
+        expect(model.id).toBeTruthy()
+        expect(model.label).toBeTruthy()
+        expect(model.stems.length).toBeGreaterThanOrEqual(4)
+        expect(model.description).toBeTruthy()
+      }
+    })
+  })
+
+  describe('getModelById', () => {
+    it('returns matching model', () => {
+      expect(getModelById('htdemucs_6s').id).toBe('htdemucs_6s')
+    })
+
+    it('returns htdemucs as default for unknown model', () => {
+      expect(getModelById('nonexistent').id).toBe('htdemucs')
     })
   })
 
