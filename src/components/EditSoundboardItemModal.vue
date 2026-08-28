@@ -158,11 +158,20 @@ onMounted(async () => {
 function previewPlayback() {
 	library.stopPlayback()
 	library.restartPlayback()
-	let file = null
-	file = library.files.find((f) => f.path === itemFilePath.value)
-	console.log("preview", file)
 
-	if (!file) return
+	const fileName = itemFilePath.value.split("/").pop() || itemFilePath.value
+	const file = library.files.find((f) => f.path === itemFilePath.value) ?? {
+		path: itemFilePath.value,
+		name: fileName,
+		extension: "." + (itemFilePath.value.split(".").pop() || "wav"),
+		size: 0,
+		duration: fileDuration.value,
+		tags: [],
+		description: "",
+		lastPlayed: null,
+		createdAt: null,
+		modifiedAt: null,
+	}
 
 	if (partialMode.value === "offset") {
 		library.playFile(file, { offset: offset.value ?? 0 })

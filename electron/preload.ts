@@ -155,7 +155,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Stem context menus
   showStemGroupMenu: (params: { sourcePath: string; outputDir: string; sourceFileName: string }) =>
     ipcRenderer.send('context-menu:showStemGroup', params),
-  showStemItemMenu: (params: { stemPath: string; displayName: string; sourcePath: string; stemType: string }) =>
+  showStemItemMenu: (params: {
+    stemPath: string; displayName: string; sourcePath: string; stemType: string
+    soundboards?: Array<{ id: string; name: string }>
+    recentSoundboardId?: string | null
+    recentSoundboardName?: string | null
+  }) =>
     ipcRenderer.send('context-menu:showStemItem', params),
 
   // Stem context menu action listeners
@@ -169,12 +174,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('context-menu:stemItemExport', (_e, data) => callback(data)),
   onStemItemDelete: (callback: (data: { stemPath: string; sourcePath: string; stemType: string }) => void) =>
     ipcRenderer.on('context-menu:stemItemDelete', (_e, data) => callback(data)),
+  onStemItemAddToSoundboard: (callback: (data: { stemPath: string; displayName: string }) => void) =>
+    ipcRenderer.on('context-menu:stemItemAddToSoundboard', (_e, data) => callback(data)),
+  onStemItemQuickAddToSoundboard: (callback: (data: { stemPath: string; displayName: string; soundboardId: string }) => void) =>
+    ipcRenderer.on('context-menu:stemItemQuickAddToSoundboard', (_e, data) => callback(data)),
   removeStemMenuListeners: () => {
     ipcRenderer.removeAllListeners('context-menu:stemGroupExport')
     ipcRenderer.removeAllListeners('context-menu:stemGroupDelete')
     ipcRenderer.removeAllListeners('context-menu:stemItemPlay')
     ipcRenderer.removeAllListeners('context-menu:stemItemExport')
     ipcRenderer.removeAllListeners('context-menu:stemItemDelete')
+    ipcRenderer.removeAllListeners('context-menu:stemItemAddToSoundboard')
+    ipcRenderer.removeAllListeners('context-menu:stemItemQuickAddToSoundboard')
   },
 
   // Stem export operations

@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Electron-Desktop-blue" />
   <img src="https://img.shields.io/badge/Vue-3-brightgreen" />
   <img src="https://img.shields.io/badge/TypeScript-Strict-blue" />
-  <img src="https://img.shields.io/badge/Tests-968-success" />
+  <img src="https://img.shields.io/badge/Tests-982-success" />
   <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
 </p>
 
@@ -174,6 +174,7 @@ Metadata stored in portable JSON format — no database required.
 - **Add items** via:
   - Right-click any file > "Add to Soundboard..." (modal with soundboard picker, custom name, partial toggle)
   - Right-click > quick-add to most recently used soundboard
+  - Right-click any stem on the Stems tab > "Add to Soundboard..." or quick-add
   - Drag rows from the library directly onto a docked soundboard panel
 - **Item context menu** — right-click any sound in a panel > Play, Edit (name/partial/offset/range modal), Remove
 - **Restart button** — hover any item to reveal a restart icon; restarts playback from the intended timestamp (offset, range start, or beginning)
@@ -205,7 +206,7 @@ Metadata stored in portable JSON format — no database required.
 - **Streaming progress** — real-time progress bar with percentage during separation
 - **Cancel support** — stop a running separation at any time
 - **Stems tab** — grouped by source file with expandable stem rows; per-group model badge; play/pause toggle on each stem
-- **Context menus** — right-click groups (Export Group / Delete Group) or individual stems (Play / Export / Reveal in Finder / Delete)
+- **Context menus** — right-click groups (Export Group / Delete Group) or individual stems (Play / Add to Soundboard / Export / Reveal in Finder / Delete)
 - **Export** — export individual stems or full groups to any directory with custom naming
 - **Persistence** — stem metadata stored in library.json and included in profile snapshots
 - **No cloud** — all processing runs locally via Python subprocess
@@ -279,7 +280,7 @@ Renderer (Vue 3)
 | **music-metadata** | Audio duration extraction              |
 | **chroma-js**      | Color math for theme generation        |
 | **TypeScript**     | Strict typing throughout               |
-| **Vitest**         | 968 unit tests across 46 files         |
+| **Vitest**         | 982 unit tests across 46 files         |
 
 ---
 
@@ -287,7 +288,7 @@ Renderer (Vue 3)
 
 ForgeAudio includes:
 
-- 968 unit tests across 46 files
+- 982 unit tests across 46 files
 - Store-level logic testing (library, tag, theme, settings, soundboard)
 - Filtering edge-case validation (tag AND, description AND, date AND, exclude logic, #uncategorized virtual tag)
 - Metadata persistence coverage
@@ -367,7 +368,7 @@ src/
 ├── stores/            — libraryStore, tagStore, themeStore, settingsStore, soundboardStore
 └── styles/            — Global CSS variables and resets
 
-tests/                 — 968 tests across 46 files
+tests/                 — 982 tests across 46 files
 ```
 
 ---

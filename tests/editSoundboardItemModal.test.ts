@@ -66,8 +66,8 @@ vi.mock('wavesurfer.js/dist/plugins/regions.esm.js', () => ({
   getStoreData: vi.fn(),
   clearTagData: vi.fn(),
   toggleDevTools: vi.fn(),
-  backupCreate: vi.fn(),
-  backupList: vi.fn(),
+  backupCreate: vi.fn().mockResolvedValue({}),
+  backupList: vi.fn().mockResolvedValue([]),
   backupDelete: vi.fn(),
   backupRestore: vi.fn(),
   saveFileDialog: vi.fn(),
@@ -416,6 +416,69 @@ describe('EditSoundboardItemModal', () => {
       const restoredRange = wrapper.findAll('input[type="number"]')
       expect(restoredRange[0].element.value).toBe('1')
       expect(restoredRange[1].element.value).toBe('8')
+    })
+  })
+
+  describe('stem file preview playback', () => {
+    const stemItemId = 'sbi_stem_1'
+
+    function setupStemItem(options: { partial?: boolean; offset?: number; range?: [number, number] } = {}) {
+      const store = useSoundboardStore()
+      sbId = store.createSoundboard('Test Board', 'desc', 'LIST', 'Default')
+      store.addItem(sbId, {
+        id: stemItemId,
+        name: 'mysong_drums.wav',
+        filePath: '/sounds/.forgeaudio/stems/htdemucs/mysong/drums.wav',
+        duration: 10,
+        partial: options.partial,
+        offset: options.offset,
+        range: options.range,
+      })
+      // Note: NO file added to library.files — stem paths are not in the library
+    }
+
+    it('pre-fills name from stem soundboard item', async () => {
+      setupStemItem()
+      const wrapper = createWrapper(sbId, stemItemId)
+      await nextTick()
+      const input = wrapper.find('input[type="text"]')
+      expect(input.element.value).toBe('mysong_drums.wav')
+    })
+
+    it('preview button exists when partial is enabled for stem item', async () => {
+      setupStemItem({ partial: true, offset: 1.0 })
+      const wrapper = createWrapper(sbId, stemItemId)
+      await nextTick()
+      expect(wrapper.find('.btn-preview').exists()).toBe(true)
+    })
+
+    it('preview offset playback works for stem item not in library.files', async () => {
+      setupStemItem({ partial: true, offset: 2.0 })
+      const library = useLibraryStore()
+      const wrapper = createWrapper(sbId, stemItemId)
+      await nextTick()
+
+      await wrapper.find('.btn-preview').trigger('click')
+      await nextTick()
+
+      // Verify playback was triggered with virtual file from stem path
+      expect(library.currentFile).not.toBeNull()
+      expect(library.currentFile!.path).toBe('/sounds/.forgeaudio/stems/htdemucs/mysong/drums.wav')
+      expect(library.playbackOffset).toBe(2.0)
+    })
+
+    it('preview range playback works for stem item not in library.files', async () => {
+      setupStemItem({ partial: true, range: [1.0, 5.0] })
+      const library = useLibraryStore()
+      const wrapper = createWrapper(sbId, stemItemId)
+      await nextTick()
+
+      await wrapper.find('.btn-preview').trigger('click')
+      await nextTick()
+
+      expect(library.currentFile).not.toBeNull()
+      expect(library.currentFile!.path).toBe('/sounds/.forgeaudio/stems/htdemucs/mysong/drums.wav')
+      expect(library.playbackRange).toEqual([1.0, 5.0])
     })
   })
 

@@ -1036,6 +1036,9 @@ ipcMain.on(
 			displayName: string
 			sourcePath: string
 			stemType: string
+			soundboards?: Array<{ id: string; name: string }>
+			recentSoundboardId?: string | null
+			recentSoundboardName?: string | null
 		},
 	) => {
 		const template: Electron.MenuItemConstructorOptions[] = [
@@ -1050,6 +1053,33 @@ ipcMain.on(
 					}),
 			},
 			{ type: "separator" },
+		]
+
+		// Soundboard items (dynamic)
+		if (params.soundboards && params.soundboards.length > 0) {
+			template.push({
+				label: "Add to Soundboard\u2026",
+				click: () =>
+					event.sender.send("context-menu:stemItemAddToSoundboard", {
+						stemPath: params.stemPath,
+						displayName: params.displayName,
+					}),
+			})
+			if (params.recentSoundboardId && params.recentSoundboardName) {
+				template.push({
+					label: `Add to '${params.recentSoundboardName}'`,
+					click: () =>
+						event.sender.send("context-menu:stemItemQuickAddToSoundboard", {
+							stemPath: params.stemPath,
+							displayName: params.displayName,
+							soundboardId: params.recentSoundboardId,
+						}),
+				})
+			}
+			template.push({ type: "separator" })
+		}
+
+		template.push(
 			{
 				label: "Export Stem\u2026",
 				click: () =>
@@ -1072,7 +1102,7 @@ ipcMain.on(
 						stemType: params.stemType,
 					}),
 			},
-		]
+		)
 		Menu.buildFromTemplate(template).popup()
 	},
 )

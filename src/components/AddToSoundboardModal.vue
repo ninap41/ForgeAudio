@@ -147,8 +147,18 @@ function previewPlayback() {
 	library.stopPlayback()
 	library.restartPlayback()
 
-	const file = library.files.find((f) => f.path === props.filePath)
-	if (!file) return
+	const file = library.files.find((f) => f.path === props.filePath) ?? {
+		path: props.filePath,
+		name: fileName.value,
+		extension: "." + (props.filePath.split(".").pop() || "wav"),
+		size: 0,
+		duration: fileDuration.value,
+		tags: [],
+		description: "",
+		lastPlayed: null,
+		createdAt: null,
+		modifiedAt: null,
+	}
 
 	if (partialMode.value === "offset") {
 		library.playFile(file, { offset: offset.value ?? 0 })

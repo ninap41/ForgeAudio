@@ -109,12 +109,19 @@ interface ElectronAPI {
 
   // Stem context menus
   showStemGroupMenu: (params: { sourcePath: string; outputDir: string; sourceFileName: string }) => void
-  showStemItemMenu: (params: { stemPath: string; displayName: string; sourcePath: string; stemType: string }) => void
+  showStemItemMenu: (params: {
+    stemPath: string; displayName: string; sourcePath: string; stemType: string
+    soundboards?: Array<{ id: string; name: string }>
+    recentSoundboardId?: string | null
+    recentSoundboardName?: string | null
+  }) => void
   onStemGroupExport: (callback: (data: { sourcePath: string; outputDir: string; sourceFileName: string }) => void) => void
   onStemGroupDelete: (callback: (data: { sourcePath: string }) => void) => void
   onStemItemPlay: (callback: (data: { stemPath: string; displayName: string; sourcePath: string; stemType: string }) => void) => void
   onStemItemExport: (callback: (data: { stemPath: string; displayName: string }) => void) => void
   onStemItemDelete: (callback: (data: { stemPath: string; sourcePath: string; stemType: string }) => void) => void
+  onStemItemAddToSoundboard: (callback: (data: { stemPath: string; displayName: string }) => void) => void
+  onStemItemQuickAddToSoundboard: (callback: (data: { stemPath: string; displayName: string; soundboardId: string }) => void) => void
   removeStemMenuListeners: () => void
   ensureStemsDir: (libraryRoot: string) => Promise<{ path: string; created: boolean; error?: string }>
   exportStemGroup: (outputDir: string, destDir: string, folderName: string) => Promise<{ success: boolean; copiedCount: number; error?: string }>

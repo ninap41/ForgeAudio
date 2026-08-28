@@ -752,6 +752,127 @@ describe('stems', () => {
     })
   })
 
+  describe('stem to soundboard', () => {
+    it('can add a stem file to a soundboard', async () => {
+      const store = useLibraryStore()
+      const { useSoundboardStore } = await import('../src/stores/soundboardStore')
+      const sbStore = useSoundboardStore()
+
+      store.files = [makeFile({ name: 'mysong.wav', path: '/sounds/mysong.wav', stems: makeCompletedStems('mysong') })]
+
+      // Create a soundboard
+      const sbId = sbStore.createSoundboard('Test Board', '', 'LIST', 'Default')
+
+      // Add stem to soundboard (simulating what MidiView does)
+      const stem = store.stemGroups[0].stems[0] // drums
+      const item = {
+        id: `sbi_${Date.now()}_test`,
+        name: stem.displayName,
+        filePath: stem.path,
+        duration: 2.5,
+      }
+      await store.addSoundboardItem(sbId, item)
+
+      const sb = sbStore.allSoundboards.find(s => s.id === sbId)
+      expect(sb!.items).toHaveLength(1)
+      expect(sb!.items[0].filePath).toBe('/sounds/.forgeaudio/stems/htdemucs/mysong/drums.wav')
+      expect(sb!.items[0].name).toBe('mysong_drums.wav')
+    })
+
+    it('can add a stem with partial offset to a soundboard', async () => {
+      const store = useLibraryStore()
+      const { useSoundboardStore } = await import('../src/stores/soundboardStore')
+      const sbStore = useSoundboardStore()
+
+      store.files = [makeFile({ name: 'mysong.wav', path: '/sounds/mysong.wav', stems: makeCompletedStems('mysong') })]
+
+      const sbId = sbStore.createSoundboard('Test Board', '', 'LIST', 'Default')
+
+      const stem = store.stemGroups[0].stems[1] // vocals
+      const item = {
+        id: `sbi_${Date.now()}_test`,
+        name: stem.displayName,
+        filePath: stem.path,
+        duration: 2.5,
+        partial: true,
+        offset: 1.5,
+      }
+      await store.addSoundboardItem(sbId, item)
+
+      const sb = sbStore.allSoundboards.find(s => s.id === sbId)
+      expect(sb!.items[0].partial).toBe(true)
+      expect(sb!.items[0].offset).toBe(1.5)
+    })
+
+    it('can add a stem with partial range to a soundboard', async () => {
+      const store = useLibraryStore()
+      const { useSoundboardStore } = await import('../src/stores/soundboardStore')
+      const sbStore = useSoundboardStore()
+
+      store.files = [makeFile({ name: 'mysong.wav', path: '/sounds/mysong.wav', stems: makeCompletedStems('mysong') })]
+
+      const sbId = sbStore.createSoundboard('Test Board', '', 'LIST', 'Default')
+
+      const stem = store.stemGroups[0].stems[2] // bass
+      const item = {
+        id: `sbi_${Date.now()}_test`,
+        name: stem.displayName,
+        filePath: stem.path,
+        duration: 2.5,
+        partial: true,
+        range: [0.5, 2.0] as [number, number],
+      }
+      await store.addSoundboardItem(sbId, item)
+
+      const sb = sbStore.allSoundboards.find(s => s.id === sbId)
+      expect(sb!.items[0].partial).toBe(true)
+      expect(sb!.items[0].range).toEqual([0.5, 2.0])
+    })
+
+    it('stem soundboard item has correct path for 6-stem model', async () => {
+      const store = useLibraryStore()
+      const { useSoundboardStore } = await import('../src/stores/soundboardStore')
+      const sbStore = useSoundboardStore()
+
+      const stems6s: StemInfo = {
+        status: 'completed',
+        model: 'htdemucs_6s',
+        createdAt: '2026-03-01T00:00:00Z',
+        tracks: ['drums', 'vocals', 'bass', 'other', 'guitar', 'piano'],
+        outputDir: '/sounds/.forgeaudio/stems/htdemucs_6s/mysong',
+      }
+      store.files = [makeFile({ name: 'mysong.wav', path: '/sounds/mysong.wav', stems: stems6s })]
+
+      const sbId = sbStore.createSoundboard('Test Board', '', 'LIST', 'Default')
+
+      const guitarStem = store.stemGroups[0].stems[4] // guitar
+      const item = {
+        id: `sbi_${Date.now()}_test`,
+        name: guitarStem.displayName,
+        filePath: guitarStem.path,
+        duration: 2.5,
+      }
+      await store.addSoundboardItem(sbId, item)
+
+      const sb = sbStore.allSoundboards.find(s => s.id === sbId)
+      expect(sb!.items[0].filePath).toBe('/sounds/.forgeaudio/stems/htdemucs_6s/mysong/guitar.wav')
+      expect(sb!.items[0].name).toBe('mysong_guitar.wav')
+    })
+
+    it('playStem creates a virtual file compatible with soundboard playback', () => {
+      const store = useLibraryStore()
+      store.files = [makeFile({ name: 'mysong.wav', path: '/sounds/mysong.wav', stems: makeCompletedStems('mysong') })]
+
+      const stem = store.stemGroups[0].stems[0]
+      store.playStem(stem)
+
+      expect(store.currentFile).toBeDefined()
+      expect(store.currentFile!.path).toBe('/sounds/.forgeaudio/stems/htdemucs/mysong/drums.wav')
+      expect(store.currentFile!.name).toBe('mysong_drums.wav')
+      expect(store.currentFile!.extension).toBe('.wav')
+    })
+  })
+
   describe('deleteStemGroup', () => {
     it('clears stems from file and saves metadata', async () => {
       const store = useLibraryStore()

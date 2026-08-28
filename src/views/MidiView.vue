@@ -164,6 +164,11 @@
 			:display-name="exportStemDisplayName"
 			@close="showExportStemModal = false"
 		/>
+		<AddToSoundboardModal
+			v-if="addToSoundboardFilePath"
+			:filePath="addToSoundboardFilePath"
+			@close="addToSoundboardFilePath = null"
+		/>
 	</div>
 </template>
 
@@ -174,8 +179,12 @@ import type { StemFile, StemGroup } from "@/stores/libraryStore"
 import { formatSeconds } from "@/utils/formatSeconds"
 import ExportStemGroupModal from "@/components/ExportStemGroupModal.vue"
 import ExportStemModal from "@/components/ExportStemModal.vue"
+import AddToSoundboardModal from "@/components/AddToSoundboardModal.vue"
+import { useSoundboardStore } from "@/stores/soundboardStore"
+import type { SoundboardItem } from "@/stores/soundboardStore"
 
 const library = useLibraryStore()
+const soundboardStore = useSoundboardStore()
 
 const setupCollapsed = ref(true)
 const demucsStatus = ref<"unknown" | "checking" | "available" | "unavailable">("unknown")
@@ -190,6 +199,7 @@ const exportGroupOutputDir = ref("")
 const showExportStemModal = ref(false)
 const exportStemPath = ref("")
 const exportStemDisplayName = ref("")
+const addToSoundboardFilePath = ref<string | null>(null)
 
 const stemsRootDir = computed(() => {
 	if (!library.rootDirectory) return null
@@ -251,11 +261,26 @@ function showGroupContextMenu(group: StemGroup) {
 }
 
 function showStemContextMenu(stem: StemFile) {
+	const profileBoards = soundboardStore.getSoundboardsForProfile(library.activeProfileName)
+	let recentSoundboardId: string | null = null
+	let recentSoundboardName: string | null = null
+	if (profileBoards.length > 0) {
+		const sorted = [...profileBoards].sort((a, b) => {
+			const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0
+			const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0
+			return tb - ta
+		})
+		recentSoundboardId = sorted[0].id
+		recentSoundboardName = sorted[0].name
+	}
 	window.electronAPI?.showStemItemMenu({
 		stemPath: stem.path,
 		displayName: stem.displayName,
 		sourcePath: stem.sourcePath,
 		stemType: stem.stemType,
+		soundboards: profileBoards.map((sb) => ({ id: sb.id, name: sb.name })),
+		recentSoundboardId,
+		recentSoundboardName,
 	})
 }
 
@@ -342,6 +367,19 @@ onMounted(() => {
 		})
 		window.electronAPI.onStemItemDelete((data) => {
 			handleDeleteIndividualStem(data.sourcePath, data.stemType)
+		})
+		window.electronAPI.onStemItemAddToSoundboard((data) => {
+			addToSoundboardFilePath.value = data.stemPath
+		})
+		window.electronAPI.onStemItemQuickAddToSoundboard(async (data) => {
+			const duration = (await window.electronAPI.getAudioDuration(data.stemPath)) ?? 0
+			const item: SoundboardItem = {
+				id: `sbi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+				name: data.displayName,
+				filePath: data.stemPath,
+				duration,
+			}
+			library.addSoundboardItem(data.soundboardId, item)
 		})
 	}
 })
