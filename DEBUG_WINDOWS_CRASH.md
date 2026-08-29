@@ -1,8 +1,6 @@
 # Windows Crash Post-Mortem — ForgeAudio
 
-**Date**: February 28, 2026
-**Severity**: Critical — app completely unusable on Windows
-**Resolution**: Removed `electronLanguages` from `package.json` build config
+**Date**: February 28, 2026 **Severity**: Critical — app completely unusable on Windows **Resolution**: Removed `electronLanguages` from `package.json` build config
 
 ---
 
@@ -54,7 +52,7 @@ Without locale files, Chromium's internal i18n module attempts to initialize `ne
 
 **GPU acceleration** — Tried `app.disableHardwareAcceleration()` thinking the crash might be graphics-related. No effect. Removed after finding real cause.
 
-**Locale switch** — Added `app.commandLine.appendSwitch("lang", "en-US")` to force the English locale. This tells Chromium which locale to *use*, but the `.pak` files must still exist on disk. No effect.
+**Locale switch** — Added `app.commandLine.appendSwitch("lang", "en-US")` to force the English locale. This tells Chromium which locale to _use_, but the `.pak` files must still exist on disk. No effect.
 
 ### 2. The Breakthrough — Binary Comparison
 
@@ -70,8 +68,7 @@ Compared the working installer (466MB) with the broken installer (141MB) using `
 7z l /tmp/broken/\$PLUGINSDIR/app-64.7z > /tmp/broken-files.txt     # 72MB
 ```
 
-**Working build**: 70 files including 55 `locales/*.pak` files
-**Broken build**: 15 files — zero locale files
+**Working build**: 70 files including 55 `locales/*.pak` files **Broken build**: 15 files — zero locale files
 
 The 89MB difference was entirely the missing locale files.
 
@@ -108,12 +105,14 @@ Rebuilt — installer is now 154MB with all 55 locale files included. App launch
 1. **CLAUDE.md Architecture Rule**: "NEVER add `electronLanguages` to the build config in `package.json` — stripping Chromium locale `.pak` files causes `Intl.Locale` crashes on Windows."
 
 2. **Crash recovery handler** added to `electron/main.ts`:
+
    ```ts
    mainWindow.webContents.on("render-process-gone", (_event, details) => {
-       console.error("[crash] Renderer process gone:", details.reason, details.exitCode)
-       // auto-reload
+   	console.error("[crash] Renderer process gone:", details.reason, details.exitCode)
+   	// auto-reload
    })
    ```
+
    This handler is what produced the diagnostic `[crash] Renderer process gone: crashed -36861` output that confirmed the renderer was crashing on startup.
 
 3. **Global error handlers** added:
