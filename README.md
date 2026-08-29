@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="public/ForgeAudioHome.png" width="900" alt="ForgeAudio library view" />
+  <img src="docs/screenshots/home-right-click-menu.png" width="900" alt="ForgeAudio library view" />
 </p>
 
 ---
