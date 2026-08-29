@@ -260,8 +260,6 @@ npm run electron:build # production build (electron-builder)
 npm test               # Vitest
 ```
 
-> ⚠ Never add `electronLanguages` to the build config — stripping Chromium locale files crashes `Intl.Locale` on Windows.
-
 ---
 
 # 📁 Project Structure
