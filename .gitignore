@@ -31,4 +31,8 @@ build/
 # Internal notes / research docs (root-level markdown other than README + CLAUDE)
 /*.md
 !/README.md
-!/CLAUDE.md
+
+
+# Claude Code project files
+.claude/
+CLAUDE.md
