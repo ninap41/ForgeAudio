@@ -3,7 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>⚡ A fast, local-first audio library manager built for serious sound collections.</strong>
+  <strong>Tag it. Filter it. Split it. Clip it. Forge it.</strong><br/>
+  <sub>tags → search → stems → soundboards · with Electron and Vue</sub>
 </p>
 
 <p align="center">
