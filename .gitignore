@@ -27,3 +27,8 @@ build/
 
 # Claude Code (keep personal/local files out)
 .claude/settings.local.json
+
+# Internal notes / research docs (root-level markdown other than README + CLAUDE)
+/*.md
+!/README.md
+!/CLAUDE.md
