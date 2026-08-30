@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/ForgeTextLogo.png" width="420" alt="ForgeAudio" />
+  <img src="https://raw.githubusercontent.com/ninap41/ForgeAudio/master/public/ForgeTextLogo.png" width="420" alt="ForgeAudio" />
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/home-right-click-menu.png" width="900" alt="ForgeAudio library view" />
+  <img src="https://raw.githubusercontent.com/ninap41/ForgeAudio/master/docs/screenshots/home-right-click-menu.png" width="900" alt="ForgeAudio library view" />
 </p>
 
 ---
@@ -42,19 +42,19 @@ Designed for sound designers, musicians, streamers, and developers who need spee
 
 | Library + right-click menu | Soundboard clip editor (waveform) |
 |---|---|
-| ![Right-click context menu](docs/screenshots/home-right-click-menu.png) | ![Add to Soundboard with waveform region](docs/screenshots/daw-soundboard-clipper.png) |
+| ![Right-click context menu](https://raw.githubusercontent.com/ninap41/ForgeAudio/master/docs/screenshots/home-right-click-menu.png) | ![Add to Soundboard with waveform region](https://raw.githubusercontent.com/ninap41/ForgeAudio/master/docs/screenshots/daw-soundboard-clipper.png) |
 
 | Soundboard drawer + docked pads | Demucs setup + model reference |
 |---|---|
-| ![Soundboard drawer and docked panel](docs/screenshots/soundboard-player.png) | ![Demucs installation steps](docs/screenshots/demuc-installation-steps.png) |
+| ![Soundboard drawer and docked panel](https://raw.githubusercontent.com/ninap41/ForgeAudio/master/docs/screenshots/soundboard-player.png) | ![Demucs installation steps](https://raw.githubusercontent.com/ninap41/ForgeAudio/master/docs/screenshots/demuc-installation-steps.png) |
 
 | Analytics & Insights | Bulk & Batch Operations |
 |---|---|
-| ![Analytics panel](docs/screenshots/analytics-and-insights.png) | ![Bulk and batch operations](docs/screenshots/bulk-and-batch-operations.png) |
+| ![Analytics panel](https://raw.githubusercontent.com/ninap41/ForgeAudio/master/docs/screenshots/analytics-and-insights.png) | ![Bulk and batch operations](https://raw.githubusercontent.com/ninap41/ForgeAudio/master/docs/screenshots/bulk-and-batch-operations.png) |
 
 | Automatic backups | Tag Store Debug Viewer |
 |---|---|
-| ![Backups panel](docs/screenshots/backups.png) | ![Tag store debug viewer](docs/screenshots/tag-store-debug-viewer.png) |
+| ![Backups panel](https://raw.githubusercontent.com/ninap41/ForgeAudio/master/docs/screenshots/backups.png) | ![Tag store debug viewer](https://raw.githubusercontent.com/ninap41/ForgeAudio/master/docs/screenshots/tag-store-debug-viewer.png) |
 
 ---
 
